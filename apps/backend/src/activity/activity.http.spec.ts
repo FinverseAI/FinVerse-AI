@@ -12,7 +12,13 @@ describe('account-scoped dashboard activity', () => {
   const originalFetch = global.fetch;
   const prisma = {
     userBill: { findMany: jest.fn(), create: jest.fn(), deleteMany: jest.fn() },
-    userTransaction: { findMany: jest.fn(), create: jest.fn() },
+    userTransaction: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      updateMany: jest.fn(),
+      findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
   };
   const bill = {
     name: 'Rent',
@@ -55,6 +61,15 @@ describe('account-scoped dashboard activity', () => {
     prisma.userBill.create.mockResolvedValue(storedBill);
     prisma.userBill.deleteMany.mockResolvedValue({ count: 1 });
     prisma.userTransaction.findMany.mockResolvedValue([]);
+    prisma.userTransaction.updateMany.mockResolvedValue({ count: 1 });
+    prisma.userTransaction.findFirst.mockResolvedValue({
+      id: 'transaction-1',
+      name: 'Groceries',
+      amount: '-25.50',
+      category: 'Food & Dining',
+      date: new Date('2026-11-13T00:00:00Z'),
+    });
+    prisma.userTransaction.deleteMany.mockResolvedValue({ count: 1 });
     global.fetch = jest.fn(async () =>
       Response.json({
         user: { id: 'owner' },
@@ -75,9 +90,18 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/transactions')
       .send({})
       .expect(401);
+    await request(app.getHttpServer())
+      .put('/api/transactions/transaction-1')
+      .send({})
+      .expect(401);
+    await request(app.getHttpServer())
+      .delete('/api/transactions/transaction-1')
+      .expect(401);
     expect(prisma.userBill.findMany).not.toHaveBeenCalled();
     expect(prisma.userBill.create).not.toHaveBeenCalled();
     expect(prisma.userBill.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.userTransaction.updateMany).not.toHaveBeenCalled();
+    expect(prisma.userTransaction.deleteMany).not.toHaveBeenCalled();
   });
   it('rejects cross-origin additions and removals', async () => {
     await request(app.getHttpServer())
@@ -180,5 +204,97 @@ describe('account-scoped dashboard activity', () => {
     expect(prisma.userTransaction.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { user_id: 'owner' } }),
     );
+  });
+  it('rejects cross-origin transaction updates and removals', async () => {
+    await request(app.getHttpServer())
+      .put('/api/transactions/transaction-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'https://other.example')
+      .send({
+        name: 'Groceries',
+        amount: -25.5,
+        category: 'Food & Dining',
+        date: '2026-11-13',
+      })
+      .expect(403);
+    await request(app.getHttpServer())
+      .delete('/api/transactions/transaction-1')
+      .set('Cookie', 'session=test')
+      .expect(403);
+    expect(prisma.userTransaction.updateMany).not.toHaveBeenCalled();
+    expect(prisma.userTransaction.deleteMany).not.toHaveBeenCalled();
+  });
+  it('updates only a transaction belonging to the owner', async () => {
+    const updated = {
+      name: 'Weekly groceries',
+      amount: -32.75,
+      category: 'Groceries',
+      date: '2026-11-14',
+    };
+    prisma.userTransaction.findFirst.mockResolvedValue({
+      ...updated,
+      id: 'transaction-1',
+      amount: '-32.75',
+      date: new Date('2026-11-14T00:00:00Z'),
+    });
+    const result = await request(app.getHttpServer())
+      .put('/api/transactions/transaction-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ ...updated, user_id: 'someone-else' })
+      .expect(200);
+    expect(result.body).toEqual({ ...updated, id: 'transaction-1' });
+    expect(prisma.userTransaction.updateMany).toHaveBeenCalledWith({
+      where: { id: 'transaction-1', user_id: 'owner' },
+      data: {
+        ...updated,
+        amount: '-32.75',
+        date: new Date('2026-11-14T00:00:00Z'),
+      },
+    });
+  });
+  it('rejects invalid transaction updates before any database write', async () => {
+    await request(app.getHttpServer())
+      .put('/api/transactions/transaction-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({
+        name: 'Groceries',
+        amount: -25.5,
+        category: 'Not a category',
+        date: '2026-11-13',
+      })
+      .expect(400);
+    expect(prisma.userTransaction.updateMany).not.toHaveBeenCalled();
+  });
+  it('reports missing transactions on update and removal', async () => {
+    prisma.userTransaction.updateMany.mockResolvedValue({ count: 0 });
+    await request(app.getHttpServer())
+      .put('/api/transactions/other-users-transaction')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({
+        name: 'Groceries',
+        amount: -25.5,
+        category: 'Food & Dining',
+        date: '2026-11-13',
+      })
+      .expect(404);
+    prisma.userTransaction.deleteMany.mockResolvedValue({ count: 0 });
+    await request(app.getHttpServer())
+      .delete('/api/transactions/other-users-transaction')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .expect(404);
+  });
+  it('removes only a transaction belonging to the owner', async () => {
+    await request(app.getHttpServer())
+      .delete('/api/transactions/transaction-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .expect(200, { deleted: true });
+    expect(prisma.userTransaction.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'transaction-1', user_id: 'owner' },
+    });
   });
 });

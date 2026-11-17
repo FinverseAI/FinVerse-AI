@@ -6,6 +6,7 @@ import {
   Header,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -46,5 +47,24 @@ export class ActivityController {
   @Header('Cache-Control', 'private, no-store')
   addTransaction(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.activity.addTransaction(request.userId, body);
+  }
+
+  @Put('transactions/:id')
+  @Header('Cache-Control', 'private, no-store')
+  updateTransaction(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.activity.updateTransaction(request.userId, id, body);
+  }
+
+  @Delete('transactions/:id')
+  @Header('Cache-Control', 'private, no-store')
+  removeTransaction(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.activity.removeTransaction(request.userId, id);
   }
 }

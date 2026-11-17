@@ -67,4 +67,29 @@ export class ActivityService {
       }),
     );
   }
+
+  async updateTransaction(userId: string, id: string, input: unknown) {
+    const data = validateTransaction(input);
+    const result = await this.prisma.userTransaction.updateMany({
+      where: { id, user_id: userId },
+      data,
+    });
+    if (!result.count)
+      throw new NotFoundException('This transaction no longer exists.');
+    const updated = await this.prisma.userTransaction.findFirst({
+      where: { id, user_id: userId },
+    });
+    if (!updated)
+      throw new NotFoundException('This transaction no longer exists.');
+    return transactionResponse(updated);
+  }
+
+  async removeTransaction(userId: string, id: string) {
+    const result = await this.prisma.userTransaction.deleteMany({
+      where: { id, user_id: userId },
+    });
+    if (!result.count)
+      throw new NotFoundException('This transaction no longer exists.');
+    return { deleted: true };
+  }
 }

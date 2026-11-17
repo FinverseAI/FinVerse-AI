@@ -93,6 +93,18 @@ export function useActivity<T extends { id: string }>(path: string) {
     });
     setItems((current) => [saved, ...current]);
   }
+  async function update(id: string, input: Omit<T, "id">) {
+    const saved = await activityRequest<T>(
+      `${path}/${encodeURIComponent(id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(input),
+      },
+    );
+    setItems((current) =>
+      current.map((item) => (item.id === id ? saved : item)),
+    );
+  }
   async function remove(id: string) {
     try {
       await activityRequest(`${path}/${encodeURIComponent(id)}`, {
@@ -105,5 +117,5 @@ export function useActivity<T extends { id: string }>(path: string) {
     }
     setItems((current) => current.filter((item) => item.id !== id));
   }
-  return { items, loading, error, retry, add, remove };
+  return { items, loading, error, retry, add, update, remove };
 }

@@ -57,6 +57,8 @@ export default function RecentTransactions({
   onRetry,
   onAdd,
   onSeeAll,
+  onEdit,
+  onRemove,
 }: {
   transactions: Transaction[];
   loading: boolean;
@@ -64,6 +66,8 @@ export default function RecentTransactions({
   onRetry: () => void;
   onAdd: () => void;
   onSeeAll: () => void;
+  onEdit: (transaction: Transaction) => void;
+  onRemove: (transaction: Transaction) => void;
 }) {
   const recent = [...transactions]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -110,16 +114,25 @@ export default function RecentTransactions({
               </caption>
               <thead className="font-mono text-xs tracking-widest text-dash-muted uppercase">
                 <tr>
-                  {["Merchant", "Category", "Date", "Amount", "Status"].map(
-                    (label) => (
-                      <th
-                        key={label}
-                        className={`pb-3 font-normal ${label === "Amount" || label === "Status" ? "text-right" : ""}`}
-                      >
-                        {label}
-                      </th>
-                    ),
-                  )}
+                  {[
+                    "Merchant",
+                    "Category",
+                    "Date",
+                    "Amount",
+                    "Status",
+                    "Actions",
+                  ].map((label) => (
+                    <th
+                      key={label}
+                      className={`pb-3 font-normal ${label === "Amount" || label === "Status" || label === "Actions" ? "text-right" : ""}`}
+                    >
+                      {label === "Actions" ? (
+                        <span className="sr-only">Actions</span>
+                      ) : (
+                        label
+                      )}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -172,6 +185,26 @@ export default function RecentTransactions({
                       <span className="dash-badge text-dash-accent">
                         Recorded
                       </span>
+                    </td>
+                    <td className="text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="dash-icon-button !size-7 !min-w-7 !border-transparent !bg-none !shadow-none"
+                        aria-label={`Edit ${item.name}`}
+                        title={`Edit ${item.name}`}
+                        onClick={() => onEdit(item)}
+                      >
+                        <Icon name="edit" className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        className="dash-icon-button !size-7 !min-w-7 !border-transparent !bg-none !shadow-none hover:!text-dash-red"
+                        aria-label={`Remove ${item.name}`}
+                        title={`Remove ${item.name}`}
+                        onClick={() => onRemove(item)}
+                      >
+                        <Icon name="trash" className="size-3.5" />
+                      </button>
                     </td>
                   </tr>
                 ))}

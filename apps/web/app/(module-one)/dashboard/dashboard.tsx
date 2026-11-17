@@ -46,6 +46,9 @@ export default function Dashboard({
   const [editingProfile, setEditingProfile] = useState(false);
   const [query, setQuery] = useState("");
   const [dialog, setDialog] = useState<DialogKind | "budgets" | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
+  const [returnToTransactions, setReturnToTransactions] = useState(false);
   const budgets = useMemo(
     () => onboardingBudgets(data.profile!),
     [data.profile],
@@ -64,6 +67,40 @@ export default function Dashboard({
 
   async function addTransaction(transaction: Omit<Transaction, "id">) {
     await activity.add(transaction);
+  }
+
+  async function updateTransaction(
+    id: string,
+    transaction: Omit<Transaction, "id">,
+  ) {
+    await activity.update(id, transaction);
+  }
+
+  async function removeTransaction(id: string) {
+    await activity.remove(id);
+  }
+
+  function openTransactionEditor(
+    transaction: Transaction,
+    kind: "edit-transaction" | "remove-transaction",
+  ) {
+    setSelectedTransaction(transaction);
+    setReturnToTransactions(dialog === "transactions");
+    setDialog(kind);
+  }
+
+  function closeDialog() {
+    if (
+      (dialog === "edit-transaction" || dialog === "remove-transaction") &&
+      returnToTransactions
+    ) {
+      setSelectedTransaction(null);
+      setReturnToTransactions(false);
+      setDialog("transactions");
+    } else {
+      setSelectedTransaction(null);
+      setDialog(null);
+    }
   }
 
   async function signOut() {
@@ -182,6 +219,12 @@ export default function Dashboard({
                 setQuery("");
                 setDialog("transactions");
               }}
+              onEdit={(transaction) =>
+                openTransactionEditor(transaction, "edit-transaction")
+              }
+              onRemove={(transaction) =>
+                openTransactionEditor(transaction, "remove-transaction")
+              }
             />
             <UpcomingBills />
           </section>
@@ -235,7 +278,7 @@ export default function Dashboard({
       {dialog && dialog !== "goal" && dialog !== "budgets" && (
         <DashboardDialog
           kind={dialog}
-          onClose={() => setDialog(null)}
+          onClose={closeDialog}
           transactions={transactions}
           transactionsLoading={activity.loading}
           transactionsError={activity.error}
@@ -244,6 +287,15 @@ export default function Dashboard({
           onQuery={setQuery}
           profile={data.profile!}
           onTransaction={addTransaction}
+          editingTransaction={selectedTransaction}
+          onEditTransaction={(transaction) =>
+            openTransactionEditor(transaction, "edit-transaction")
+          }
+          onRemoveTransaction={(transaction) =>
+            openTransactionEditor(transaction, "remove-transaction")
+          }
+          onTransactionEdit={updateTransaction}
+          onTransactionRemove={removeTransaction}
         />
       )}
     </div>
