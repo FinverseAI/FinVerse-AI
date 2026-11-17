@@ -1,8 +1,17 @@
 import { Controller, Get } from '@nestjs/common';
 
-@Controller('api')
+@Controller()
 export class AppController {
-  @Get('health')
+  @Get()
+  getRoot() {
+    return {
+      service: 'FinVerse API',
+      status: 'ok',
+      health: '/api/health',
+    };
+  }
+
+  @Get('api/health')
   getHealth() {
     return {
       success: true,

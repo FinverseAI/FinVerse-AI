@@ -17,10 +17,24 @@ describe('AppController (e2e)', () => {
   });
 
   it('/ (GET)', () => {
+    return request(app.getHttpServer()).get('/').expect(200).expect({
+      service: 'FinVerse API',
+      status: 'ok',
+      health: '/api/health',
+    });
+  });
+
+  it('/api/health (GET)', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/api/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect(({ body }: { body: Record<string, unknown> }) => {
+        expect(body).toMatchObject({
+          success: true,
+          message: 'FinVerse Backend is running 🚀',
+        });
+        expect(body.timestamp).toEqual(expect.any(String));
+      });
   });
 
   afterEach(async () => {

@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -8,15 +7,28 @@ describe('AppController', () => {
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
     }).compile();
 
     appController = app.get<AppController>(AppController);
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('returns the service status', () => {
+      expect(appController.getRoot()).toEqual({
+        service: 'FinVerse API',
+        status: 'ok',
+        health: '/api/health',
+      });
+    });
+  });
+
+  describe('health', () => {
+    it('returns a timestamped health response', () => {
+      expect(appController.getHealth()).toEqual({
+        success: true,
+        message: 'FinVerse Backend is running 🚀',
+        timestamp: expect.any(String),
+      });
     });
   });
 });
