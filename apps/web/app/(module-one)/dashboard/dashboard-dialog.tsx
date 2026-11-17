@@ -4,6 +4,7 @@ import { useState } from "react";
 import { activityError } from "./use-activity";
 import { dateKey } from "./spending-data";
 import { transactionCategories, money, type Transaction } from "./data";
+import { transactionsToCsv } from "../../../lib/export-csv";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import { Icon, MiniStat } from "./ui";
 import { Modal } from "./modal";
@@ -359,6 +360,19 @@ function TransactionTable({
         .toLowerCase()
         .includes(query.toLowerCase()),
     );
+  function exportCsv() {
+    const blob = new Blob([transactionsToCsv(filtered)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `finverse-transactions-${dateKey(new Date())}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
   return (
     <div>
       <label className="block text-xs text-dash-muted">
@@ -370,6 +384,22 @@ function TransactionTable({
           placeholder="Name, category, or date"
         />
       </label>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <p className="text-xs text-dash-muted">
+          {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+          {query ? " matching your search" : ""}
+        </p>
+        <button
+          type="button"
+          className="dash-small-button gap-1.5"
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          title="Download the listed transactions as a CSV file"
+        >
+          <Icon name="download" className="size-3" />
+          Export CSV
+        </button>
+      </div>
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-xs">
           <caption className="sr-only">All recorded transactions</caption>

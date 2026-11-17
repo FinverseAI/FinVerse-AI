@@ -23,6 +23,7 @@ const paths = {
   close: "m6 6 12 12 M6 18 18 6",
   edit: "M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16z M13 6l4 4",
   trash: "M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13 M10 11v5 M14 11v5",
+  download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
 };
 export type IconName = keyof typeof paths;
 
