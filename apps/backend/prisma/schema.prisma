@@ -23,6 +23,7 @@ model User {
   financialProfile UserFinancialProfile?
   goals            UserGoal[]
   bills            UserBill[]
+  billPayments     UserBillPayment[]
   transactions     UserTransaction[]
 }
 
@@ -148,17 +149,33 @@ model UserGoal {
 }
 
 model UserBill {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   user_id    String
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  name       String   @db.VarChar(80)
-  amount     Decimal  @db.Decimal(12, 2)
-  due_date   DateTime @db.Date
-  auto_pay   Boolean  @default(false)
-  created_at DateTime @default(now())
+  user       User              @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  name       String            @db.VarChar(80)
+  amount     Decimal           @db.Decimal(12, 2)
+  due_date   DateTime          @db.Date
+  auto_pay   Boolean           @default(false)
+  created_at DateTime          @default(now())
+  payments   UserBillPayment[]
 
   @@index([user_id, due_date])
   @@map("user_bills")
+}
+
+model UserBillPayment {
+  id         String   @id @default(cuid())
+  bill_id    String
+  bill       UserBill @relation(fields: [bill_id], references: [id], onDelete: Cascade)
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  amount     Decimal  @db.Decimal(12, 2)
+  paid_date  DateTime @db.Date
+  created_at DateTime @default(now())
+
+  @@index([bill_id])
+  @@index([user_id])
+  @@map("user_bill_payments")
 }
 
 model UserTransaction {

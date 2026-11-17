@@ -1,5 +1,9 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateBill, validateTransaction } from './activity.validation';
+import {
+  validateBill,
+  validateBillPayment,
+  validateTransaction,
+} from './activity.validation';
 
 const bill = {
   name: ' Rent ',
@@ -84,4 +88,28 @@ describe('dashboard activity validation', () => {
       BadRequestException,
     );
   });
+  it('normalizes bill payments to precise amounts and date-only values', () => {
+    expect(
+      validateBillPayment({ amount: 1850.5, paidDate: '2026-11-27' }),
+    ).toEqual({
+      amount: '1850.50',
+      paid_date: new Date('2026-11-27T00:00:00Z'),
+    });
+  });
+  it.each([0, -1, 'NaN', '1.001', '', null, 100000001])(
+    'rejects invalid payment amount %s',
+    (amount) => {
+      expect(() =>
+        validateBillPayment({ amount, paidDate: '2026-11-27' }),
+      ).toThrow(BadRequestException);
+    },
+  );
+  it.each(['2026-02-30', 'not-a-date', '1899-12-31'])(
+    'rejects invalid payment date %s',
+    (paidDate) => {
+      expect(() => validateBillPayment({ amount: 100, paidDate })).toThrow(
+        BadRequestException,
+      );
+    },
+  );
 });

@@ -105,6 +105,11 @@ export function useActivity<T extends { id: string }>(path: string) {
       current.map((item) => (item.id === id ? saved : item)),
     );
   }
+  function patch(id: string, updater: (item: T) => T) {
+    setItems((current) =>
+      current.map((item) => (item.id === id ? updater(item) : item)),
+    );
+  }
   async function remove(id: string) {
     try {
       await activityRequest(`${path}/${encodeURIComponent(id)}`, {
@@ -117,5 +122,5 @@ export function useActivity<T extends { id: string }>(path: string) {
     }
     setItems((current) => current.filter((item) => item.id !== id));
   }
-  return { items, loading, error, retry, add, update, remove };
+  return { items, loading, error, retry, add, update, patch, remove };
 }

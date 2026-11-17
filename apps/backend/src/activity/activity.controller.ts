@@ -31,10 +31,46 @@ export class ActivityController {
     return this.activity.addBill(request.userId, body);
   }
 
+  @Put('bills/:id')
+  @Header('Cache-Control', 'private, no-store')
+  updateBill(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.activity.updateBill(request.userId, id, body);
+  }
+
   @Delete('bills/:id')
   @Header('Cache-Control', 'private, no-store')
   removeBill(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
     return this.activity.removeBill(request.userId, id);
+  }
+
+  @Get('bills/:id/payments')
+  @Header('Cache-Control', 'private, no-store')
+  billPayments(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.activity.billPayments(request.userId, id);
+  }
+
+  @Post('bills/:id/payments')
+  @Header('Cache-Control', 'private, no-store')
+  addBillPayment(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.activity.addBillPayment(request.userId, id, body);
+  }
+
+  @Delete('bills/:id/payments/:paymentId')
+  @Header('Cache-Control', 'private, no-store')
+  removeBillPayment(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('paymentId') paymentId: string,
+  ) {
+    return this.activity.removeBillPayment(request.userId, id, paymentId);
   }
 
   @Get('transactions')

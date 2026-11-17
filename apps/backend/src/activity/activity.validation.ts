@@ -74,6 +74,14 @@ export function validateBill(input: unknown) {
   };
 }
 
+export function validateBillPayment(input: unknown) {
+  const body = record(input);
+  return {
+    amount: amount(body.amount),
+    paid_date: date(body.paidDate),
+  };
+}
+
 export function validateTransaction(input: unknown) {
   const body = record(input);
   if (typeof body.category !== 'string' || !categories.has(body.category)) {
