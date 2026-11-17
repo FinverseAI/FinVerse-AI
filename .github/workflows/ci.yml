@@ -19,7 +19,10 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm install --global npm@11.20.0
+      # Install the required npm version outside the checkout. Running this
+      # command in the repository would enforce devEngines before npm can be
+      # upgraded from the version bundled with Node.
+      - run: cd "$RUNNER_TEMP" && npm install --global npm@11.20.0
       - run: npm ci
       - run: echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - run: npm run db:generate --workspace backend
