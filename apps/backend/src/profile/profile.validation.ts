@@ -218,9 +218,27 @@ export function validateProfile(body: unknown) {
         : {};
     const prefix = `goals.${index}`;
     for (const key of Object.keys(goal)) {
-      if (!['name', 'target_amount', 'target_date', 'priority'].includes(key))
+      if (
+        !['id', 'name', 'target_amount', 'target_date', 'priority'].includes(
+          key,
+        )
+      )
         errors[`${prefix}.${key}`] = 'This field is not accepted.';
     }
+    // The id is accepted so an existing goal keeps its identity (and its
+    // contributions) across profile saves; it is never trusted for
+    // creation — the service recreates goals without it when it matches
+    // nothing owned by the user.
+    const id =
+      typeof goal.id === 'string' && goal.id.trim()
+        ? goal.id.trim()
+        : undefined;
+    if (
+      goal.id !== undefined &&
+      (typeof goal.id !== 'string' || !goal.id.trim() || goal.id.length > 64)
+    )
+      errors[`${prefix}.id`] =
+        'Goal IDs must be text of at most 64 characters.';
     const name = typeof goal.name === 'string' ? goal.name.trim() : '';
     if (!name || name.length > 100)
       errors[`${prefix}.name`] = 'Enter a goal name of 1 to 100 characters.';
@@ -252,6 +270,7 @@ export function validateProfile(body: unknown) {
     )
       errors[`${prefix}.priority`] = 'Choose low, medium, or high priority.';
     return {
+      id,
       name,
       target_amount: target!,
       target_date: date,

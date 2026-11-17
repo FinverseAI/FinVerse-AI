@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   UserBill,
   UserBillPayment,
+  UserGoalContribution,
   UserTransaction,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   validateBill,
   validateBillPayment,
+  validateGoalContribution,
   validateTransaction,
 } from './activity.validation';
 
@@ -32,6 +34,15 @@ function billResponse(bill: UserBill, payments: UserBillPayment[] = []) {
     autoPay: bill.auto_pay,
     paidTotal: paidCents / 100,
     payments: payments.map(paymentResponse),
+  };
+}
+
+function contributionResponse(contribution: UserGoalContribution) {
+  return {
+    id: contribution.id,
+    amount: Number(contribution.amount),
+    date: contribution.date.toISOString().slice(0, 10),
+    note: contribution.note,
   };
 }
 
@@ -137,6 +148,55 @@ export class ActivityService {
     });
     if (!result.count)
       throw new NotFoundException('This payment no longer exists.');
+    return { deleted: true };
+  }
+
+  private async ownedGoal(userId: string, goalId: string) {
+    const goal = await this.prisma.userGoal.findFirst({
+      where: { id: goalId, user_id: userId },
+    });
+    if (!goal) throw new NotFoundException('This goal no longer exists.');
+    return goal;
+  }
+
+  private async contributionsFor(userId: string, goalId: string) {
+    return this.prisma.userGoalContribution.findMany({
+      where: { goal_id: goalId, user_id: userId },
+      orderBy: [{ date: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+    });
+  }
+
+  async goalContributions(userId: string, goalId: string) {
+    await this.ownedGoal(userId, goalId);
+    return (await this.contributionsFor(userId, goalId)).map(
+      contributionResponse,
+    );
+  }
+
+  async addGoalContribution(userId: string, goalId: string, input: unknown) {
+    await this.ownedGoal(userId, goalId);
+    return contributionResponse(
+      await this.prisma.userGoalContribution.create({
+        data: {
+          ...validateGoalContribution(input),
+          goal_id: goalId,
+          user_id: userId,
+        },
+      }),
+    );
+  }
+
+  async removeGoalContribution(
+    userId: string,
+    goalId: string,
+    contributionId: string,
+  ) {
+    await this.ownedGoal(userId, goalId);
+    const result = await this.prisma.userGoalContribution.deleteMany({
+      where: { id: contributionId, goal_id: goalId, user_id: userId },
+    });
+    if (!result.count)
+      throw new NotFoundException('This contribution no longer exists.');
     return { deleted: true };
   }
 

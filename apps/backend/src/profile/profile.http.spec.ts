@@ -13,7 +13,13 @@ describe('protected financial profile HTTP endpoints', () => {
   const tx = {
     $queryRaw: jest.fn(),
     userFinancialProfile: { findUnique: jest.fn(), upsert: jest.fn() },
-    userGoal: { deleteMany: jest.fn(), createMany: jest.fn() },
+    userGoal: {
+      deleteMany: jest.fn(),
+      createMany: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
+    },
+    userGoalContribution: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
   };
   const payload = {
@@ -69,6 +75,8 @@ describe('protected financial profile HTTP endpoints', () => {
     jest.clearAllMocks();
     tx.user.findUnique.mockResolvedValue(null);
     tx.userFinancialProfile.findUnique.mockResolvedValue(null);
+    tx.userGoal.updateMany.mockResolvedValue({ count: 1 });
+    tx.userGoalContribution.findMany.mockResolvedValue([]);
     global.fetch = jest.fn(() =>
       Promise.resolve(
         Response.json({
@@ -132,6 +140,55 @@ describe('protected financial profile HTTP endpoints', () => {
     expect(tx.userGoal.deleteMany).toHaveBeenCalledWith({
       where: { user_id: 'authenticated-owner' },
     });
+  });
+
+  it('keeps goal identities across profile updates', async () => {
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+    });
+    await request(app.getHttpServer())
+      .put('/api/profile')
+      .set('Cookie', 'session=signed')
+      .set('Origin', 'http://localhost:3000')
+      .send({
+        ...payload,
+        goals: [
+          {
+            id: 'goal-1',
+            name: 'Savings',
+            target_amount: '100',
+            target_date: '2027-12-31',
+            priority: 'low',
+          },
+          {
+            name: 'Holiday',
+            target_amount: '50',
+            target_date: '2027-06-30',
+            priority: 'medium',
+          },
+        ],
+      })
+      .expect(200);
+    expect(tx.userGoal.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'authenticated-owner', id: { notIn: ['goal-1'] } },
+    });
+    expect(tx.userGoal.updateMany).toHaveBeenCalledWith({
+      where: { id: 'goal-1', user_id: 'authenticated-owner' },
+      data: {
+        name: 'Savings',
+        target_amount: expect.anything(),
+        target_date: new Date('2027-12-31T00:00:00Z'),
+        priority: 'low',
+      },
+    });
+    expect(tx.userGoal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: 'Holiday',
+          user_id: 'authenticated-owner',
+        }),
+      }),
+    );
   });
 
   it('returns 409 for repeated onboarding and 200 for a subsequent update', async () => {

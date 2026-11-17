@@ -4,6 +4,9 @@ export type FinancialGoal = {
   target_amount: string;
   target_date: string;
   priority: "low" | "medium" | "high";
+  // Total of the goal's contributions, as an exact-paise string ("0.00"
+  // when none). Set by the server; the profile form never sends it.
+  saved_amount?: string;
 };
 
 export type FinancialProfile = {
@@ -65,12 +68,18 @@ export function profileInput(data: ProfileResponse): ProfileInput {
         )
         .map((key) => [key, data.profile![key]]),
     ) as FinancialProfile),
-    goals: data.goals.map(({ name, target_amount, target_date, priority }) => ({
-      name,
-      target_amount,
-      target_date,
-      priority,
-    })),
+    // Goal ids are kept so a profile save updates goals in place instead
+    // of recreating them (which would wipe their contributions). New
+    // goals have no id and are created by the server.
+    goals: data.goals.map(
+      ({ id, name, target_amount, target_date, priority }) => ({
+        ...(id ? { id } : {}),
+        name,
+        target_amount,
+        target_date,
+        priority,
+      }),
+    ),
   };
 }
 

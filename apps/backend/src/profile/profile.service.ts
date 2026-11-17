@@ -22,6 +22,17 @@ export class ProfileService {
     const profile = user?.financialProfile;
     if (!profile)
       return { profile: null, goals: [], onboarding_completed: false };
+    const contributions = await db.userGoalContribution.findMany({
+      where: { user_id: userId },
+    });
+    const savedByGoal = new Map<string, number>();
+    for (const contribution of contributions) {
+      savedByGoal.set(
+        contribution.goal_id,
+        (savedByGoal.get(contribution.goal_id) ?? 0) +
+          Math.round(Number(contribution.amount) * 100),
+      );
+    }
     const emergency = {
       zero: '0',
       one_to_three: '1-3',
@@ -40,6 +51,7 @@ export class ProfileService {
       goals: user.goals.map((goal) => ({
         ...goal,
         target_date: goal.target_date.toISOString().slice(0, 10),
+        saved_amount: ((savedByGoal.get(goal.id) ?? 0) / 100).toFixed(2),
       })),
       onboarding_completed: profile.onboarding_completed,
     };
@@ -71,10 +83,33 @@ export class ProfileService {
           create: { ...profile, user_id: userId, onboarding_completed: true },
           update: { ...profile, onboarding_completed: true },
         });
-        await tx.userGoal.deleteMany({ where: { user_id: userId } });
-        await tx.userGoal.createMany({
-          data: goals.map((goal) => ({ ...goal, user_id: userId })),
+        // Goals are upserted by id so a profile save never wipes their
+        // contributions: only goals absent from the incoming list are
+        // removed (their contributions cascade), known goals are updated
+        // in place, and new ones are created.
+        const incomingIds = goals
+          .map((goal) => goal.id)
+          .filter((id): id is string => Boolean(id));
+        await tx.userGoal.deleteMany({
+          where: {
+            user_id: userId,
+            ...(incomingIds.length ? { id: { notIn: incomingIds } } : {}),
+          },
         });
+        for (const goal of goals) {
+          const { id, ...data } = goal;
+          if (id) {
+            // Scoped to the owner: an id belonging to another user (or a
+            // goal deleted elsewhere) matches nothing, so the goal is
+            // recreated fresh below instead of being dropped or hijacked.
+            const updated = await tx.userGoal.updateMany({
+              where: { id, user_id: userId },
+              data,
+            });
+            if (updated.count) continue;
+          }
+          await tx.userGoal.create({ data: { ...data, user_id: userId } });
+        }
         return this.get(userId, tx);
       });
     } catch (error) {

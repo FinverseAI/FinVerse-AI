@@ -74,6 +74,21 @@ export function validateBill(input: unknown) {
   };
 }
 
+export function validateGoalContribution(input: unknown) {
+  const body = record(input);
+  const note = typeof body.note === 'string' ? body.note.trim() : '';
+  if (
+    body.note !== undefined &&
+    (typeof body.note !== 'string' || note.length > 140)
+  )
+    throw new BadRequestException('Keep the note to 140 characters or fewer.');
+  return {
+    amount: amount(body.amount),
+    date: date(body.date),
+    note: note || null,
+  };
+}
+
 export function validateBillPayment(input: unknown) {
   const body = record(input);
   return {

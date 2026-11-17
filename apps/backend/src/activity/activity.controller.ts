@@ -73,6 +73,39 @@ export class ActivityController {
     return this.activity.removeBillPayment(request.userId, id, paymentId);
   }
 
+  @Get('goals/:id/contributions')
+  @Header('Cache-Control', 'private, no-store')
+  goalContributions(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+  ) {
+    return this.activity.goalContributions(request.userId, id);
+  }
+
+  @Post('goals/:id/contributions')
+  @Header('Cache-Control', 'private, no-store')
+  addGoalContribution(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.activity.addGoalContribution(request.userId, id, body);
+  }
+
+  @Delete('goals/:id/contributions/:contributionId')
+  @Header('Cache-Control', 'private, no-store')
+  removeGoalContribution(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Param('contributionId') contributionId: string,
+  ) {
+    return this.activity.removeGoalContribution(
+      request.userId,
+      id,
+      contributionId,
+    );
+  }
+
   @Get('transactions')
   @Header('Cache-Control', 'private, no-store')
   transactions(@Req() request: AuthenticatedRequest) {

@@ -204,6 +204,16 @@ export default function Dashboard({
             goals={data.goals}
             onManage={() => setDialog("budgets")}
             onAdd={() => setDialog("goal")}
+            onGoalSavedAmount={(goalId, savedAmount) =>
+              setData((current) => ({
+                ...current,
+                goals: current.goals.map((goal) =>
+                  goal.id === goalId
+                    ? { ...goal, saved_amount: savedAmount }
+                    : goal,
+                ),
+              }))
+            }
           />
           <section
             aria-label="Transactions and bills"

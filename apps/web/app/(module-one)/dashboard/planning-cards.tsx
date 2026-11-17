@@ -1,14 +1,28 @@
-import { money, type Budget } from "./data";
-import type { FinancialGoal } from "../../../lib/profile";
+"use client";
 
-import { PanelHeading, ProgressBar } from "./ui";
+import { useEffect, useState } from "react";
+import { money, type Budget } from "./data";
+import { cents, type FinancialGoal } from "../../../lib/profile";
+
+import { Icon, PanelHeading, ProgressBar } from "./ui";
 import { ActivityError } from "./recent-transactions";
+import { activityError, activityRequest } from "./use-activity";
+import { Modal } from "./modal";
+import { dateKey } from "./spending-data";
+
+type GoalContribution = {
+  id: string;
+  amount: number;
+  date: string;
+  note: string | null;
+};
 
 export default function PlanningCards({
   budgets,
   goals,
   onManage,
   onAdd,
+  onGoalSavedAmount,
   loading,
   error,
   onRetry,
@@ -17,6 +31,7 @@ export default function PlanningCards({
   goals: FinancialGoal[];
   onManage: () => void;
   onAdd: () => void;
+  onGoalSavedAmount: (goalId: string, savedAmount: string) => void;
   loading: boolean;
   error: string;
   onRetry: () => void;
@@ -41,7 +56,11 @@ export default function PlanningCards({
       ) : (
         <BudgetCard budgets={budgets} onManage={onManage} />
       )}
-      <SavingsCard goals={goals} onAdd={onAdd} />
+      <SavingsCard
+        goals={goals}
+        onAdd={onAdd}
+        onGoalSavedAmount={onGoalSavedAmount}
+      />
     </section>
   );
 }
@@ -107,53 +126,368 @@ function BudgetCard({
   );
 }
 
+function ContributionForm({
+  goal,
+  onSaved,
+  onClose,
+}: {
+  goal: FinancialGoal;
+  onSaved: (savedAmount: string) => void;
+  onClose: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const remaining = Math.max(
+    0.01,
+    (cents(goal.target_amount) - cents(goal.saved_amount ?? "0")) / 100,
+  );
+  return (
+    <form
+      className="dash-form"
+      onSubmit={async (event) => {
+        event.preventDefault();
+        if (saving) return;
+        const form = new FormData(event.currentTarget);
+        const amount = Number(form.get("amount"));
+        setSaving(true);
+        setSaveError("");
+        try {
+          await activityRequest(
+            `/api/goals/${encodeURIComponent(goal.id!)}/contributions`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                amount,
+                date: String(form.get("date")),
+                note: String(form.get("note")).trim() || undefined,
+              }),
+            },
+          );
+          onSaved(
+            (
+              (cents(goal.saved_amount ?? "0") + Math.round(amount * 100)) /
+              100
+            ).toFixed(2),
+          );
+          onClose();
+        } catch (error) {
+          setSaveError(activityError(error));
+        } finally {
+          setSaving(false);
+        }
+      }}
+    >
+      <p className="text-sm leading-7 text-dash-muted">
+        Add savings towards{" "}
+        <strong className="break-words font-medium text-dash-text">
+          {goal.name}
+        </strong>{" "}
+        — {money(cents(goal.saved_amount ?? "0") / 100, 2)} saved of{" "}
+        {money(Number(goal.target_amount), 2)}.
+      </p>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label>
+          Amount (₹)
+          <input
+            className="dash-input"
+            name="amount"
+            type="number"
+            min="0.01"
+            max="100000000"
+            step="0.01"
+            required
+            placeholder="0.00"
+            defaultValue={remaining.toFixed(2)}
+            autoFocus
+          />
+        </label>
+        <label>
+          Date
+          <input
+            className="dash-input"
+            name="date"
+            type="date"
+            min="1900-01-01"
+            max="9999-12-31"
+            required
+            defaultValue={dateKey(new Date())}
+          />
+        </label>
+      </div>
+      <label>
+        Note (optional)
+        <input
+          className="dash-input"
+          name="note"
+          maxLength={140}
+          placeholder="e.g. Salary day"
+        />
+      </label>
+      {saveError && (
+        <p role="alert" className="text-xs leading-6 text-dash-red">
+          {saveError}
+        </p>
+      )}
+      <div className="mt-2 flex justify-end gap-2">
+        <button
+          type="button"
+          className="dash-small-button"
+          onClick={onClose}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button className="dash-primary" disabled={saving}>
+          {saving ? "Saving…" : "Add savings"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function ContributionHistory({
+  goal,
+  onSaved,
+}: {
+  goal: FinancialGoal;
+  onSaved: (savedAmount: string) => void;
+}) {
+  const [contributions, setContributions] = useState<GoalContribution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    activityRequest<GoalContribution[]>(
+      `/api/goals/${encodeURIComponent(goal.id!)}/contributions`,
+    )
+      .then((data) => {
+        if (!cancelled) setContributions(data);
+      })
+      .catch((caught: unknown) => {
+        if (!cancelled) setError(activityError(caught));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [goal.id]);
+  return (
+    <div>
+      <p className="text-sm leading-7 text-dash-muted">
+        Savings added towards{" "}
+        <strong className="break-words font-medium text-dash-text">
+          {goal.name}
+        </strong>
+        .
+      </p>
+      {loading ? (
+        <p role="status" className="py-8 text-center text-sm text-dash-muted">
+          Loading contributions…
+        </p>
+      ) : error ? (
+        <p role="alert" className="mt-4 text-xs text-dash-red">
+          {error}
+        </p>
+      ) : !contributions.length ? (
+        <p className="py-8 text-center text-sm text-dash-muted">
+          No savings added yet.
+        </p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {contributions.map((contribution) => (
+            <li
+              key={contribution.id}
+              className="surface-inset flex items-center gap-2 border px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs">
+                  {money(contribution.amount, 2)}
+                </p>
+                <p className="mt-1 truncate text-xs text-dash-muted">
+                  {new Date(`${contribution.date}T12:00:00`).toLocaleDateString(
+                    "en-IN",
+                    {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    },
+                  )}
+                  {contribution.note ? ` · ${contribution.note}` : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="dash-icon-button !size-7 !min-w-7 !border-transparent !bg-none !shadow-none hover:!text-dash-red"
+                aria-label={`Remove contribution of ${money(contribution.amount, 2)}`}
+                title="Remove this contribution"
+                disabled={!!deletingId}
+                onClick={async () => {
+                  if (deletingId) return;
+                  setDeletingId(contribution.id);
+                  setError("");
+                  try {
+                    await activityRequest(
+                      `/api/goals/${encodeURIComponent(goal.id!)}/contributions/${encodeURIComponent(contribution.id)}`,
+                      { method: "DELETE" },
+                    );
+                    const remaining = contributions.filter(
+                      (item) => item.id !== contribution.id,
+                    );
+                    setContributions(remaining);
+                    onSaved(
+                      (
+                        remaining.reduce(
+                          (sum, item) => sum + Math.round(item.amount * 100),
+                          0,
+                        ) / 100
+                      ).toFixed(2),
+                    );
+                  } catch (caught: unknown) {
+                    setError(activityError(caught));
+                  } finally {
+                    setDeletingId("");
+                  }
+                }}
+              >
+                <Icon name="trash" className="size-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function SavingsCard({
   goals,
   onAdd,
+  onGoalSavedAmount,
 }: {
   goals: FinancialGoal[];
   onAdd: () => void;
+  onGoalSavedAmount: (goalId: string, savedAmount: string) => void;
 }) {
+  const [dialog, setDialog] = useState<"add" | "history" | null>(null);
+  const [selected, setSelected] = useState<FinancialGoal | null>(null);
+  const [notice, setNotice] = useState("");
+  const selectedGoal = selected
+    ? (goals.find((goal) => goal.id === selected.id) ?? selected)
+    : null;
   return (
-    <article className="dash-panel p-5">
-      <PanelHeading icon="pig" title="Savings Progress">
-        <button
-          className="dash-small-button border-dash-accent/40 bg-dash-accent/10 text-dash-accent"
-          onClick={onAdd}
-        >
-          + Add goal
-        </button>
-      </PanelHeading>
-      <div className="mt-3 space-y-5">
-        {!goals.length && (
-          <p className="text-xs text-dash-muted">No savings goals yet.</p>
-        )}
-        {goals.map((goal, index) => {
-          const deadline = new Date(
-            `${goal.target_date}T12:00:00`,
-          ).toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          });
-          return (
-            <div key={goal.id ?? `${goal.name}-${index}`}>
-              <div className="mb-1.5 flex items-center justify-between text-xs">
-                <span>{goal.name}</span>
-                <span className="font-mono text-xs font-semibold text-dash-accent">
-                  {goal.priority} priority
-                </span>
+    <>
+      <article className="dash-panel p-5">
+        <PanelHeading icon="pig" title="Savings Progress">
+          <button
+            className="dash-small-button border-dash-accent/40 bg-dash-accent/10 text-dash-accent"
+            onClick={onAdd}
+          >
+            + Add goal
+          </button>
+        </PanelHeading>
+        <div className="mt-3 space-y-5">
+          {!goals.length && (
+            <p className="text-xs text-dash-muted">No savings goals yet.</p>
+          )}
+          {goals.map((goal, index) => {
+            const deadline = new Date(
+              `${goal.target_date}T12:00:00`,
+            ).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            });
+            const target = Number(goal.target_amount);
+            const saved = cents(goal.saved_amount ?? "0") / 100;
+            const percent = target > 0 ? (saved / target) * 100 : 0;
+            return (
+              <div key={goal.id ?? `${goal.name}-${index}`}>
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <span>{goal.name}</span>
+                  <span className="font-mono text-xs font-semibold text-dash-accent">
+                    {goal.priority} priority
+                  </span>
+                </div>
+                <ProgressBar
+                  value={percent}
+                  label={`${goal.name} savings progress`}
+                  tone="accent"
+                />
+                <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 font-mono text-xs text-dash-muted">
+                  <span>
+                    Saved {money(saved, 2)} of {money(target, 2)} · {deadline}
+                  </span>
+                  <span
+                    className={
+                      percent >= 100 ? "font-semibold text-dash-accent" : ""
+                    }
+                  >
+                    {percent >= 100
+                      ? "Goal reached"
+                      : `${Math.floor(percent)}% saved`}
+                  </span>
+                </div>
+                {goal.id && (
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      className="dash-small-button gap-1.5"
+                      onClick={() => {
+                        setSelected(goal);
+                        setDialog("add");
+                      }}
+                    >
+                      <Icon name="plus" className="size-3" />
+                      Add savings
+                    </button>
+                    {saved > 0 && (
+                      <button
+                        type="button"
+                        className="dash-small-button"
+                        onClick={() => {
+                          setSelected(goal);
+                          setDialog("history");
+                        }}
+                      >
+                        History
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="mt-1.5 flex flex-wrap justify-between gap-1 font-mono text-xs text-dash-muted">
-                <span>
-                  Target {money(Number(goal.target_amount), 2)} · {deadline}
-                </span>
-                <span>Progress not tracked yet</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </article>
+            );
+          })}
+        </div>
+        <span role="status" className="sr-only">
+          {notice}
+        </span>
+      </article>
+      {dialog === "add" && selectedGoal?.id && (
+        <Modal title="Add savings" onClose={() => setDialog(null)}>
+          <ContributionForm
+            goal={selectedGoal}
+            onSaved={(savedAmount) => {
+              onGoalSavedAmount(selectedGoal.id!, savedAmount);
+              setNotice("Savings added.");
+            }}
+            onClose={() => setDialog(null)}
+          />
+        </Modal>
+      )}
+      {dialog === "history" && selectedGoal?.id && (
+        <Modal title="Savings history" onClose={() => setDialog(null)}>
+          <ContributionHistory
+            goal={selectedGoal}
+            onSaved={(savedAmount) => {
+              onGoalSavedAmount(selectedGoal.id!, savedAmount);
+              setNotice("Contribution removed.");
+            }}
+          />
+        </Modal>
+      )}
+    </>
   );
 }

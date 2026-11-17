@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   validateBill,
   validateBillPayment,
+  validateGoalContribution,
   validateTransaction,
 } from './activity.validation';
 
@@ -112,4 +113,40 @@ describe('dashboard activity validation', () => {
       );
     },
   );
+  it('normalizes goal contributions and trims optional notes', () => {
+    expect(
+      validateGoalContribution({
+        amount: 500,
+        date: '2026-11-17',
+        note: '  Salary day  ',
+      }),
+    ).toEqual({
+      amount: '500.00',
+      date: new Date('2026-11-17T00:00:00Z'),
+      note: 'Salary day',
+    });
+    expect(
+      validateGoalContribution({ amount: 500, date: '2026-11-17' }).note,
+    ).toBeNull();
+  });
+  it.each([0, -1, '1.001', '', null])(
+    'rejects invalid contribution amount %s',
+    (amount) => {
+      expect(() =>
+        validateGoalContribution({ amount, date: '2026-11-17' }),
+      ).toThrow(BadRequestException);
+    },
+  );
+  it('rejects invalid contribution dates and long notes', () => {
+    expect(() =>
+      validateGoalContribution({ amount: 100, date: '2026-02-30' }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      validateGoalContribution({
+        amount: 100,
+        date: '2026-11-17',
+        note: 'x'.repeat(141),
+      }),
+    ).toThrow(BadRequestException);
+  });
 });

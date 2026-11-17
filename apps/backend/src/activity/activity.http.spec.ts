@@ -23,6 +23,12 @@ describe('account-scoped dashboard activity', () => {
       create: jest.fn(),
       deleteMany: jest.fn(),
     },
+    userGoal: { findFirst: jest.fn() },
+    userGoalContribution: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     userTransaction: {
       findMany: jest.fn(),
       create: jest.fn(),
@@ -51,6 +57,22 @@ describe('account-scoped dashboard activity', () => {
     user_id: 'owner',
     amount: '1850.50',
     paid_date: new Date('2026-11-27T00:00:00Z'),
+  };
+  const storedGoal = {
+    id: 'goal-1',
+    user_id: 'owner',
+    name: 'Emergency fund',
+    target_amount: '100000.00',
+    target_date: new Date('2027-12-31T00:00:00Z'),
+    priority: 'high',
+  };
+  const storedContribution = {
+    id: 'contribution-1',
+    goal_id: 'goal-1',
+    user_id: 'owner',
+    amount: '5000.00',
+    date: new Date('2026-11-17T00:00:00Z'),
+    note: 'Salary day',
   };
 
   beforeAll(async () => {
@@ -83,6 +105,10 @@ describe('account-scoped dashboard activity', () => {
     prisma.userBillPayment.findMany.mockResolvedValue([]);
     prisma.userBillPayment.create.mockResolvedValue(storedPayment);
     prisma.userBillPayment.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.userGoal.findFirst.mockResolvedValue(storedGoal);
+    prisma.userGoalContribution.findMany.mockResolvedValue([]);
+    prisma.userGoalContribution.create.mockResolvedValue(storedContribution);
+    prisma.userGoalContribution.deleteMany.mockResolvedValue({ count: 1 });
     prisma.userTransaction.findMany.mockResolvedValue([]);
     prisma.userTransaction.updateMany.mockResolvedValue({ count: 1 });
     prisma.userTransaction.findFirst.mockResolvedValue({
@@ -122,6 +148,16 @@ describe('account-scoped dashboard activity', () => {
     await request(app.getHttpServer())
       .delete('/api/bills/bill-1/payments/payment-1')
       .expect(401);
+    await request(app.getHttpServer())
+      .get('/api/goals/goal-1/contributions')
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/api/goals/goal-1/contributions')
+      .send({})
+      .expect(401);
+    await request(app.getHttpServer())
+      .delete('/api/goals/goal-1/contributions/contribution-1')
+      .expect(401);
     await request(app.getHttpServer()).get('/api/transactions').expect(401);
     await request(app.getHttpServer())
       .post('/api/transactions')
@@ -140,6 +176,8 @@ describe('account-scoped dashboard activity', () => {
     expect(prisma.userBill.deleteMany).not.toHaveBeenCalled();
     expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
     expect(prisma.userBillPayment.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.userGoalContribution.create).not.toHaveBeenCalled();
+    expect(prisma.userGoalContribution.deleteMany).not.toHaveBeenCalled();
     expect(prisma.userTransaction.updateMany).not.toHaveBeenCalled();
     expect(prisma.userTransaction.deleteMany).not.toHaveBeenCalled();
   });
@@ -169,6 +207,13 @@ describe('account-scoped dashboard activity', () => {
     expect(prisma.userBill.updateMany).not.toHaveBeenCalled();
     expect(prisma.userBill.deleteMany).not.toHaveBeenCalled();
     expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
+    await request(app.getHttpServer())
+      .post('/api/goals/goal-1/contributions')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'https://other.example')
+      .send({ amount: 5000, date: '2026-11-17' })
+      .expect(403);
+    expect(prisma.userGoalContribution.create).not.toHaveBeenCalled();
   });
   it('returns all bills in due-date order without trusting a requested user ID', async () => {
     const result = await request(app.getHttpServer())
@@ -478,6 +523,93 @@ describe('account-scoped dashboard activity', () => {
     prisma.userBillPayment.deleteMany.mockResolvedValue({ count: 0 });
     await request(app.getHttpServer())
       .delete('/api/bills/bill-1/payments/other-payment')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .expect(404);
+  });
+  it('lists contributions only for a goal belonging to the owner', async () => {
+    prisma.userGoalContribution.findMany.mockResolvedValue([
+      storedContribution,
+    ]);
+    const result = await request(app.getHttpServer())
+      .get('/api/goals/goal-1/contributions')
+      .set('Cookie', 'session=test')
+      .expect(200);
+    expect(result.body).toEqual([
+      {
+        id: 'contribution-1',
+        amount: 5000,
+        date: '2026-11-17',
+        note: 'Salary day',
+      },
+    ]);
+    expect(prisma.userGoalContribution.findMany).toHaveBeenCalledWith({
+      where: { goal_id: 'goal-1', user_id: 'owner' },
+      orderBy: [{ date: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
+    });
+    prisma.userGoal.findFirst.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .get('/api/goals/other-users-goal/contributions')
+      .set('Cookie', 'session=test')
+      .expect(404);
+  });
+  it('records a contribution only for a goal belonging to the owner', async () => {
+    const result = await request(app.getHttpServer())
+      .post('/api/goals/goal-1/contributions')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({
+        amount: 5000,
+        date: '2026-11-17',
+        note: 'Salary day',
+        user_id: 'someone-else',
+      })
+      .expect(201);
+    expect(result.body).toEqual({
+      id: 'contribution-1',
+      amount: 5000,
+      date: '2026-11-17',
+      note: 'Salary day',
+    });
+    expect(prisma.userGoalContribution.create).toHaveBeenCalledWith({
+      data: {
+        amount: '5000.00',
+        date: new Date('2026-11-17T00:00:00Z'),
+        note: 'Salary day',
+        goal_id: 'goal-1',
+        user_id: 'owner',
+      },
+    });
+  });
+  it('rejects invalid contributions and contributions for missing goals', async () => {
+    await request(app.getHttpServer())
+      .post('/api/goals/goal-1/contributions')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 0, date: '2026-11-17' })
+      .expect(400);
+    expect(prisma.userGoalContribution.create).not.toHaveBeenCalled();
+    prisma.userGoal.findFirst.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .post('/api/goals/other-users-goal/contributions')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 100, date: '2026-11-17' })
+      .expect(404);
+    expect(prisma.userGoalContribution.create).not.toHaveBeenCalled();
+  });
+  it('removes only a contribution belonging to the owner', async () => {
+    await request(app.getHttpServer())
+      .delete('/api/goals/goal-1/contributions/contribution-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .expect(200, { deleted: true });
+    expect(prisma.userGoalContribution.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'contribution-1', goal_id: 'goal-1', user_id: 'owner' },
+    });
+    prisma.userGoalContribution.deleteMany.mockResolvedValue({ count: 0 });
+    await request(app.getHttpServer())
+      .delete('/api/goals/goal-1/contributions/other-contribution')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .expect(404);
