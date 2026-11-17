@@ -60,7 +60,7 @@
   );
   --hero-light: #d0d4cf80;
   --hero-coral: #f47f70b3;
-  --hero-heading: clamp(2.75rem, 5.7vw, 5.5rem);
+  --hero-heading: clamp(2.75rem, 6.4vw, 6.25rem);
   --pill-radius: 999px;
 }
 
@@ -270,7 +270,7 @@ body {
   position: relative;
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(0, 1.8fr) minmax(17rem, 1fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(19rem, 1.2fr);
   align-items: end;
   gap: calc(var(--spacing) * 10);
   padding: calc(var(--spacing) * 8);
