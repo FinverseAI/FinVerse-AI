@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, HttpCode } from '@nestjs/common';
 
 @Controller()
 export class AppController {
@@ -10,6 +10,12 @@ export class AppController {
       health: '/api/health',
     };
   }
+
+  // Browsers request this automatically when an API URL is opened directly.
+  // A no-content response prevents a harmless missing-favicon 404.
+  @Get('favicon.ico')
+  @HttpCode(204)
+  getFavicon(): void {}
 
   @Get('api/health')
   getHealth() {
