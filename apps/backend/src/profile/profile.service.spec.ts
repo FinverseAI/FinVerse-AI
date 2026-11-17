@@ -27,7 +27,12 @@ describe('ProfileService', () => {
   const tx = {
     $queryRaw: jest.fn(),
     userFinancialProfile: { findUnique: jest.fn(), upsert: jest.fn() },
-    userGoal: { deleteMany: jest.fn(), createMany: jest.fn() },
+    userGoal: {
+      deleteMany: jest.fn(),
+      updateMany: jest.fn(),
+      create: jest.fn(),
+    },
+    userGoalContribution: { findMany: jest.fn() },
     user: { findUnique: jest.fn(), update: jest.fn() },
   };
   const transaction = jest.fn(
@@ -42,7 +47,9 @@ describe('ProfileService', () => {
     jest.clearAllMocks();
     tx.userFinancialProfile.findUnique.mockResolvedValue(null);
     tx.user.findUnique.mockResolvedValue(null);
-    tx.userGoal.createMany.mockResolvedValue({ count: 1 });
+    tx.userGoal.updateMany.mockResolvedValue({ count: 1 });
+    tx.userGoal.create.mockResolvedValue({});
+    tx.userGoalContribution.findMany.mockResolvedValue([]);
   });
 
   it('returns an explicit incomplete state for a new user', async () => {
@@ -72,8 +79,8 @@ describe('ProfileService', () => {
     expect(tx.userGoal.deleteMany).toHaveBeenCalledWith({
       where: { user_id: 'owner' },
     });
-    expect(tx.userGoal.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ user_id: 'owner', name: 'Home' })],
+    expect(tx.userGoal.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ user_id: 'owner', name: 'Home' }),
     });
     expect(tx.user.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'owner' } }),
@@ -141,11 +148,49 @@ describe('ProfileService', () => {
         update: expect.objectContaining({ onboarding_completed: true }),
       }),
     );
-    expect(tx.userGoal.createMany).toHaveBeenCalledTimes(1);
+    expect(tx.userGoal.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates goals with ids in place and only removes absent goals', async () => {
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+    });
+    await service.save(
+      'owner',
+      {
+        ...input,
+        goals: [
+          {
+            id: 'goal-1',
+            name: 'Home',
+            target_amount: '1000000',
+            target_date: '2030-01-01',
+            priority: 'high',
+          },
+          {
+            name: 'Car',
+            target_amount: '500000',
+            target_date: '2029-01-01',
+            priority: 'medium',
+          },
+        ],
+      },
+      false,
+    );
+    expect(tx.userGoal.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'owner', id: { notIn: ['goal-1'] } },
+    });
+    expect(tx.userGoal.updateMany).toHaveBeenCalledWith({
+      where: { id: 'goal-1', user_id: 'owner' },
+      data: expect.objectContaining({ name: 'Home' }),
+    });
+    expect(tx.userGoal.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ user_id: 'owner', name: 'Car' }),
+    });
   });
 
   it('propagates goal insertion failures to abort the transaction', async () => {
-    tx.userGoal.createMany.mockRejectedValueOnce(new Error('insert failed'));
+    tx.userGoal.create.mockRejectedValueOnce(new Error('insert failed'));
     await expect(service.save('owner', input, true)).rejects.toThrow(
       'insert failed',
     );
