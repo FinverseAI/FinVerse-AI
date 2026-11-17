@@ -22,6 +22,7 @@ export const nextJsConfig = [
     languageOptions: {
       globals: {
         ...globals.browser,
+        ...globals.node,
         ...globals.serviceworker,
       },
     },

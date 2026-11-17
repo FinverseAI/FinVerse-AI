@@ -1,0 +1,87 @@
+import { BadRequestException } from '@nestjs/common';
+import { validateBill, validateTransaction } from './activity.validation';
+
+const bill = {
+  name: ' Rent ',
+  amount: '1850.50',
+  dueDate: '2026-11-28',
+  autoPay: false,
+};
+
+describe('dashboard activity validation', () => {
+  it.each(['Groceries', 'Health', 'Travel', 'Education', 'Investments'])(
+    'accepts the onboarding category %s',
+    (category) => {
+      expect(
+        validateTransaction({
+          name: 'Record',
+          amount: -0.01,
+          date: '2026-11-16',
+          category,
+        }).category,
+      ).toBe(category);
+    },
+  );
+  it('normalizes names, precise amounts, and date-only values', () => {
+    expect(validateBill(bill)).toEqual({
+      name: 'Rent',
+      amount: '1850.50',
+      due_date: new Date('2026-11-28T00:00:00Z'),
+      auto_pay: false,
+    });
+  });
+  it.each([0, -1, 'NaN', Infinity, '1.001', '', null, true, 100000001])(
+    'rejects invalid bill amount %s',
+    (amount) => {
+      expect(() => validateBill({ ...bill, amount })).toThrow(
+        BadRequestException,
+      );
+    },
+  );
+  it.each([
+    '2026-02-29',
+    '2026-11-31',
+    '2026-1-01',
+    'not-a-date',
+    '1899-12-31',
+  ])('rejects invalid due date %s', (dueDate) => {
+    expect(() => validateBill({ ...bill, dueDate })).toThrow(
+      BadRequestException,
+    );
+  });
+  it('accepts leap days and overdue reminders', () => {
+    expect(
+      validateBill({ ...bill, dueDate: '2024-02-29' }).due_date.toISOString(),
+    ).toBe('2024-02-29T00:00:00.000Z');
+  });
+  it('rejects blank names and non-boolean auto-pay values', () => {
+    expect(() => validateBill({ ...bill, name: '   ' })).toThrow(
+      BadRequestException,
+    );
+    expect(() => validateBill({ ...bill, name: 'a'.repeat(81) })).toThrow(
+      BadRequestException,
+    );
+    expect(() => validateBill({ ...bill, autoPay: 'false' })).toThrow(
+      BadRequestException,
+    );
+  });
+  it('accepts both income and expenses and rejects invalid categories', () => {
+    const transaction = {
+      name: 'Groceries',
+      amount: -12.34,
+      date: '2026-11-13',
+      category: 'Food & Dining',
+    };
+    expect(validateTransaction(transaction).amount).toBe('-12.34');
+    expect(
+      validateTransaction({ ...transaction, amount: 120, category: 'Income' })
+        .amount,
+    ).toBe('120.00');
+    expect(() =>
+      validateTransaction({ ...transaction, category: 'Made up' }),
+    ).toThrow(BadRequestException);
+    expect(() => validateTransaction({ ...transaction, amount: 0 })).toThrow(
+      BadRequestException,
+    );
+  });
+});

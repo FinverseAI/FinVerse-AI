@@ -1,47 +1,85 @@
-﻿import { profileTotals, type FinancialProfile } from "../../../lib/profile";
-import { money, months } from "./data";
+import { profileTotals, type FinancialProfile } from "../../../lib/profile";
+import { money, type Transaction } from "./data";
 import { Icon, MiniStat, PanelHeading } from "./ui";
+import { monthlyCashFlow, shiftMonth } from "./spending-data";
+import { ActivityError } from "./recent-transactions";
 
 export default function BalanceBreakdownCard({
   month,
   onMonth,
   profile,
+  transactions,
+  loading,
+  error,
+  onRetry,
 }: {
-  month: number;
-  onMonth: (month: number) => void;
+  month: string;
+  onMonth: (month: string) => void;
   profile: FinancialProfile;
+  transactions: Transaction[];
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
 }) {
   const totals = profileTotals(profile);
+  const recorded = monthlyCashFlow(transactions, month);
+  const monthLabel = new Date(`${month}-01T12:00:00`).toLocaleDateString(
+    "en-IN",
+    { month: "long", year: "numeric" },
+  );
   return (
-    <article id="balance" className="dash-panel flex min-w-0 flex-col p-4">
-      <PanelHeading icon="pie" title="Balance Breakdown">
+    <article
+      id="balance"
+      className="dash-panel flex min-w-0 flex-col self-start p-5"
+      aria-busy={loading}
+    >
+      <PanelHeading icon="pie" title="Recorded cash flow">
         <div className="flex items-center gap-2">
           <button
-            className="dash-icon-button size-7"
-            aria-label="Previous chart month"
-            onClick={() => onMonth((month + 11) % 12)}
+            className="dash-icon-button"
+            aria-label="Previous month"
+            disabled={month <= "1900-01"}
+            onClick={() => onMonth(shiftMonth(month, -1))}
           >
-            <Icon name="left" className="size-3" />
+            <Icon name="left" />
           </button>
-          <span className="w-[102px] text-center font-mono text-[10px]">
-            {months[month]} {new Date().getFullYear()}
+          <span className="text-center text-xs" aria-live="polite">
+            {monthLabel}
           </span>
           <button
-            className="dash-icon-button size-7"
-            aria-label="Next chart month"
-            onClick={() => onMonth((month + 1) % 12)}
+            className="dash-icon-button"
+            aria-label="Next month"
+            disabled={month >= "9999-12"}
+            onClick={() => onMonth(shiftMonth(month, 1))}
           >
-            <Icon name="right" className="size-3" />
+            <Icon name="right" />
           </button>
         </div>
       </PanelHeading>
-      <div className="mt-5 grid h-[190px] place-items-center text-center text-xs leading-6 text-dash-muted sm:h-[202px]">
-        <p>
-          No recorded history for {months[month]}.<br />
-          Your current monthly plan is shown below.
+      {loading ? (
+        <p role="status" className="py-8 text-sm text-dash-muted">
+          Loading recorded activity...
         </p>
-      </div>
-      <div className="mt-auto grid grid-cols-2 gap-3 pt-5 sm:grid-cols-4">
+      ) : error ? (
+        <ActivityError error={error} onRetry={onRetry} />
+      ) : recorded.count ? (
+        <div className="my-6 grid gap-3 sm:grid-cols-3">
+          <MiniStat label="Recorded income" value={money(recorded.income, 2)} />
+          <MiniStat
+            label="Recorded expenses"
+            value={money(recorded.expenses, 2)}
+          />
+          <MiniStat label="Net recorded flow" value={money(recorded.net, 2)} />
+        </div>
+      ) : (
+        <p className="py-8 text-sm text-dash-muted">
+          No transactions recorded for {monthLabel}.
+        </p>
+      )}
+      <p className="mb-3 text-xs text-dash-muted">
+        Current monthly plan (separate from recorded activity)
+      </p>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat label="Monthly income" value={money(totals.income, 2)} />
         <MiniStat label="Monthly expenses" value={money(totals.expenses, 2)} />
         <MiniStat label="Savings target" value={money(totals.target, 2)} />

@@ -1,192 +1,162 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   cents,
   fetchProfile,
   ProfileApiError,
-  profileInput,
+  type FinancialGoal,
   type ProfileInput,
-  type ProfileResponse,
 } from "../../../lib/profile";
-import { ProgressBar } from "../dashboard/ui";
+import { budgetPlan, budgetCategories } from "../../../lib/onboarding";
+import BudgetFields from "./budget-fields";
+import { Icon, ProgressBar, type IconName } from "../dashboard/ui";
 
-const steps = ["Income", "Expenses", "Savings and goals", "Investing profile"];
-const emptyGoal = () => ({
-  name: "",
-  target_amount: "",
-  target_date: "",
-  priority: "medium" as const,
-});
-const initial: ProfileInput = {
-  employment_type: "salaried",
-  monthly_income: "",
-  other_monthly_income: null,
-  fixed_expenses: "",
-  variable_expenses: "",
-  existing_debt_total: null,
-  current_savings: "",
-  monthly_savings_target: "",
-  goals: [emptyGoal()],
-  investment_experience: "none",
-  risk_tolerance: "low",
-  already_investing: false,
-  invested_amount: null,
-  emergency_fund_months: "0",
-};
-const moneyFields = [
-  ["monthly_income", "Monthly income after tax", 0, false],
-  ["other_monthly_income", "Other monthly income (optional)", 0, true],
-  ["fixed_expenses", "Monthly fixed expenses", 1, false],
-  ["variable_expenses", "Monthly variable expenses", 1, false],
-  ["existing_debt_total", "Outstanding debt total (optional)", 1, true],
-  ["current_savings", "Current savings", 2, false],
-  ["monthly_savings_target", "Monthly savings target", 2, false],
-  ["invested_amount", "Approximate invested amount (optional)", 3, true],
-] as const;
-const choiceFields = [
-  [
-    "employment_type",
-    "Employment type",
-    0,
-    ["salaried", "self-employed", "student", "other"],
-  ],
-  [
-    "investment_experience",
-    "Investment experience",
-    3,
-    ["none", "beginner", "intermediate", "advanced"],
-  ],
-  ["risk_tolerance", "Risk tolerance", 3, ["low", "medium", "high"]],
-  [
-    "emergency_fund_months",
-    "Emergency fund in months",
-    3,
-    ["0", "1-3", "3-6", "6+"],
-  ],
-] as const;
-
-function validAmount(value: string | null, optional = false) {
-  return (
-    (optional && !value) ||
-    (value !== null && /^\d{1,10}(\.\d{1,2})?$/.test(value))
-  );
-}
-
-function validateStep(values: ProfileInput, step: number) {
-  const errors: Record<string, string> = {};
-  for (const [key, , fieldStep, optional] of moneyFields) {
-    if (fieldStep === step && !validAmount(values[key], optional))
-      errors[key] =
-        "Enter 0 to 9,999,999,999.99, with at most two decimal places.";
-  }
-  const income =
-    cents(values.monthly_income) + cents(values.other_monthly_income);
-  const expenses =
-    cents(values.fixed_expenses) + cents(values.variable_expenses);
-  if (step === 1 && expenses > income)
-    errors.variable_expenses =
-      "Fixed and variable expenses cannot exceed total monthly income.";
-  if (step === 2) {
-    if (expenses + cents(values.monthly_savings_target) > income)
-      errors.monthly_savings_target =
-        "Expenses and savings target together cannot exceed total monthly income.";
-    if (!values.goals.length || values.goals.length > 50)
-      errors.goals = "Add between 1 and 50 goals.";
-    values.goals.forEach((goal, index) => {
-      const prefix = `goals.${index}`;
-      if (!goal.name.trim() || goal.name.trim().length > 100)
-        errors[`${prefix}.name`] = "Enter a goal name of 1 to 100 characters.";
-      if (!validAmount(goal.target_amount) || cents(goal.target_amount) <= 0)
-        errors[`${prefix}.target_amount`] =
-          "Enter a target greater than zero, with at most two decimal places.";
-      const date = new Date(`${goal.target_date}T00:00:00.000Z`);
-      if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(goal.target_date) ||
-        !Number.isFinite(date.getTime()) ||
-        date.toISOString().slice(0, 10) !== goal.target_date ||
-        date.getUTCFullYear() < 1900
-      )
-        errors[`${prefix}.target_date`] =
-          "Enter a valid date from year 1900 onwards.";
-    });
-  }
-  return errors;
-}
-
-function stepForField(key: string) {
-  if (key.startsWith("goals")) return 2;
-  return (
-    moneyFields.find(([name]) => name === key)?.[2] ??
-    choiceFields.find(([name]) => name === key)?.[2] ??
-    3
-  );
+const steps: {
+  label: string;
+  title: string;
+  description: string;
+  icon: IconName;
+}[] = [
+  {
+    label: "Your name",
+    title: "What should we call you?",
+    description: "This name shows up across your FinVerse experience.",
+    icon: "user",
+  },
+  {
+    label: "Monthly income",
+    title: "What's your monthly income?",
+    description:
+      "Give your monthly plan a starting point, and tell us when you get paid.",
+    icon: "wallet",
+  },
+  {
+    label: "Budget split",
+    title: "Split your budget",
+    description:
+      "Decide what share of your monthly income each category gets. The shares must add up to exactly 100%.",
+    icon: "pie",
+  },
+  {
+    label: "Goals",
+    title: "Set your first goals",
+    description:
+      "What are you saving toward? Add at least one — you can add more later.",
+    icon: "target",
+  },
+];
+const blankSplit = () =>
+  Object.fromEntries(budgetCategories.map(({ id }) => [id, 0]));
+const validMoney = (value: string) =>
+  /^\d{1,10}(\.\d{1,2})?$/.test(value) && cents(value) > 0;
+function newGoal(): FinancialGoal & { key: string } {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() + 1);
+  return {
+    key: crypto.randomUUID(),
+    name: "",
+    target_amount: "",
+    target_date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
+    priority: "medium",
+  };
 }
 
 export default function OnboardingForm({
-  initialData,
-  initialStep = 0,
-  onSaved,
-  onCancel,
+  initialName = "",
 }: {
-  initialData?: ProfileResponse;
-  initialStep?: number;
-  onSaved?: (data: ProfileResponse) => void;
-  onCancel?: () => void;
+  initialName?: string;
 }) {
   const router = useRouter();
-  const [values, setValues] = useState<ProfileInput>(() =>
-    initialData ? profileInput(initialData) : initial,
-  );
-  const [step, setStep] = useState(initialStep);
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState(initialName);
+  const [income, setIncome] = useState("");
+  const [payday, setPayday] = useState(1);
+  const [split, setSplit] = useState(blankSplit);
+  const [goals, setGoals] = useState<ReturnType<typeof newGoal>[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const submitting = useRef(false);
-  const editing = Boolean(initialData?.onboarding_completed);
+  const total = Object.values(split).reduce((sum, value) => sum + value, 0);
+  const normalizedIncome = income.replace(/,/g, "");
+  const active = steps[step]!;
 
   function move(next: number) {
     setStep(next);
+    setErrors({});
+    setMessage("");
     requestAnimationFrame(() => heading.current?.focus());
   }
-
-  function change<K extends keyof ProfileInput>(
-    key: K,
-    value: ProfileInput[K],
-  ) {
-    setValues((current) => ({ ...current, [key]: value }));
+  function clear(key: string) {
     setErrors((current) => ({ ...current, [key]: "" }));
   }
-
   function errorFor(key: string) {
     return errors[key] ? (
-      <span
+      <p
         id={`error-${key}`}
-        className="block text-xs text-dash-red"
         role="alert"
+        className="mt-2 text-xs text-dash-red"
       >
         {errors[key]}
-      </span>
+      </p>
     ) : null;
   }
-
+  function fieldA11y(key: string) {
+    return {
+      "aria-invalid": Boolean(errors[key]),
+      "aria-describedby": errors[key] ? `error-${key}` : undefined,
+    };
+  }
+  function validate(index: number) {
+    const result: Record<string, string> = {};
+    if (index === 0 && (!name.trim() || name.trim().length > 80))
+      result.display_name =
+        "Please enter your name to continue (up to 80 characters).";
+    if (index === 1) {
+      if (!validMoney(normalizedIncome))
+        result.monthly_income =
+          "Enter an income greater than ₹0, up to ₹9,999,999,999.99, with at most two decimal places.";
+      if (!Number.isInteger(payday) || payday < 1 || payday > 28)
+        result.payday = "Choose a payday between 1 and 28.";
+    }
+    if (index === 2 && total !== 100)
+      result.budget_split = "Your budget split must add up to exactly 100%.";
+    if (index === 3) {
+      if (!goals.length || goals.length > 50)
+        result.goals = "Add at least one goal to finish setting up (up to 50).";
+      goals.forEach((goal, i) => {
+        if (!goal.name.trim() || goal.name.trim().length > 80)
+          result[`goals.${i}.name`] =
+            "Every goal needs a name of up to 80 characters.";
+        if (!validMoney(goal.target_amount.replace(/,/g, "")))
+          result[`goals.${i}.target_amount`] =
+            "Enter a target greater than ₹0, with at most two decimal places.";
+        const date = new Date(`${goal.target_date}T00:00:00.000Z`);
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(goal.target_date) ||
+          !Number.isFinite(date.getTime()) ||
+          date.toISOString().slice(0, 10) !== goal.target_date ||
+          date.getUTCFullYear() < 1900
+        )
+          result[`goals.${i}.target_date`] =
+            "Pick a valid deadline (year 1900 onwards).";
+      });
+    }
+    return result;
+  }
   async function submit() {
     if (submitting.current) return;
-    const nextErrors =
-      step === 3
-        ? (Object.assign(
-            {},
-            ...steps.map((_, index) => validateStep(values, index)),
-          ) as Record<string, string>)
-        : validateStep(values, step);
-    setErrors(nextErrors);
-    setMessage("");
-    const firstError = Object.keys(nextErrors)[0];
-    if (firstError) {
-      move(stepForField(firstError));
-      return;
+    for (const index of step === 3 ? [0, 1, 2, 3] : [step]) {
+      const nextErrors = validate(index);
+      if (Object.keys(nextErrors).length) {
+        move(index);
+        setErrors(nextErrors);
+        return;
+      }
     }
     if (step < 3) {
       move(step + 1);
@@ -194,323 +164,416 @@ export default function OnboardingForm({
     }
     submitting.current = true;
     setSaving(true);
+    setMessage("");
+    const payload: ProfileInput = {
+      display_name: name.trim(),
+      payday,
+      ...budgetPlan(normalizedIncome, split),
+      employment_type: "salaried",
+      monthly_income: normalizedIncome,
+      other_monthly_income: null,
+      existing_debt_total: null,
+      current_savings: "0",
+      investment_experience: "none",
+      risk_tolerance: "low",
+      already_investing: false,
+      invested_amount: null,
+      emergency_fund_months: "0",
+      goals: goals.map((goal) => ({
+        name: goal.name.trim(),
+        target_amount: goal.target_amount.replace(/,/g, ""),
+        target_date: goal.target_date,
+        priority: goal.priority,
+      })),
+    };
     try {
-      const result = await fetchProfile(editing ? "PUT" : "POST", values);
-      if (onSaved) onSaved(result);
-      else {
-        router.replace("/dashboard");
-        router.refresh();
-      }
+      await fetchProfile("POST", payload);
+      router.replace("/dashboard");
+      router.refresh();
     } catch (error) {
       if (error instanceof ProfileApiError) {
-        setErrors(error.fields);
-        const field = Object.keys(error.fields)[0];
-        if (field) move(stepForField(field));
-        if (error.status === 401) {
-          setMessage(
-            "Your session has expired. Log in again in another tab, then retry; your answers will remain here.",
+        const key = Object.keys(error.fields)[0];
+        if (key) {
+          move(
+            key === "display_name"
+              ? 0
+              : ["monthly_income", "payday"].includes(key)
+                ? 1
+                : key === "budget_split"
+                  ? 2
+                  : 3,
           );
-        } else if (error.status === 409 && !editing) {
-          setMessage(
-            "Your profile was already saved. Open the dashboard to continue.",
-          );
-        } else setMessage(error.message);
-      } else setMessage("Unable to save your profile. Please try again.");
-    } finally {
+          setErrors(error.fields);
+        }
+        setMessage(
+          error.status === 401
+            ? "Your session has expired. Log in again in another tab, then retry; your answers will remain here."
+            : error.status === 409
+              ? "Your setup is already saved. Open the dashboard to continue."
+              : error.message,
+        );
+      } else
+        setMessage(
+          "Couldn't finish setup. Your answers are still here; please try again.",
+        );
       submitting.current = false;
       setSaving(false);
     }
   }
 
   return (
-    <form
-      className="dash-form space-y-5"
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        void submit();
-      }}
-    >
-      <div className="onboarding-progress">
-        <p className="mb-2 text-xs text-dash-muted">Step {step + 1} of 4</p>
-        <ProgressBar
-          value={(step + 1) * 25}
-          label="Financial profile progress"
-        />
-        <ol className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-dash-muted">
-          {steps.map((label, index) => (
+    <div className="onboarding-layout">
+      <aside className="onboarding-guide">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-3 text-lg font-semibold tracking-tight"
+        >
+          <span className="onboarding-brand">
+            <Icon name="chart" className="size-5" />
+          </span>
+          FinVerse<span className="text-dash-accent">.</span>
+        </Link>
+        <div className="mt-10 hidden lg:block">
+          <p className="dash-eyebrow text-dash-accent">
+            A little clarity goes a long way
+          </p>
+          <h1 className="mt-4 text-4xl leading-tight font-medium tracking-tight">
+            Your money.
+            <br />
+            Your plans.
+            <br />
+            <span className="text-dash-accent">Your next chapter.</span>
+          </h1>
+          <p className="mt-5 max-w-xs text-sm leading-6 text-dash-muted">
+            Four small steps to a financial picture that feels like you.
+          </p>
+        </div>
+        <ol className="onboarding-step-list" aria-label="Setup steps">
+          {steps.map((item, index) => (
             <li
-              key={label}
+              key={item.label}
               aria-current={index === step ? "step" : undefined}
-              className={index === step ? "text-dash-accent" : ""}
+              data-complete={index < step}
             >
-              {index + 1}. {label}
+              <span className="onboarding-step-number">
+                {index < step ? "✓" : String(index + 1).padStart(2, "0")}
+              </span>
+              <div>
+                <span className="block text-sm font-medium">{item.label}</span>
+                <span className="hidden text-xs text-dash-muted lg:block">
+                  {index < step
+                    ? "Ready"
+                    : index === step
+                      ? "You are here"
+                      : "Up next"}
+                </span>
+              </div>
             </li>
           ))}
         </ol>
-      </div>
-      <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">
-        {steps[step]}
-      </h2>
-      <fieldset disabled={saving} className="space-y-4 disabled:opacity-60">
-        <legend className="sr-only">{steps[step]}</legend>
-        {choiceFields
-          .filter(([, , fieldStep]) => fieldStep === step)
-          .map(([key, label, , options]) => (
-            <label key={key} className="block text-sm">
-              {label}
-              <select
-                className="dash-input mt-1 w-full"
-                value={values[key]}
-                onChange={(event) =>
-                  change(key, event.target.value as ProfileInput[typeof key])
-                }
-                aria-invalid={Boolean(errors[key])}
-                aria-describedby={errors[key] ? `error-${key}` : undefined}
-              >
-                {options.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              {errorFor(key)}
-            </label>
-          ))}
-        {step === 1 && (
-          <p className="text-xs leading-5 text-dash-muted">
-            Fixed expenses include rent, monthly EMIs, bills, and subscriptions.
-            Variable expenses include food, travel, and shopping. Outstanding
-            debt is informational; monthly EMIs are counted in fixed expenses.
+        <div className="surface-inset mt-auto hidden border p-5 lg:block">
+          <Icon name="bulb" className="mb-3 size-5 text-dash-accent" />
+          <p className="text-sm">A starting point, not a forever plan.</p>
+          <p className="mt-2 text-xs leading-5 text-dash-muted">
+            You can update your financial details and goals from your dashboard
+            anytime.
           </p>
-        )}
-        {step === 3 && (
-          <label className="block text-sm">
-            Already investing?
-            <select
-              className="dash-input mt-1 w-full"
-              value={values.already_investing ? "yes" : "no"}
-              onChange={(event) => {
-                const investing = event.target.value === "yes";
-                setValues((current) => ({
-                  ...current,
-                  already_investing: investing,
-                  invested_amount: investing ? current.invested_amount : null,
-                }));
-              }}
+        </div>
+      </aside>
+      <section
+        className="dash-panel dash-highlight onboarding-card onboarding-workspace"
+        aria-labelledby="onboarding-heading"
+      >
+        <form
+          className="dash-form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <div className="mb-4">
+            <div className="mb-3 flex justify-between text-xs text-dash-muted">
+              <span>GETTING STARTED</span>
+              <span>Step {step + 1} of 4</span>
+            </div>
+            <ProgressBar value={(step + 1) * 25} label="Onboarding progress" />
+          </div>
+          <div className="onboarding-step-icon">
+            <Icon name={active.icon} className="size-6" />
+          </div>
+          <div className="mb-3">
+            <h2
+              id="onboarding-heading"
+              ref={heading}
+              tabIndex={-1}
+              className="text-title leading-tight font-medium tracking-tight"
             >
-              <option value="no">No</option>
-              <option value="yes">Yes</option>
-            </select>
-            {errorFor("already_investing")}
-          </label>
-        )}
-        {moneyFields
-          .filter(
-            ([key, , fieldStep]) =>
-              fieldStep === step &&
-              (key !== "invested_amount" || values.already_investing),
-          )
-          .map(([key, label, , optional]) => (
-            <label key={key} className="block text-sm">
-              {label} (₹)
-              <input
-                className="dash-input mt-1 w-full"
-                name={key}
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max="9999999999.99"
-                step="0.01"
-                required={!optional}
-                value={values[key] ?? ""}
-                onChange={(event) =>
-                  change(
-                    key,
-                    event.target.value === "" && optional
-                      ? null
-                      : event.target.value,
-                  )
-                }
-                aria-invalid={Boolean(errors[key])}
-                aria-describedby={errors[key] ? `error-${key}` : undefined}
-              />
-              {errorFor(key)}
-            </label>
-          ))}
-        {step === 2 && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold">Goals</h3>
-            {values.goals.map((goal, index) => (
-              <fieldset
-                key={index}
-                className="clay-inset space-y-3 border border-dash-border p-5"
-              >
-                <legend className="px-1 text-xs">Goal {index + 1}</legend>
-                {(
-                  ["name", "target_amount", "target_date", "priority"] as const
-                ).map((key) => {
-                  const path = `goals.${index}.${key}`;
-                  const update = (value: string) => {
-                    change(
-                      "goals",
-                      values.goals.map((item, itemIndex) =>
-                        itemIndex === index ? { ...item, [key]: value } : item,
+              {active.title}
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-dash-muted">
+              {active.description}
+            </p>
+          </div>
+          <fieldset disabled={saving} className="min-w-0 space-y-5">
+            <legend className="sr-only">{active.label}</legend>
+            {step === 0 && (
+              <>
+                <label>
+                  Display name
+                  <input
+                    className="dash-input w-full"
+                    autoComplete="name"
+                    name="display_name"
+                    placeholder="e.g. John Doe"
+                    maxLength={80}
+                    value={name}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      clear("display_name");
+                    }}
+                    {...fieldA11y("display_name")}
+                  />
+                  {errorFor("display_name")}
+                </label>
+                <div className="onboarding-note">
+                  <Icon
+                    name="user"
+                    className="size-5 shrink-0 text-dash-accent"
+                  />
+                  <p>
+                    {name.trim()
+                      ? `Welcome, ${name.trim()}. Let's make room for what matters to you.`
+                      : "A familiar name. A fresh start for your finances."}
+                  </p>
+                </div>
+              </>
+            )}
+            {step === 1 && (
+              <>
+                <label>
+                  Monthly income (₹)
+                  <input
+                    className="dash-input onboarding-income-input w-full"
+                    inputMode="decimal"
+                    name="monthly_income"
+                    placeholder="e.g. 50,000"
+                    value={income}
+                    onChange={(event) => {
+                      setIncome(event.target.value);
+                      clear("monthly_income");
+                    }}
+                    {...fieldA11y("monthly_income")}
+                  />
+                  {errorFor("monthly_income")}
+                </label>
+                <label>
+                  Payday (day of month)
+                  <select
+                    className="dash-input w-full"
+                    value={payday}
+                    onChange={(event) => {
+                      setPayday(Number(event.target.value));
+                      clear("payday");
+                    }}
+                    {...fieldA11y("payday")}
+                  >
+                    {Array.from({ length: 28 }, (_, index) => (
+                      <option key={index + 1} value={index + 1}>
+                        Day {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                  {errorFor("payday")}
+                </label>
+                <div className="onboarding-note">
+                  <Icon
+                    name="calendar"
+                    className="size-5 shrink-0 text-dash-accent"
+                  />
+                  <p>
+                    Your monthly income and payday become part of your financial
+                    plan. Days 1–28 work in every month.
+                  </p>
+                </div>
+              </>
+            )}
+            {step === 2 && (
+              <>
+                <BudgetFields
+                  income={normalizedIncome}
+                  split={split}
+                  onChange={(next) => {
+                    setSplit(next);
+                    clear("budget_split");
+                  }}
+                />
+                {errorFor("budget_split")}
+              </>
+            )}
+            {step === 3 && (
+              <>
+                {!goals.length && (
+                  <div className="onboarding-empty">
+                    <Icon
+                      name="target"
+                      className="mx-auto mb-3 size-8 text-dash-accent"
+                    />
+                    <p className="text-sm">Give your next milestone a name.</p>
+                    <p className="mt-2 text-xs leading-5 text-dash-muted">
+                      An emergency fund, a dream trip, or a place of your own.
+                    </p>
+                  </div>
+                )}
+                {goals.map((goal, index) => {
+                  const update = (
+                    key: "name" | "target_amount" | "target_date",
+                    value: string,
+                  ) => {
+                    setGoals((current) =>
+                      current.map((item) =>
+                        item.key === goal.key
+                          ? { ...item, [key]: value }
+                          : item,
                       ),
                     );
-                    setErrors((current) => ({ ...current, [path]: "" }));
+                    clear(`goals.${index}.${key}`);
                   };
                   return (
-                    <label key={key} className="block text-sm">
-                      {
-                        {
-                          name: "Goal name",
-                          target_amount: "Target amount (₹)",
-                          target_date: "Target date",
-                          priority: "Priority",
-                        }[key]
-                      }
-                      {key === "priority" ? (
-                        <select
-                          className="dash-input mt-1 w-full"
-                          value={goal[key]}
-                          onChange={(event) => update(event.target.value)}
+                    <fieldset
+                      key={goal.key}
+                      className="surface-inset min-w-0 space-y-4 border p-4 sm:p-5"
+                    >
+                      <legend className="sr-only">Goal {index + 1}</legend>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-dash-accent">
+                          GOAL {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <button
+                          type="button"
+                          className="dash-icon-button"
+                          aria-label={`Remove ${goal.name || `goal ${index + 1}`}`}
+                          onClick={() => {
+                            setGoals((current) =>
+                              current.filter((item) => item.key !== goal.key),
+                            );
+                            setErrors({});
+                          }}
                         >
-                          <option value="low">Low</option>
-                          <option value="medium">Medium</option>
-                          <option value="high">High</option>
-                        </select>
-                      ) : (
+                          <Icon name="close" />
+                        </button>
+                      </div>
+                      <label>
+                        Goal name
                         <input
-                          className="dash-input mt-1 w-full"
-                          required
-                          type={
-                            key === "target_amount"
-                              ? "number"
-                              : key === "target_date"
-                                ? "date"
-                                : "text"
+                          className="dash-input w-full"
+                          placeholder="e.g. Emergency fund"
+                          maxLength={80}
+                          value={goal.name}
+                          onChange={(event) =>
+                            update("name", event.target.value)
                           }
-                          min={
-                            key === "target_amount"
-                              ? "0.01"
-                              : key === "target_date"
-                                ? "1900-01-01"
-                                : undefined
-                          }
-                          max={
-                            key === "target_amount"
-                              ? "9999999999.99"
-                              : key === "target_date"
-                                ? "9999-12-31"
-                                : undefined
-                          }
-                          maxLength={key === "name" ? 100 : undefined}
-                          step={key === "target_amount" ? "0.01" : undefined}
-                          value={goal[key]}
-                          onChange={(event) => update(event.target.value)}
-                          aria-invalid={Boolean(errors[path])}
-                          aria-describedby={
-                            errors[path] ? `error-${path}` : undefined
-                          }
+                          {...fieldA11y(`goals.${index}.name`)}
                         />
-                      )}
-                      {errorFor(path)}
-                    </label>
+                        {errorFor(`goals.${index}.name`)}
+                      </label>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <label>
+                          Target (₹)
+                          <input
+                            className="dash-input w-full"
+                            inputMode="decimal"
+                            placeholder="e.g. 2,00,000"
+                            value={goal.target_amount}
+                            onChange={(event) =>
+                              update("target_amount", event.target.value)
+                            }
+                            {...fieldA11y(`goals.${index}.target_amount`)}
+                          />
+                          {errorFor(`goals.${index}.target_amount`)}
+                        </label>
+                        <label>
+                          Deadline
+                          <input
+                            className="dash-input w-full"
+                            type="date"
+                            min="1900-01-01"
+                            max="9999-12-31"
+                            value={goal.target_date}
+                            onChange={(event) =>
+                              update("target_date", event.target.value)
+                            }
+                            {...fieldA11y(`goals.${index}.target_date`)}
+                          />
+                          {errorFor(`goals.${index}.target_date`)}
+                        </label>
+                      </div>
+                    </fieldset>
                   );
                 })}
+                {errorFor("goals")}
                 <button
-                  className="dash-small-button"
                   type="button"
-                  disabled={values.goals.length === 1}
+                  className="dash-small-button min-h-11 w-full gap-2"
+                  disabled={goals.length >= 50}
                   onClick={() => {
-                    change(
-                      "goals",
-                      values.goals.filter(
-                        (_, itemIndex) => itemIndex !== index,
-                      ),
-                    );
-                    setErrors({});
+                    setGoals((current) => [...current, newGoal()]);
+                    clear("goals");
                   }}
                 >
-                  Remove goal
+                  <Icon name="plus" />
+                  Add a goal
                 </button>
-              </fieldset>
-            ))}
-            {errorFor("goals")}
-            <button
-              className="dash-small-button"
-              type="button"
-              disabled={values.goals.length >= 50}
-              onClick={() => change("goals", [...values.goals, emptyGoal()])}
+              </>
+            )}
+          </fieldset>
+          {message && (
+            <div
+              role="alert"
+              className="rounded-2xl border border-dash-red/30 p-4 text-sm text-dash-red"
             >
-              + Add goal
-            </button>
-          </div>
-        )}
-      </fieldset>
-      {message && (
-        <div role="alert" className="space-y-2 text-sm text-dash-red">
-          <p>{message}</p>
-          <div className="flex gap-4">
-            <a
-              href="/auth/login"
-              target="_blank"
-              rel="noreferrer"
-              className="text-dash-accent underline"
-            >
-              Log in
-            </a>
-            <a href="/dashboard" className="text-dash-accent underline">
-              Open dashboard
-            </a>
-          </div>
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex gap-2">
-          <button
-            className="dash-small-button"
-            type="button"
-            disabled={step === 0 || saving}
-            onClick={() => {
-              setErrors({});
-              setMessage("");
-              move(step - 1);
-            }}
-          >
-            Back
-          </button>
-          {onCancel && (
-            <button
-              className="dash-small-button"
-              type="button"
-              disabled={saving}
-              onClick={onCancel}
-            >
-              Cancel
-            </button>
+              <p>{message}</p>
+              <div className="mt-3 flex gap-4">
+                <a
+                  href="/auth/login"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Log in
+                </a>
+                <a href="/dashboard" className="underline">
+                  Open dashboard
+                </a>
+              </div>
+            </div>
           )}
-        </div>
-        <button
-          className="dash-primary px-4 py-2 disabled:opacity-60"
-          type="submit"
-          disabled={saving}
-        >
-          {saving
-            ? "Saving..."
-            : step === 3
-              ? editing
-                ? "Save changes"
-                : "Complete onboarding"
-              : "Next"}
-        </button>
-      </div>
-      {saving && (
-        <p className="text-xs text-dash-muted" role="status">
-          Saving your financial profile...
-        </p>
-      )}
-    </form>
+          <div className="onboarding-actions">
+            <button
+              type="button"
+              className="dash-small-button gap-1"
+              disabled={step === 0 || saving}
+              onClick={() => move(step - 1)}
+            >
+              <Icon name="left" />
+              Back
+            </button>
+            <button
+              type="submit"
+              className="dash-primary min-h-12 min-w-40 gap-3"
+              disabled={saving || (step === 2 && total !== 100)}
+            >
+              {saving ? "Finishing…" : step === 3 ? "Finish setup" : "Continue"}
+              {!saving && <Icon name="right" />}
+            </button>
+          </div>
+          <p className="text-center text-xs text-dash-muted" role="status">
+            {saving
+              ? "Saving your name, income, budgets, and goals…"
+              : "Your answers are saved together when you finish setup."}
+          </p>
+        </form>
+      </section>
+    </div>
   );
 }

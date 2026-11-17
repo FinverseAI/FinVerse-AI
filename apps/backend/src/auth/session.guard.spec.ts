@@ -32,14 +32,12 @@ describe('SessionGuard', () => {
   });
 
   it('uses only the identity returned by Better Auth', async () => {
-    global.fetch = jest
-      .fn()
-      .mockResolvedValue(
-        Response.json({
-          user: { id: 'verified-user' },
-          session: { expiresAt: new Date(Date.now() + 60000).toISOString() },
-        }),
-      );
+    global.fetch = jest.fn().mockResolvedValue(
+      Response.json({
+        user: { id: 'verified-user' },
+        session: { expiresAt: new Date(Date.now() + 60000).toISOString() },
+      }),
+    );
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(request.userId).toBe('verified-user');
     expect(global.fetch).toHaveBeenCalledWith(

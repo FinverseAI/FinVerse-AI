@@ -2,17 +2,24 @@ import { money, type Budget } from "./data";
 import type { FinancialGoal } from "../../../lib/profile";
 
 import { PanelHeading, ProgressBar } from "./ui";
+import { ActivityError } from "./recent-transactions";
 
 export default function PlanningCards({
   budgets,
   goals,
   onManage,
   onAdd,
+  loading,
+  error,
+  onRetry,
 }: {
   budgets: Budget[];
   goals: FinancialGoal[];
   onManage: () => void;
   onAdd: () => void;
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
 }) {
   return (
     <section
@@ -20,7 +27,20 @@ export default function PlanningCards({
       aria-label="Budgets and savings"
       className="grid gap-4 lg:grid-cols-2"
     >
-      <BudgetCard budgets={budgets} onManage={onManage} />
+      {loading || error ? (
+        <article className="dash-panel p-5" aria-busy={loading}>
+          <PanelHeading icon="target" title="Budget Status" />
+          {loading ? (
+            <p role="status" className="py-8 text-sm text-dash-muted">
+              Loading budget spending…
+            </p>
+          ) : (
+            <ActivityError error={error} onRetry={onRetry} />
+          )}
+        </article>
+      ) : (
+        <BudgetCard budgets={budgets} onManage={onManage} />
+      )}
       <SavingsCard goals={goals} onAdd={onAdd} />
     </section>
   );
@@ -53,18 +73,20 @@ function BudgetCard({
             percent >= 100 ? "red" : percent >= 90 ? "warning" : "accent";
           return (
             <div key={budget.name}>
-              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1 text-[11px]">
+              <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1 text-xs">
                 <span>{budget.name}</span>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] text-dash-muted">
+                  <span className="font-mono text-xs text-dash-muted">
                     {money(budget.spent)} / {money(budget.limit)}
                   </span>
                   <span data-tone={tone} className="dash-badge">
-                    {percent >= 100
+                    {percent > 100
                       ? "Over budget"
-                      : percent >= 90
-                        ? "Watch"
-                        : "On track"}
+                      : percent === 100
+                        ? "Fully used"
+                        : percent >= 90
+                          ? "Watch"
+                          : "On track"}
                   </span>
                 </div>
               </div>
@@ -73,7 +95,7 @@ function BudgetCard({
                 label={`${budget.name} budget used`}
                 tone={tone}
               />
-              <p className="mt-1.5 font-mono text-[9px] text-dash-muted">
+              <p className="mt-1.5 font-mono text-xs text-dash-muted">
                 {money(Math.abs(budget.limit - budget.spent))}{" "}
                 {percent > 100 ? "over budget" : "left to spend"}
               </p>
@@ -115,14 +137,14 @@ function SavingsCard({
             year: "numeric",
           });
           return (
-            <div key={`${goal.name}-${index}`}>
-              <div className="mb-1.5 flex items-center justify-between text-[11px]">
+            <div key={goal.id ?? `${goal.name}-${index}`}>
+              <div className="mb-1.5 flex items-center justify-between text-xs">
                 <span>{goal.name}</span>
                 <span className="font-mono text-xs font-semibold text-dash-accent">
                   {goal.priority} priority
                 </span>
               </div>
-              <div className="mt-1.5 flex flex-wrap justify-between gap-1 font-mono text-[9px] text-dash-muted">
+              <div className="mt-1.5 flex flex-wrap justify-between gap-1 font-mono text-xs text-dash-muted">
                 <span>
                   Target {money(Number(goal.target_amount), 2)} · {deadline}
                 </span>

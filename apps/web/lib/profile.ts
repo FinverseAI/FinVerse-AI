@@ -7,6 +7,8 @@ export type FinancialGoal = {
 };
 
 export type FinancialProfile = {
+  payday?: number | null;
+  budget_split?: Record<string, number> | null;
   employment_type: "salaried" | "self-employed" | "student" | "other";
   monthly_income: string;
   other_monthly_income: string | null;
@@ -22,7 +24,10 @@ export type FinancialProfile = {
   emergency_fund_months: "0" | "1-3" | "3-6" | "6+";
 };
 
-export type ProfileInput = FinancialProfile & { goals: FinancialGoal[] };
+export type ProfileInput = FinancialProfile & {
+  goals: FinancialGoal[];
+  display_name?: string;
+};
 export type ProfileResponse = {
   profile:
     (FinancialProfile & { created_at: string; updated_at: string }) | null;
@@ -31,6 +36,8 @@ export type ProfileResponse = {
 };
 
 export const profileKeys = [
+  "payday",
+  "budget_split",
   "employment_type",
   "monthly_income",
   "other_monthly_income",
@@ -50,7 +57,13 @@ export function profileInput(data: ProfileResponse): ProfileInput {
   if (!data.profile) throw new Error("Financial profile is missing.");
   return {
     ...(Object.fromEntries(
-      profileKeys.map((key) => [key, data.profile![key]]),
+      profileKeys
+        .filter(
+          (key) =>
+            !["payday", "budget_split"].includes(key) ||
+            data.profile![key] != null,
+        )
+        .map((key) => [key, data.profile![key]]),
     ) as FinancialProfile),
     goals: data.goals.map(({ name, target_amount, target_date, priority }) => ({
       name,
@@ -82,12 +95,16 @@ export function profileTotals(profile: FinancialProfile) {
 }
 
 export class ProfileApiError extends Error {
+  status: number;
+  fields: Record<string, string>;
   constructor(
     message: string,
-    public status: number,
-    public fields: Record<string, string> = {},
+    status: number,
+    fields: Record<string, string> = {},
   ) {
     super(message);
+    this.status = status;
+    this.fields = fields;
   }
 }
 

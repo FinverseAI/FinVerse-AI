@@ -26,6 +26,59 @@ export const validProfile = () => ({
 });
 
 describe('financial profile validation', () => {
+  const split = {
+    food: 10,
+    groceries: 10,
+    transport: 5,
+    shopping: 5,
+    bills: 10,
+    rent: 30,
+    health: 5,
+    entertainment: 5,
+    travel: 5,
+    education: 5,
+    investments: 5,
+    others: 5,
+  };
+  it('accepts the reference onboarding categories and normalizes the display name', () => {
+    const result = validateProfile({
+      ...validProfile(),
+      display_name: ' Alex ',
+      payday: 28,
+      budget_split: split,
+    });
+    expect(result.displayName).toBe('Alex');
+    expect(result.profile.payday).toBe(28);
+    expect(result.profile.budget_split).toEqual(split);
+    expect(result.profile.fixed_expenses.toFixed(2)).toBe('24000.04');
+    expect(result.profile.monthly_savings_target.toFixed(2)).toBe('3000.00');
+    expect(
+      result.profile.fixed_expenses
+        .plus(result.profile.variable_expenses)
+        .plus(result.profile.monthly_savings_target)
+        .toFixed(2),
+    ).toBe('60000.10');
+  });
+  it.each([
+    { display_name: ' ' },
+    { display_name: 123 },
+    { display_name: 'a'.repeat(81) },
+    { payday: 0 },
+    { payday: 29 },
+    { payday: 1.5 },
+    { payday: '1' },
+    { budget_split: { ...split, rent: 29 } },
+    { budget_split: { ...split, rent: 31 } },
+    { budget_split: { ...split, rent: 30.5, food: 9.5 } },
+    { budget_split: { ...split, food: -1, rent: 41 } },
+    { budget_split: { ...split, unknown: 0 } },
+    { budget_split: {} },
+    { budget_split: null },
+  ])('rejects invalid onboarding details %p', (fields) => {
+    expect(() => validateProfile({ ...validProfile(), ...fields })).toThrow(
+      BadRequestException,
+    );
+  });
   it('handles exact decimal budgets and normalizes enum values and goal names', () => {
     const result = validateProfile(validProfile());
     expect(result.profile.employment_type).toBe('self_employed');

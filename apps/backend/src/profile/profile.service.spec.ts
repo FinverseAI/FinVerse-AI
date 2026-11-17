@@ -28,7 +28,7 @@ describe('ProfileService', () => {
     $queryRaw: jest.fn(),
     userFinancialProfile: { findUnique: jest.fn(), upsert: jest.fn() },
     userGoal: { deleteMany: jest.fn(), createMany: jest.fn() },
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), update: jest.fn() },
   };
   const transaction = jest.fn(
     async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx),
@@ -89,6 +89,39 @@ describe('ProfileService', () => {
     );
     expect(tx.userFinancialProfile.upsert).not.toHaveBeenCalled();
     expect(tx.userGoal.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('saves the display name and payday in the same transaction as the profile', async () => {
+    await service.save(
+      'owner',
+      { ...input, display_name: ' Alex ', payday: 28 },
+      true,
+    );
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'owner' },
+      data: { name: 'Alex' },
+    });
+    expect(tx.userFinancialProfile.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ payday: 28 }),
+      }),
+    );
+  });
+
+  it('preserves onboarding details when the legacy financial editor omits them', async () => {
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+    });
+    await service.save('owner', input, false);
+    expect(tx.user.update).not.toHaveBeenCalled();
+    expect(tx.userFinancialProfile.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({
+          payday: undefined,
+          budget_split: undefined,
+        }),
+      }),
+    );
   });
 
   it('requires onboarding before updates', async () => {

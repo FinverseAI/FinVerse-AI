@@ -57,7 +57,7 @@ export default function SummaryCards({
     >
       <article className="dash-panel summary-card savings-card flex flex-col">
         <h2 className="dash-eyebrow">Current savings</h2>
-        <p className="mt-4 text-[30px] leading-9 font-medium tracking-[-0.05em] break-words">
+        <p className="mt-4 text-3xl leading-9 font-medium tracking-tight break-words">
           {money(totals.savings, 2)}
         </p>
         <p className="mt-3 text-xs leading-5 text-dash-muted">
@@ -73,7 +73,7 @@ export default function SummaryCards({
       {cards.map((card) => (
         <article key={card.label} className="dash-panel summary-card">
           <h2 className="dash-eyebrow">{card.label}</h2>
-          <p className="mt-4 text-[28px] font-medium tracking-[-0.05em] break-words">
+          <p className="mt-4 text-3xl font-medium tracking-tight break-words">
             {money(card.value, 2)}
           </p>
           <div className="mb-3 mt-3 grid grid-cols-2 gap-2">
@@ -85,6 +85,11 @@ export default function SummaryCards({
               />
             ))}
           </div>
+          {card.label === "Monthly income" && profile.payday && (
+            <p className="-mt-1 mb-3 text-xs text-dash-muted">
+              Payday: day {profile.payday} of each month
+            </p>
+          )}
           <ProgressBar
             value={card.ratio}
             label={card.ratioLabel}
@@ -94,7 +99,7 @@ export default function SummaryCards({
             <p data-tone={card.tone} className="font-mono text-lg font-medium">
               {card.ratio.toFixed(1)}%
             </p>
-            <span className="text-right font-mono text-[9px] text-dash-muted">
+            <span className="text-right font-mono text-xs text-dash-muted">
               {card.ratioLabel}
             </span>
           </div>

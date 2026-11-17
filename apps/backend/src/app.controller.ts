@@ -6,7 +6,7 @@ export class AppController {
   getHealth() {
     return {
       success: true,
-      message: 'FinVerse Backend is running 🚀',
+      message: 'FinVerse backend is running',
       timestamp: new Date().toISOString(),
     };
   }

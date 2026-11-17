@@ -1,17 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { authClient } from "../../../auth/client";
 import type { AuthUser } from "../../../auth/types";
 import type { ProfileResponse } from "../../../lib/profile";
-import OnboardingForm from "../onboarding/onboarding-form";
-import { type Budget, type Transaction } from "./data";
+
+import { onboardingBudgets } from "../../../lib/onboarding";
+import { type Transaction } from "./data";
 import { Header, Sidebar } from "./navigation";
 import SummaryCards from "./summary-cards";
 import BalanceBreakdownCard from "./balance-breakdown-card";
 import ExpenseBreakdownCard from "./expense-breakdown-card";
 import PlanningCards from "./planning-cards";
-import { DashboardDialog, Modal, type DialogKind } from "./ui";
+import RecentTransactions from "./recent-transactions";
+import UpcomingBills from "./upcoming-bills";
+import SpendingAnalysis from "./spending-analysis";
+import { useActivity } from "./use-activity";
+import { budgetsWithSpending, dateKey } from "./spending-data";
+import { Modal } from "./modal";
+import type { DialogKind } from "./dashboard-dialog";
+
+const FinancialProfileForm = dynamic(
+  () => import("../onboarding/financial-profile-form"),
+  {
+    loading: () => <p role="status">Loading financial profile...</p>,
+  },
+);
+const BudgetEditor = dynamic(() => import("./budget-editor"));
+const DashboardDialog = dynamic(() =>
+  import("./dashboard-dialog").then((module) => module.DashboardDialog),
+);
 
 export default function Dashboard({
   user,
@@ -20,26 +40,30 @@ export default function Dashboard({
   user?: AuthUser;
   profileData: ProfileResponse;
 }) {
-  const [month, setMonth] = useState(() => new Date().getMonth());
+  const router = useRouter();
+  const [month, setMonth] = useState(() => dateKey(new Date()).slice(0, 7));
   const [data, setData] = useState(profileData);
   const [editingProfile, setEditingProfile] = useState(false);
   const [query, setQuery] = useState("");
-  const [dialog, setDialog] = useState<DialogKind | null>(null);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dialog, setDialog] = useState<DialogKind | "budgets" | null>(null);
+  const budgets = useMemo(
+    () => onboardingBudgets(data.profile!),
+    [data.profile],
+  );
+  const [profileSaving, setProfileSaving] = useState(false);
+  const activity = useActivity<Transaction>("/api/transactions");
+  const transactions = activity.items;
+  const today = dateKey(new Date());
+  const currentBudgets = useMemo(
+    () =>
+      budgetsWithSpending(budgets, transactions, new Date(`${today}T12:00:00`)),
+    [budgets, transactions, today],
+  );
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
 
-  function addTransaction(transaction: Transaction) {
-    setTransactions((current) => [transaction, ...current]);
-    if (transaction.amount < 0)
-      setBudgets((current) =>
-        current.map((budget) =>
-          budget.name === transaction.category
-            ? { ...budget, spent: budget.spent - transaction.amount }
-            : budget,
-        ),
-      );
+  async function addTransaction(transaction: Omit<Transaction, "id">) {
+    await activity.add(transaction);
   }
 
   async function signOut() {
@@ -52,7 +76,8 @@ export default function Dashboard({
         throw new Error(
           error.message ?? "Unable to log out. Please try again.",
         );
-      window.location.assign("/");
+      router.replace("/");
+      router.refresh();
     } catch (error) {
       setSignOutError(
         error instanceof Error
@@ -78,7 +103,7 @@ export default function Dashboard({
         onTransactions={() => setDialog("transactions")}
         onReport={() => setDialog("report")}
       />
-      <div className="sm:pl-[92px]">
+      <div className="sm:pl-24">
         <Header
           month={month}
           onMonth={setMonth}
@@ -121,9 +146,13 @@ export default function Dashboard({
           />
           <section
             aria-label="Financial breakdown"
-            className="grid gap-4 xl:grid-cols-[minmax(0,2.03fr)_minmax(0,1fr)]"
+            className="grid gap-4 xl:grid-cols-dashboard"
           >
             <BalanceBreakdownCard
+              transactions={transactions}
+              loading={activity.loading}
+              error={activity.error}
+              onRetry={activity.retry}
               month={month}
               onMonth={setMonth}
               profile={data.profile!}
@@ -131,10 +160,36 @@ export default function Dashboard({
             <ExpenseBreakdownCard profile={data.profile!} />
           </section>
           <PlanningCards
-            budgets={budgets}
+            budgets={currentBudgets}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.retry}
             goals={data.goals}
             onManage={() => setDialog("budgets")}
             onAdd={() => setDialog("goal")}
+          />
+          <section
+            aria-label="Transactions and bills"
+            className="grid gap-4 xl:grid-cols-dashboard"
+          >
+            <RecentTransactions
+              transactions={transactions}
+              loading={activity.loading}
+              error={activity.error}
+              onRetry={activity.retry}
+              onAdd={() => setDialog("transaction")}
+              onSeeAll={() => {
+                setQuery("");
+                setDialog("transactions");
+              }}
+            />
+            <UpcomingBills />
+          </section>
+          <SpendingAnalysis
+            transactions={transactions}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.retry}
           />
         </main>
       </div>
@@ -145,13 +200,15 @@ export default function Dashboard({
               ? "Manage savings goals"
               : "Edit financial profile"
           }
+          busy={profileSaving}
           onClose={() => {
             setEditingProfile(false);
             setDialog(null);
           }}
         >
-          <OnboardingForm
+          <FinancialProfileForm
             initialData={data}
+            onSavingChange={setProfileSaving}
             initialStep={dialog === "goal" ? 2 : 0}
             onCancel={() => {
               setEditingProfile(false);
@@ -165,17 +222,28 @@ export default function Dashboard({
           />
         </Modal>
       )}
-      {dialog && dialog !== "goal" && (
+      {dialog === "budgets" && (
+        <BudgetEditor
+          data={data}
+          onClose={() => setDialog(null)}
+          onSaved={(updated) => {
+            setData(updated);
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog && dialog !== "goal" && dialog !== "budgets" && (
         <DashboardDialog
           kind={dialog}
           onClose={() => setDialog(null)}
-          budgets={budgets}
           transactions={transactions}
+          transactionsLoading={activity.loading}
+          transactionsError={activity.error}
+          onRetryTransactions={activity.retry}
           query={query}
           onQuery={setQuery}
           profile={data.profile!}
           onTransaction={addTransaction}
-          onBudgets={setBudgets}
         />
       )}
     </div>

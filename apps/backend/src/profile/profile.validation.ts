@@ -8,6 +8,21 @@ import {
   RiskTolerance,
 } from '@prisma/client';
 
+const budgetCategoryIds = [
+  'food',
+  'groceries',
+  'transport',
+  'shopping',
+  'bills',
+  'rent',
+  'health',
+  'entertainment',
+  'travel',
+  'education',
+  'investments',
+  'others',
+];
+
 export function validateProfile(body: unknown) {
   const errors: Record<string, string> = {};
   const input =
@@ -29,6 +44,9 @@ export function validateProfile(body: unknown) {
     'invested_amount',
     'emergency_fund_months',
     'goals',
+    'display_name',
+    'payday',
+    'budget_split',
   ]);
   for (const key of Object.keys(input)) {
     if (!allowed.has(key)) errors[key] = 'This field is not accepted.';
@@ -66,7 +84,53 @@ export function validateProfile(body: unknown) {
     return choices[value];
   }
 
+  let displayName: string | undefined;
+  if (input.display_name !== undefined) {
+    displayName =
+      typeof input.display_name === 'string' ? input.display_name.trim() : '';
+    if (!displayName || displayName.length > 80)
+      errors.display_name = 'Enter a display name of 1 to 80 characters.';
+  }
+  let payday: number | undefined;
+  if (input.payday !== undefined) {
+    if (
+      typeof input.payday !== 'number' ||
+      !Number.isInteger(input.payday) ||
+      input.payday < 1 ||
+      input.payday > 28
+    )
+      errors.payday = 'Choose a payday between 1 and 28.';
+    else payday = input.payday;
+  }
+  let budgetSplit: Record<string, number> | undefined;
+  if (input.budget_split !== undefined) {
+    const raw = input.budget_split;
+    if (
+      !raw ||
+      typeof raw !== 'object' ||
+      Array.isArray(raw) ||
+      Object.keys(raw).length !== budgetCategoryIds.length ||
+      budgetCategoryIds.some(
+        (key) =>
+          !Object.hasOwn(raw, key) ||
+          typeof (raw as Record<string, unknown>)[key] !== 'number' ||
+          !Number.isInteger((raw as Record<string, unknown>)[key]) ||
+          Number((raw as Record<string, unknown>)[key]) < 0 ||
+          Number((raw as Record<string, unknown>)[key]) > 100,
+      ) ||
+      Object.values(raw).reduce(
+        (sum: number, value) => sum + Number(value),
+        0,
+      ) !== 100
+    ) {
+      errors.budget_split =
+        'Assign a whole percentage to every category, adding up to exactly 100%.';
+    } else budgetSplit = raw as Record<string, number>;
+  }
+
   const profile = {
+    payday,
+    budget_split: budgetSplit,
     employment_type: choice('employment_type', {
       salaried: EmploymentType.salaried,
       'self-employed': EmploymentType.self_employed,
@@ -94,6 +158,32 @@ export function validateProfile(body: unknown) {
       '6+': EmergencyFundMonths.six_plus,
     }),
   };
+  if (budgetSplit && profile.monthly_income) {
+    const incomeCents = profile.monthly_income.times(100).toNumber();
+    const allocations = budgetCategoryIds.map((key, index) => ({
+      key,
+      index,
+      cents: Math.floor((incomeCents * budgetSplit[key]) / 100),
+      remainder: (incomeCents * budgetSplit[key]) % 100,
+    }));
+    const remainder =
+      incomeCents - allocations.reduce((sum, item) => sum + item.cents, 0);
+    const ranked = [...allocations].sort(
+      (a, b) => b.remainder - a.remainder || a.index - b.index,
+    );
+    for (let index = 0; index < remainder; index++) ranked[index].cents++;
+    const amounts = Object.fromEntries(
+      allocations.map((item) => [item.key, item.cents]),
+    );
+    const fixed = amounts.rent + amounts.bills;
+    profile.fixed_expenses = new Prisma.Decimal(fixed).div(100);
+    profile.monthly_savings_target = new Prisma.Decimal(
+      amounts.investments,
+    ).div(100);
+    profile.variable_expenses = new Prisma.Decimal(
+      incomeCents - fixed - amounts.investments,
+    ).div(100);
+  }
   if (typeof input.already_investing !== 'boolean')
     errors.already_investing = 'Choose whether you already invest.';
   if (!profile.already_investing && profile.invested_amount?.greaterThan(0))
@@ -173,5 +263,10 @@ export function validateProfile(body: unknown) {
       message: 'Please correct the highlighted fields.',
       errors,
     });
-  return { profile, goals };
+  if (budgetSplit && profile.monthly_income.lessThanOrEqualTo(0))
+    throw new BadRequestException({
+      message: 'Please correct the highlighted fields.',
+      errors: { monthly_income: 'Enter a monthly income greater than ₹0.' },
+    });
+  return { profile, goals, displayName };
 }

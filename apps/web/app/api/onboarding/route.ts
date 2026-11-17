@@ -1,5 +1,5 @@
-import { forwardProfileRequest } from "../../../lib/profile-server";
+import { forwardApiRequest } from "../../../lib/api-server";
 
 export function POST(request: Request) {
-  return forwardProfileRequest(request, "/api/onboarding");
+  return forwardApiRequest(request, "/api/onboarding");
 }
