@@ -336,6 +336,43 @@ body {
   max-width: var(--container-form);
   color: var(--color-dash-muted);
 }
+/* Landing text transitions, ported from STUDY-BUDDY's kinetic motion
+   primitives (sb-mask / sb-reveal): transform/opacity only, triggered by
+   the IntersectionObserver in landing-motion.tsx. */
+.fv-mask {
+  overflow: hidden;
+  display: block;
+}
+.fv-mask > span {
+  display: block;
+  transform: translateY(112%);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--fv-delay, 0ms);
+}
+.fv-mask.in > span {
+  transform: translateY(0);
+}
+.fv-reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--fv-delay, 0ms);
+}
+.fv-reveal.in {
+  opacity: 1;
+  transform: none;
+}
+/* No-JS: content stays fully visible. The root layout removes the no-js
+   class with a before-interactive script when JavaScript runs. */
+.no-js .fv-mask > span {
+  transform: none;
+}
+.no-js .fv-reveal {
+  opacity: 1;
+  transform: none;
+}
 .feature-card {
   transition: border-color var(--duration-fast);
 }

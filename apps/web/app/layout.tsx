@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import Script from "next/script";
 import "./globals.css";
 import { webOrigin } from "../lib/env";
 
@@ -30,8 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="no-js" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <Script id="remove-no-js" strategy="beforeInteractive">
+          {`document.documentElement.classList.remove("no-js")`}
+        </Script>
         {children}
       </body>
     </html>

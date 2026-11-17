@@ -1,6 +1,8 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { money } from "./dashboard/data";
 import { Icon } from "./dashboard/ui";
+import LandingMotion from "./landing-motion";
 
 const steps = [
   [
@@ -46,7 +48,8 @@ function PlanPreview() {
   ];
   return (
     <figure
-      className="preview-window hero-preview"
+      className="preview-window hero-preview fv-reveal"
+      style={{ "--fv-delay": "200ms" } as CSSProperties}
       aria-label="Illustrative monthly budget in rupees"
     >
       <div className="flex items-center justify-between gap-4 border-b border-dash-border/40 pb-5">
@@ -90,6 +93,7 @@ function PlanPreview() {
 export default function LandingPage() {
   return (
     <div className="landing-page min-h-screen">
+      <LandingMotion />
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
@@ -129,26 +133,38 @@ export default function LandingPage() {
           </header>
           <section className="landing-hero" aria-labelledby="hero-heading">
             <div className="hero-copy">
-              <p className="dash-eyebrow text-dash-accent">
+              <p className="dash-eyebrow text-dash-accent fv-reveal">
                 Your monthly budget, in rupees
               </p>
               <h1 id="hero-heading" className="mt-6 text-display">
-                Your money.
-                <br />
-                <em className="not-italic">Made clear.</em>
+                <span className="fv-mask">
+                  <span>Your money.</span>
+                </span>
+                <span className="fv-mask">
+                  <span style={{ "--fv-delay": "90ms" } as CSSProperties}>
+                    <em className="not-italic">Made clear.</em>
+                  </span>
+                </span>
               </h1>
-              <p className="hero-description mt-5 text-sm leading-6">
+              <p
+                className="hero-description fv-reveal mt-5 text-sm leading-6"
+                style={{ "--fv-delay": "180ms" } as CSSProperties}
+              >
                 Plan your month. Track everyday spending. Keep bills and savings
                 goals in view, all in one place.
               </p>
               <Link
                 href="/auth/sign-up"
-                className="dash-primary mt-6 gap-3 text-sm"
+                className="dash-primary fv-reveal mt-6 gap-3 text-sm"
+                style={{ "--fv-delay": "270ms" } as CSSProperties}
               >
                 Start your plan
                 <Icon name="right" />
               </Link>
-              <p className="hero-footnote mt-4 text-xs leading-6 text-dash-muted">
+              <p
+                className="hero-footnote fv-reveal mt-4 text-xs leading-6 text-dash-muted"
+                style={{ "--fv-delay": "320ms" } as CSSProperties}
+              >
                 Sign in with Google. No bank connection needed.
               </p>
             </div>
@@ -181,8 +197,12 @@ export default function LandingPage() {
                 label: "Savings goals",
                 detail: "Targets and deadlines",
               },
-            ].map(({ icon, label, detail }) => (
-              <div key={icon}>
+            ].map(({ icon, label, detail }, index) => (
+              <div
+                key={icon}
+                className="fv-reveal"
+                style={{ "--fv-delay": `${index * 60}ms` } as CSSProperties}
+              >
                 <Icon name={icon} className="size-4" />
                 <p>
                   {label}
@@ -200,13 +220,16 @@ export default function LandingPage() {
           <div className="grid gap-6 md:grid-cols-2 md:gap-16">
             <h2
               id="problem-heading"
-              className="text-title font-medium leading-tight tracking-tight"
+              className="text-title fv-reveal font-medium leading-tight tracking-tight"
             >
               Know what is left.
               <br />
               Decide what comes next.
             </h2>
-            <div className="space-y-4 text-base leading-7 text-dash-muted">
+            <div
+              className="fv-reveal space-y-4 text-base leading-7 text-dash-muted"
+              style={{ "--fv-delay": "90ms" } as CSSProperties}
+            >
               <p>
                 A balance alone cannot tell you what is already spoken for.
                 Rent, groceries, bills, and savings all need a place in your
@@ -224,7 +247,7 @@ export default function LandingPage() {
           className="page-container section-space grid gap-10 border-t border-dash-border/40 lg:grid-cols-2 lg:gap-16"
           aria-labelledby="steps-heading"
         >
-          <div>
+          <div className="fv-reveal">
             <p className="dash-eyebrow text-dash-accent">How it works</p>
             <h2
               id="steps-heading"
@@ -237,7 +260,11 @@ export default function LandingPage() {
           </div>
           <ol className="divide-y divide-dash-border/40">
             {steps.map(([title, description], index) => (
-              <li key={title} className="flex gap-5 py-6 first:pt-0">
+              <li
+                key={title}
+                className="fv-reveal flex gap-5 py-6 first:pt-0"
+                style={{ "--fv-delay": `${index * 60}ms` } as CSSProperties}
+              >
                 <span className="pt-1 font-mono text-sm text-dash-accent">
                   0{index + 1}
                 </span>
@@ -256,18 +283,22 @@ export default function LandingPage() {
           className="page-container section-space border-t border-dash-border/40"
           aria-labelledby="features-heading"
         >
-          <p className="dash-eyebrow text-dash-accent">
+          <p className="dash-eyebrow text-dash-accent fv-reveal">
             Built around your month
           </p>
           <h2
             id="features-heading"
-            className="mt-4 text-title font-medium tracking-tight"
+            className="text-title fv-reveal mt-4 font-medium tracking-tight"
           >
             Less guesswork. More perspective.
           </h2>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
-            {features.map(({ icon, title, description }) => (
-              <article key={title} className="feature-card p-6">
+            {features.map(({ icon, title, description }, index) => (
+              <article
+                key={title}
+                className="feature-card fv-reveal p-6"
+                style={{ "--fv-delay": `${index * 60}ms` } as CSSProperties}
+              >
                 <Icon name={icon} className="size-6 text-dash-accent" />
                 <h3 className="mt-8 text-xl font-medium">{title}</h3>
                 <p className="mt-4 text-sm leading-7 text-dash-muted">
@@ -282,7 +313,7 @@ export default function LandingPage() {
           className="page-container section-space grid gap-8 border-t border-dash-border/40 md:grid-cols-2 md:gap-16"
           aria-labelledby="data-heading"
         >
-          <div>
+          <div className="fv-reveal">
             <p className="dash-eyebrow text-dash-accent">What to expect</p>
             <h2
               id="data-heading"
@@ -292,7 +323,10 @@ export default function LandingPage() {
               <br />A record you control.
             </h2>
           </div>
-          <div className="space-y-5 text-sm leading-7 text-dash-muted">
+          <div
+            className="fv-reveal space-y-5 text-sm leading-7 text-dash-muted"
+            style={{ "--fv-delay": "90ms" } as CSSProperties}
+          >
             <p>
               Add your own records and return to them whenever you need. Your
               budgets, transactions, bills, and goals are saved to your account.
@@ -314,16 +348,20 @@ export default function LandingPage() {
         >
           <h2
             id="cta-heading"
-            className="text-title font-medium tracking-tight"
+            className="text-title fv-reveal font-medium tracking-tight"
           >
             Make next month easier to see.
           </h2>
-          <p className="mt-4 text-base text-dash-muted">
+          <p
+            className="fv-reveal mt-4 text-base text-dash-muted"
+            style={{ "--fv-delay": "90ms" } as CSSProperties}
+          >
             Your income, your priorities, and one clear place to start.
           </p>
           <Link
             href="/auth/sign-up"
-            className="dash-primary mt-8 gap-3 text-sm"
+            className="dash-primary fv-reveal mt-8 gap-3 text-sm"
+            style={{ "--fv-delay": "180ms" } as CSSProperties}
           >
             Start your plan
             <Icon name="right" />
