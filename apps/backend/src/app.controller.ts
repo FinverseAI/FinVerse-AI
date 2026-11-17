@@ -1,8 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, HttpCode } from '@nestjs/common';
 
-@Controller('api')
+@Controller()
 export class AppController {
-  @Get('health')
+  @Get()
+  getRoot() {
+    return {
+      service: 'FinVerse API',
+      status: 'ok',
+      health: '/api/health',
+    };
+  }
+
+  // Browsers request this automatically when an API URL is opened directly.
+  // A no-content response prevents a harmless missing-favicon 404.
+  @Get('favicon.ico')
+  @HttpCode(204)
+  getFavicon(): void {}
+
+  @Get('api/health')
   getHealth() {
     return {
       success: true,

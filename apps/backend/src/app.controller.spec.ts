@@ -12,6 +12,16 @@ describe('AppController', () => {
     appController = app.get<AppController>(AppController);
   });
 
+  describe('root', () => {
+    it('returns the service status', () => {
+      expect(appController.getRoot()).toEqual({
+        service: 'FinVerse API',
+        status: 'ok',
+        health: '/api/health',
+      });
+    });
+  });
+
   describe('health', () => {
     it('reports service liveness with an ISO timestamp', () => {
       const result = appController.getHealth();

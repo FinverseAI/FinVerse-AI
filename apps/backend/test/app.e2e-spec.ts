@@ -20,8 +20,12 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  afterAll(async () => {
-    await app.close();
+  it('/ (GET)', () => {
+    return request(app.getHttpServer()).get('/').expect(200).expect({
+      service: 'FinVerse API',
+      status: 'ok',
+      health: '/api/health',
+    });
   });
 
   it('/api/health (GET)', async () => {
@@ -35,7 +39,7 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer()).get('/api/profile').expect(401);
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 });
