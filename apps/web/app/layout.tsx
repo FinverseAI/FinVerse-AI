@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { webOrigin } from "../lib/env";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -12,10 +13,16 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "FinVerse | Personal Finance, Made Clear",
+  metadataBase: new URL(webOrigin()),
+  title: {
+    default: "FinVerse | Monthly budgets, spending and bills in INR",
+    template: "%s | FinVerse",
+  },
   description:
-    "Track spending, plan budgets, grow savings, and understand your financial habits with FinVerse.",
+    "Plan your monthly budget in rupees, record expenses, track bill due dates, and set savings goals. A personal finance workspace for everyday money decisions.",
 };
+
+export const viewport: Viewport = { themeColor: "#131d2b" };
 
 export default function RootLayout({
   children,

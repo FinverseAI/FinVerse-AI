@@ -4,14 +4,19 @@ import { redirect } from "next/navigation";
 import { auth } from "./server";
 import { ProfileApiError } from "../lib/profile";
 import { getServerProfile } from "../lib/profile-server";
+import { cache } from "react";
+
+const getSession = cache(async () =>
+  auth.api.getSession({
+    headers: await headers(),
+    query: { disableCookieCache: true },
+  }),
+);
 
 export async function guardProfile(
   destination: "dashboard" | "onboarding" | "auth",
 ) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-    query: { disableCookieCache: true },
-  });
+  const session = await getSession();
   if (!session) {
     if (destination === "auth") return null;
     redirect("/auth/login");

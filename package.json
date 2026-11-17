@@ -5,8 +5,11 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
+    "format": "prettier --write \"apps/**/*.{ts,tsx,js,mjs,css,json}\" \"packages/**/*.{js,json}\" \"scripts/*.mjs\" package.json turbo.json README.md docs/production-review.md",
+    "check-types": "turbo run check-types",
+    "test": "npm run test --workspace backend -- --runInBand && npm run test:e2e --workspace backend -- --runInBand && npm run test --workspace web",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,js,mjs,css,json}\" \"packages/**/*.{js,json}\" \"scripts/*.mjs\" package.json turbo.json README.md docs/production-review.md",
+    "bundle:report": "node scripts/measure-bundle.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.6",

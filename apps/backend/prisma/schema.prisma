@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -21,6 +22,8 @@ model User {
   accounts         Account[]
   financialProfile UserFinancialProfile?
   goals            UserGoal[]
+  bills            UserBill[]
+  transactions     UserTransaction[]
 }
 
 model Session {
@@ -121,6 +124,8 @@ model UserFinancialProfile {
   invested_amount        Decimal?             @db.Decimal(12, 2)
   emergency_fund_months  EmergencyFundMonths
   onboarding_completed   Boolean              @default(false)
+  payday                 Int?
+  budget_split           Json?
   created_at             DateTime             @default(now())
   updated_at             DateTime             @updatedAt
 
@@ -140,4 +145,32 @@ model UserGoal {
 
   @@index([user_id])
   @@map("user_goals")
+}
+
+model UserBill {
+  id         String   @id @default(cuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  name       String   @db.VarChar(80)
+  amount     Decimal  @db.Decimal(12, 2)
+  due_date   DateTime @db.Date
+  auto_pay   Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([user_id, due_date])
+  @@map("user_bills")
+}
+
+model UserTransaction {
+  id         String   @id @default(cuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  name       String   @db.VarChar(80)
+  category   String   @db.VarChar(40)
+  amount     Decimal  @db.Decimal(12, 2)
+  date       DateTime @db.Date
+  created_at DateTime @default(now())
+
+  @@index([user_id, date])
+  @@map("user_transactions")
 }

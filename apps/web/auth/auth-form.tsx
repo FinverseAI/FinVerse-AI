@@ -49,11 +49,15 @@ function GoogleMark() {
   );
 }
 
-export default function AuthForm({ mode }: { mode: AuthMode }) {
+export default function AuthForm({
+  mode,
+  googleAuthEnabled,
+}: {
+  mode: AuthMode;
+  googleAuthEnabled: boolean;
+}) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState("");
-  const googleAuthEnabled =
-    process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
   const content = copy[mode];
 
   async function signInWithGoogle() {
@@ -95,22 +99,22 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
 
   return (
     <main className="landing-page auth-shell grid min-h-screen place-items-center px-5 py-10 text-dash-text">
-      <section className="w-full max-w-[460px]">
+      <section className="w-full max-w-form">
         <Link
           href="/"
-          className="mb-8 inline-flex items-center gap-2.5 font-semibold tracking-[-0.02em]"
+          className="mb-8 inline-flex items-center gap-2.5 font-semibold tracking-tight"
         >
-          <span className="glass-brand grid size-10 place-items-center text-lg">
+          <span className="brand-mark grid size-10 place-items-center text-lg">
             F
           </span>
           FinVerse
         </Link>
 
         <div className="dash-panel dash-highlight auth-card">
-          <p className="font-mono text-[10px] tracking-[0.16em] text-dash-accent uppercase">
+          <p className="font-mono text-xs tracking-widest text-dash-accent uppercase">
             {content.eyebrow}
           </p>
-          <h1 className="mt-5 text-[38px] leading-[1.12] font-medium tracking-[-0.05em]">
+          <h1 className="mt-5 text-4xl leading-tight font-medium tracking-tight">
             {content.title}
           </h1>
           <p className="mt-3 text-sm leading-6 text-dash-muted">
@@ -138,7 +142,7 @@ export default function AuthForm({ mode }: { mode: AuthMode }) {
             <p className="mt-4 text-center text-xs leading-5 text-dash-muted">
               {googleAuthEnabled
                 ? "Continue securely with your Google account."
-                : "Google sign-in will be enabled after the OAuth credentials are connected."}
+                : "Sign-in is currently unavailable. Please try again later."}
             </p>
           )}
         </div>

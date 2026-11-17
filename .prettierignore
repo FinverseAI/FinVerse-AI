@@ -1,0 +1,12 @@
+node_modules/
+**/.next/
+**/dist/
+**/coverage/
+package-lock.json
+output/
+tmp/
+docs/finverse-project-guide.md
+DASHBOARD_SOURCE.md
+**/AGENTS.md
+**/CLAUDE.md
+**/next-env.d.ts

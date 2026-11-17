@@ -46,7 +46,7 @@ export class ProfileService {
   }
 
   async save(userId: string, body: unknown, onboarding: boolean) {
-    const { profile, goals } = validateProfile(body);
+    const { profile, goals, displayName } = validateProfile(body);
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
@@ -61,6 +61,11 @@ export class ProfileService {
           throw new NotFoundException(
             'Complete onboarding before updating your profile.',
           );
+        if (displayName !== undefined)
+          await tx.user.update({
+            where: { id: userId },
+            data: { name: displayName },
+          });
         await tx.userFinancialProfile.upsert({
           where: { user_id: userId },
           create: { ...profile, user_id: userId, onboarding_completed: true },

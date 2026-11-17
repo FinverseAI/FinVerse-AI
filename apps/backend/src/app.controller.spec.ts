@@ -23,12 +23,10 @@ describe('AppController', () => {
   });
 
   describe('health', () => {
-    it('returns a timestamped health response', () => {
-      expect(appController.getHealth()).toEqual({
-        success: true,
-        message: 'FinVerse Backend is running 🚀',
-        timestamp: expect.any(String),
-      });
+    it('reports service liveness with an ISO timestamp', () => {
+      const result = appController.getHealth();
+      expect(result.success).toBe(true);
+      expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
     });
   });
 });

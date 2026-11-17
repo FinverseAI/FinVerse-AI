@@ -1,6 +1,6 @@
 "use client";
 
-export default function ProfileError({ reset }: { reset: () => void }) {
+export default function ProfileError({ retry }: { retry: () => void }) {
   return (
     <main className="dashboard grid min-h-screen place-items-center bg-dash-bg p-5 text-dash-text">
       <section className="dash-panel max-w-lg space-y-4 p-7" role="alert">
@@ -10,7 +10,7 @@ export default function ProfileError({ reset }: { reset: () => void }) {
         <p className="text-sm text-dash-muted">
           Please check your connection and try again.
         </p>
-        <button className="dash-primary px-4 py-2" onClick={reset}>
+        <button className="dash-primary px-4 py-2" onClick={retry}>
           Try again
         </button>
       </section>

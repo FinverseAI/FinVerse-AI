@@ -1,6 +1,8 @@
 {
   "extends": "@repo/typescript-config/nextjs.json",
   "compilerOptions": {
+    "noUnusedLocals": true,
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
         "name": "next"
