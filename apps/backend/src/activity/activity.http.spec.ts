@@ -414,6 +414,11 @@ describe('account-scoped dashboard activity', () => {
       ...updated,
       amount: '1900.00',
       due_date: new Date('2026-11-30T00:00:00Z'),
+      // `updated` is API-shaped (autoPay); the stored row is DB-shaped, so
+      // the re-read mock must carry auto_pay explicitly — otherwise the
+      // spread leaves storedBill's auto_pay: true in place and the response
+      // reports autoPay: true while the test expects false.
+      auto_pay: false,
     });
     prisma.userBillPayment.findMany.mockResolvedValue([storedPayment]);
     const result = await request(app.getHttpServer())
