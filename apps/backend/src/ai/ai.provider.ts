@@ -150,8 +150,7 @@ function parseCompletion(data: unknown): ChatCompletion {
   if (!message || typeof message !== 'object') {
     throw new LlmProviderError('The AI provider returned an invalid response.');
   }
-  const content =
-    typeof message.content === 'string' ? message.content : null;
+  const content = typeof message.content === 'string' ? message.content : null;
   const toolCalls: ToolCall[] = [];
   const rawCalls = message.tool_calls;
   if (Array.isArray(rawCalls)) {

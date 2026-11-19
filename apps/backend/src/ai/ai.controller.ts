@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Header,
+  HttpCode,
   Post,
   Req,
   UseGuards,
@@ -23,12 +24,14 @@ export class AiController {
   }
 
   @Post('chat')
+  @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')
   chat(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.ai.chat(request.userId, body);
   }
 
   @Post('explain-stock')
+  @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')
   explainStock(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.ai.explainStock(request.userId, body);

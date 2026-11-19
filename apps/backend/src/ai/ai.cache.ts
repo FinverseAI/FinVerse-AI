@@ -7,10 +7,7 @@
  * another.
  */
 export class AiResponseCache<T> {
-  private readonly entries = new Map<
-    string,
-    { value: T; expiresAt: number }
-  >();
+  private readonly entries = new Map<string, { value: T; expiresAt: number }>();
 
   constructor(
     private readonly ttlMs: number,

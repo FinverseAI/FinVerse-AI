@@ -4,7 +4,6 @@ import {
   HttpStatus,
   Inject,
   Injectable,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { normalizeSymbol } from '../market/market.validation';

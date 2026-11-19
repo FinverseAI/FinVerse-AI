@@ -49,18 +49,12 @@ export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
 export const DEFAULT_CACHE_TTL_MS = 60_000;
 export const DEFAULT_CACHE_MAX_ENTRIES = 100;
 
-function text(
-  value: string | undefined,
-  fallback: string,
-): string {
+function text(value: string | undefined, fallback: string): string {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
 }
 
-function positiveInt(
-  value: string | undefined,
-  fallback: number,
-): number {
+function positiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
@@ -73,10 +67,7 @@ export function resolveAiConfig(
     apiKey: apiKey ? apiKey : undefined,
     baseUrl: text(get('LLM_BASE_URL'), DEFAULT_BASE_URL),
     primaryModel: text(get('LLM_MODEL_PRIMARY'), DEFAULT_PRIMARY_MODEL),
-    reasoningModel: text(
-      get('LLM_MODEL_REASONING'),
-      DEFAULT_REASONING_MODEL,
-    ),
+    reasoningModel: text(get('LLM_MODEL_REASONING'), DEFAULT_REASONING_MODEL),
     timeoutMs: positiveInt(get('LLM_TIMEOUT_MS'), DEFAULT_TIMEOUT_MS),
     maxToolRounds: positiveInt(
       get('LLM_MAX_TOOL_ROUNDS'),

@@ -37,7 +37,10 @@ function checkCloses(closes: number[]) {
 export function sma(closes: number[], period: number): (number | null)[] {
   checkPeriod(period);
   checkCloses(closes);
-  const result: (number | null)[] = new Array(closes.length).fill(null);
+  const result: (number | null)[] = Array.from(
+    { length: closes.length },
+    () => null,
+  );
   if (closes.length < period) return result;
   let window = 0;
   for (let i = 0; i < closes.length; i++) {
@@ -56,7 +59,10 @@ export function sma(closes: number[], period: number): (number | null)[] {
 export function ema(closes: number[], period: number): (number | null)[] {
   checkPeriod(period);
   checkCloses(closes);
-  const result: (number | null)[] = new Array(closes.length).fill(null);
+  const result: (number | null)[] = Array.from(
+    { length: closes.length },
+    () => null,
+  );
   if (closes.length < period) return result;
   const k = 2 / (period + 1);
   let previous = 0;
@@ -80,7 +86,10 @@ export function ema(closes: number[], period: number): (number | null)[] {
 export function rsi(closes: number[], period = 14): (number | null)[] {
   checkPeriod(period);
   checkCloses(closes);
-  const result: (number | null)[] = new Array(closes.length).fill(null);
+  const result: (number | null)[] = Array.from(
+    { length: closes.length },
+    () => null,
+  );
   if (closes.length <= period) return result;
   const gains: number[] = [];
   const losses: number[] = [];
@@ -132,7 +141,10 @@ export function macd(
   checkPeriod(slow);
   checkPeriod(signalPeriod);
   checkCloses(closes);
-  const result: (MacdPoint | null)[] = new Array(closes.length).fill(null);
+  const result: (MacdPoint | null)[] = Array.from(
+    { length: closes.length },
+    () => null,
+  );
   if (fast >= slow) {
     throw new RangeError(
       'The fast period must be shorter than the slow period.',

@@ -228,11 +228,7 @@ export class AiTools {
   ) {}
 
   /** Run one tool call from the model. Throws on unknown tools and bad args. */
-  async execute(
-    userId: string,
-    name: string,
-    args: unknown,
-  ): Promise<unknown> {
+  async execute(userId: string, name: string, args: unknown): Promise<unknown> {
     switch (name) {
       case 'getPortfolioSummary':
         return this.portfolio.portfolioSummary(userId);
@@ -268,8 +264,7 @@ export class AiTools {
     if (!parsed.success) {
       throw new Error(firstIssueMessage(parsed.error));
     }
-    const month =
-      parsed.data.month ?? new Date().toISOString().slice(0, 7);
+    const month = parsed.data.month ?? new Date().toISOString().slice(0, 7);
     const data = await this.profile.get(userId);
     if (!data.profile || !isBudgetSplit(data.profile.budget_split)) {
       return {
@@ -340,17 +335,20 @@ export class AiTools {
     const { category, startDate, endDate } = parsed.data;
     const limit = parsed.data.limit ?? 20;
     const all = await this.activity.transactions(userId);
-    const filtered = all.filter((transaction) => {
-      if (
-        category &&
-        transaction.category.toLowerCase() !== category.toLowerCase()
-      ) {
-        return false;
-      }
-      if (startDate && transaction.date < startDate) return false;
-      if (endDate && transaction.date > endDate) return false;
-      return true;
-    });
+    const filtered = all
+      .filter((transaction) => {
+        if (
+          category &&
+          transaction.category.toLowerCase() !== category.toLowerCase()
+        ) {
+          return false;
+        }
+        if (startDate && transaction.date < startDate) return false;
+        if (endDate && transaction.date > endDate) return false;
+        return true;
+      })
+      // Most recent first, regardless of the service's ordering.
+      .sort((a, b) => b.date.localeCompare(a.date));
     return {
       count: filtered.length,
       returned: Math.min(limit, filtered.length),
@@ -384,9 +382,7 @@ export class AiTools {
         .toISOString()
         .slice(0, 10);
     } else {
-      start = new Date(
-        Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1),
-      )
+      start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
         .toISOString()
         .slice(0, 10);
     }
@@ -436,8 +432,8 @@ export class AiTools {
         name: goal.name,
         target,
         saved,
-        progressPercent:
-          target > 0 ? round2((saved / target) * 100) : 0,
+        remaining: round2(target - saved),
+        progressPercent: target > 0 ? round2((saved / target) * 100) : 0,
         targetDate: goal.target_date,
         priority: goal.priority,
       };
@@ -473,6 +469,15 @@ export class AiTools {
     const latest = closes[closes.length - 1];
     const monthAgo =
       closes.length > 21 ? closes[closes.length - 22] : closes[0];
+    const notes: string[] = [];
+    if (closes.length < 15) {
+      notes.push('Not enough price history for reliable indicators.');
+    }
+    if (history.stale) {
+      notes.push(
+        'The price history may be out of date (live data was unavailable).',
+      );
+    }
     return {
       ...profile,
       technicals: {
@@ -496,10 +501,7 @@ export class AiTools {
           first && latest && first !== 0
             ? round2(((latest - first) / first) * 100)
             : null,
-        note:
-          closes.length < 15
-            ? 'Not enough price history for reliable indicators.'
-            : null,
+        note: notes.length > 0 ? notes.join(' ') : null,
       },
     };
   }
