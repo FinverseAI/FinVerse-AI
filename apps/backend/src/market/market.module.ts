@@ -13,6 +13,6 @@ import { MARKET_DATA_PROVIDER, YahooFinanceProvider } from './market.provider';
     SessionGuard,
     { provide: MARKET_DATA_PROVIDER, useClass: YahooFinanceProvider },
   ],
-  exports: [MarketService, PortfolioService],
+  exports: [MarketService, PortfolioService, MARKET_DATA_PROVIDER],
 })
 export class MarketModule {}
