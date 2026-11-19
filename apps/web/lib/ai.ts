@@ -41,6 +41,8 @@ const TOOL_LABELS: Record<string, string> = {
   getStockFundamentals: "Stock fundamentals",
   getCategorySpending: "Category spending",
   getGoalProgress: "Goals",
+  searchKnowledge: "News & knowledge",
+  screenStocks: "Stock screener",
 };
 
 export function claimToolLabel(tool: string): string {

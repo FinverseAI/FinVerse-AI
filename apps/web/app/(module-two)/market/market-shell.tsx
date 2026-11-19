@@ -13,6 +13,7 @@ function MarketSidebar({ active }: { active: "market" }) {
     { label: "Market", icon: "pie" as const, href: "/market" },
     { label: "Portfolio", icon: "target" as const, href: "/market#portfolio" },
     { label: "Holdings", icon: "wallet" as const, href: "/market#holdings" },
+    { label: "Screener", icon: "filter" as const, href: "/market#screener" },
   ];
   return (
     <aside className="dashboard-sidebar fixed z-30 hidden flex-col items-center py-4 sm:flex">
@@ -117,6 +118,9 @@ export function MarketShell({
               </a>
               <a className="dash-nav" href="/market#holdings">
                 Holdings
+              </a>
+              <a className="dash-nav" href="/market#screener">
+                Screener
               </a>
             </nav>
           </div>

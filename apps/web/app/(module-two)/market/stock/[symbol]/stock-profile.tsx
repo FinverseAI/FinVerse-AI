@@ -24,6 +24,7 @@ import { MiniStat, PanelHeading } from "../../../../(module-one)/dashboard/ui";
 import { MarketShell } from "../../market-shell";
 import { MacdChart, PriceChart, RsiChart } from "../../price-chart";
 import { HoldingForm, type HoldingFormData } from "../../holding-form";
+import { StockNewsSection } from "./stock-news";
 
 const volumeFormat = new Intl.NumberFormat("en-IN", {
   notation: "compact",
@@ -568,6 +569,8 @@ export default function StockProfile({
           </>
         )}
       </section>
+
+      <StockNewsSection symbol={symbol} />
 
       {showHoldingForm && (
         <HoldingForm

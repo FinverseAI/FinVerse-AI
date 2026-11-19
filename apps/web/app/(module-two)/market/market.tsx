@@ -23,6 +23,7 @@ import { MarketShell } from "./market-shell";
 import { PortfolioSection } from "./portfolio";
 import { HoldingsSection } from "./holdings";
 import { OptimizerSection } from "./optimizer";
+import { ScreenerSection } from "./screener";
 
 function ChangeBadge({ quote }: { quote: MarketQuote }) {
   if (quote.price === null || quote.changePercent === null) return null;
@@ -435,6 +436,8 @@ export default function Market({ user }: { user?: AuthUser }) {
       />
 
       <OptimizerSection holdings={summary?.holdings ?? []} />
+
+      <ScreenerSection />
 
       <section aria-label="Data notes" className="dash-panel">
         <PanelHeading icon="bulb" title="About these prices" />

@@ -37,7 +37,11 @@ const SUGGESTIONS = [
 /** The forwarder allows 120s; the client waits a little longer. */
 const AI_TIMEOUT_MS = 150000;
 
-async function aiRequest<T>(path: string, body: unknown): Promise<T> {
+/**
+ * POST to an AI route with the long timeout the reasoning model needs.
+ * Shared by the screener and stock-news components (Phase 2).
+ */
+export async function aiRequest<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
