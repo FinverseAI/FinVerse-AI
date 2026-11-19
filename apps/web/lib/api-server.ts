@@ -2,7 +2,11 @@ import "server-only";
 import { backendUrl, webOrigin } from "./env";
 import { readRequestBody, RequestBodyError } from "./request-body";
 
-export async function forwardApiRequest(request: Request, path: string) {
+export async function forwardApiRequest(
+  request: Request,
+  path: string,
+  timeoutMs = 15000,
+) {
   const headers = {
     "Cache-Control": "private, no-store",
     "Content-Type": "application/json",
@@ -40,7 +44,7 @@ export async function forwardApiRequest(request: Request, path: string) {
           : undefined,
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.any([request.signal, AbortSignal.timeout(15000)]),
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]),
     });
     if (response.status >= 500) {
       return Response.json(

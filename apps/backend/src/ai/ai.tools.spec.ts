@@ -36,15 +36,13 @@ function makeTools(
   // The raw jest.fn references are returned alongside the services so
   // assertions can use them directly (referencing a method on the cast
   // service object trips the unbound-method lint rule).
-  const get = jest
-    .fn()
-    .mockResolvedValue(
-      overrides.profile ?? {
-        profile: null,
-        goals: [],
-        onboarding_completed: false,
-      },
-    );
+  const get = jest.fn().mockResolvedValue(
+    overrides.profile ?? {
+      profile: null,
+      goals: [],
+      onboarding_completed: false,
+    },
+  );
   const transactions = jest
     .fn()
     .mockResolvedValue(overrides.transactions ?? []);
@@ -497,13 +495,11 @@ describe('AiTools', () => {
         {} as ActivityService,
         {
           quote: jest.fn(),
-          profile: jest
-            .fn()
-            .mockResolvedValue({
-              symbol: 'RELIANCE',
-              quote: {},
-              fundamentals: {},
-            }),
+          profile: jest.fn().mockResolvedValue({
+            symbol: 'RELIANCE',
+            quote: {},
+            fundamentals: {},
+          }),
           history: jest
             .fn()
             .mockRejectedValue(
