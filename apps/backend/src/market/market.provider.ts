@@ -45,11 +45,26 @@ export interface MarketProfileData {
   currency: string;
 }
 
+/**
+ * One news item from Yahoo search. Search news carries a title,
+ * publisher, publish time and link but no article body — the RAG layer
+ * indexes exactly that metadata and never pretends to have read the
+ * full text.
+ */
+export interface MarketNewsItem {
+  title: string;
+  publisher: string;
+  link: string;
+  publishedAt: Date;
+  relatedTickers?: string[];
+}
+
 export interface MarketDataProvider {
   quote(symbol: string): Promise<MarketQuoteData>;
   history(symbol: string, from: Date, to: Date): Promise<MarketHistoryBar[]>;
   search(query: string): Promise<MarketSearchResult[]>;
   profile(symbol: string): Promise<MarketProfileData>;
+  news(symbol: string): Promise<MarketNewsItem[]>;
 }
 
 export const MARKET_DATA_PROVIDER = 'MARKET_DATA_PROVIDER';
@@ -141,6 +156,33 @@ export class YahooFinanceProvider implements MarketDataProvider {
         exchange: text(item.exchDisp),
         type: text(item.quoteType),
       }));
+  }
+
+  async news(symbol: string): Promise<MarketNewsItem[]> {
+    const result = await this.client.search(symbol, { newsCount: 10 });
+    const items: MarketNewsItem[] = [];
+    // The client validates the shape, but news items arrive from an
+    // external API — each one is still checked before it is trusted.
+    for (const raw of result.news as unknown[]) {
+      if (!raw || typeof raw !== 'object') continue;
+      const item = raw as Record<string, unknown>;
+      const title = text(item.title);
+      const link = text(item.link);
+      const publishedAt = item.providerPublishTime;
+      if (!title || !link || !(publishedAt instanceof Date)) continue;
+      items.push({
+        title,
+        publisher: text(item.publisher) ?? 'Unknown',
+        link,
+        publishedAt,
+        relatedTickers: Array.isArray(item.relatedTickers)
+          ? item.relatedTickers.filter(
+              (ticker): ticker is string => typeof ticker === 'string',
+            )
+          : undefined,
+      });
+    }
+    return items;
   }
 
   async profile(symbol: string): Promise<MarketProfileData> {
