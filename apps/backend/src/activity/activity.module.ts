@@ -6,5 +6,6 @@ import { ActivityService } from './activity.service';
 @Module({
   controllers: [ActivityController],
   providers: [ActivityService, SessionGuard],
+  exports: [ActivityService],
 })
 export class ActivityModule {}
