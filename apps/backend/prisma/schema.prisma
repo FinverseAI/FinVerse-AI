@@ -28,6 +28,7 @@ model User {
   transactions     UserTransaction[]
   holdings         UserHolding[]
   watchlist        WatchlistItem[]
+  ragDocuments     RagDocument[]
 }
 
 model Session {
@@ -266,4 +267,40 @@ model MarketHistory {
 
   @@unique([symbol, date])
   @@map("market_history")
+}
+
+// One chunk of retrievable text for RAG (Phase 2). source_type is one of
+// 'news' (public market news), 'profile' (public company text) or
+// 'transaction' (the user's own transaction notes). user_id is NULL for
+// public content and set for user-owned content; retrieval always scopes
+// to (user_id IS NULL OR user_id = <session user>), so a user can only
+// ever retrieve their own records plus public market content.
+//
+// The embedding column is Unsupported: Prisma cannot read or write
+// pgvector values through the typed client, so all embedding access goes
+// through $queryRaw / $executeRaw in the RAG repository. The dimension
+// (768) must match the embedding model — baai/bge-base-en-v1.5 by default
+// (see apps/backend/src/rag/rag.config.ts); changing the model to one
+// with a different dimension needs a new migration.
+model RagDocument {
+  id           String   @id @default(cuid())
+  source_type  String
+  source_id    String
+  user_id      String?
+  user         User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  symbol       String?  @db.VarChar(20)
+  title        String?
+  content      String
+  embedding    Unsupported("vector(768)")
+  published_at DateTime?
+  url          String?
+  metadata     Json?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@unique([source_type, source_id])
+  @@index([user_id])
+  @@index([symbol])
+  @@index([source_type, published_at])
+  @@map("rag_documents")
 }
