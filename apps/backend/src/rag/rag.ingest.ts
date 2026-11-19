@@ -275,9 +275,7 @@ export class RagIngestService {
    * Embed documents in batches and store them. Stops at the first
    * embedding failure; documents from earlier batches stay stored.
    */
-  private async embedAndStore(
-    documents: NewRagDocument[],
-  ): Promise<{
+  private async embedAndStore(documents: NewRagDocument[]): Promise<{
     indexed: number;
     available: boolean;
     reason: IngestUnavailableReason | null;
