@@ -58,8 +58,12 @@ describe('holdings, watchlist and portfolio summary', () => {
     created_at: new Date('2026-11-18T00:00:00Z'),
   };
   const conflict = () =>
+    // The real PrismaClientKnownRequestError constructor requires
+    // clientVersion (KnownErrorParams); the local stub omits it, which is
+    // why this passed locally and failed CI check-types on 1c10651.
     new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
       code: 'P2002',
+      clientVersion: '6.16.3',
     });
 
   beforeAll(async () => {
