@@ -14,7 +14,7 @@ const getSession = cache(async () =>
 );
 
 export async function guardProfile(
-  destination: "dashboard" | "onboarding" | "auth",
+  destination: "dashboard" | "market" | "onboarding" | "auth",
 ) {
   const session = await getSession();
   if (!session) {
@@ -33,7 +33,10 @@ export async function guardProfile(
   }
   if (destination === "auth")
     redirect(data.onboarding_completed ? "/dashboard" : "/onboarding");
-  if (destination === "dashboard" && !data.onboarding_completed)
+  if (
+    (destination === "dashboard" || destination === "market") &&
+    !data.onboarding_completed
+  )
     redirect("/onboarding");
   if (destination === "onboarding" && data.onboarding_completed)
     redirect("/dashboard");
