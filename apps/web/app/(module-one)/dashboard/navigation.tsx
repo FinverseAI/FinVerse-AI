@@ -21,7 +21,7 @@ type HeaderProps = {
   signOutError: string;
 };
 
-function ProfileMenu({
+export function ProfileMenu({
   user,
   onSignOut,
   isSigningOut,
@@ -144,6 +144,9 @@ export function Header({
           >
             Dashboard
           </a>
+          <a className="dash-nav" href="/market">
+            Market
+          </a>
           <button className="dash-nav" onClick={onTransactions}>
             Transactions
           </button>
@@ -224,8 +227,14 @@ export function Header({
   );
 }
 
-const items: { label: string; icon: IconName; target?: string }[] = [
+const items: {
+  label: string;
+  icon: IconName;
+  target?: string;
+  href?: string;
+}[] = [
   { label: "Dashboard", icon: "grid", target: "overview" },
+  { label: "Market", icon: "pie", href: "/market" },
   { label: "Transactions", icon: "card" },
   { label: "Analytics", icon: "chart", target: "balance" },
   { label: "Insights", icon: "bulb", target: "expenses" },
@@ -251,7 +260,17 @@ export function Sidebar({
       <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-1">
         {items.map((item, index) => {
           const className = `grid size-9 place-items-center rounded-panel transition-colors ${index === 0 ? "bg-dash-accent/15 text-dash-accent" : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"}`;
-          return item.target ? (
+          return item.href ? (
+            <a
+              key={item.label}
+              href={item.href}
+              title={item.label}
+              aria-label={item.label}
+              className={className}
+            >
+              <Icon name={item.icon} />
+            </a>
+          ) : item.target ? (
             <a
               key={item.label}
               href={`#${item.target}`}

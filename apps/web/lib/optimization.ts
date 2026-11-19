@@ -37,10 +37,13 @@ function mean(values: number[]): number {
 export function logReturns(closes: number[]): number[] {
   const returns: number[] = [];
   for (let i = 1; i < closes.length; i++) {
-    if (closes[i] <= 0 || closes[i - 1] <= 0) {
+    // Loop bounds prove the indices in range; `!` marks that.
+    const current = closes[i]!;
+    const previous = closes[i - 1]!;
+    if (current <= 0 || previous <= 0) {
       throw new RangeError('Prices must be positive to compute returns.');
     }
-    returns.push(Math.log(closes[i] / closes[i - 1]));
+    returns.push(Math.log(current / previous));
   }
   return returns;
 }
@@ -63,7 +66,7 @@ export function returnsStats(
     return null;
   }
   const n = series.length;
-  const m = series[0].length;
+  const m = series[0]!.length;
   if (m < 2) return null;
   for (const asset of series) {
     if (!Array.isArray(asset) || asset.length !== m) return null;
@@ -75,14 +78,19 @@ export function returnsStats(
   const means = rawMeans.map((mu) => mu * periodsPerYear);
   const covariance: number[][] = [];
   for (let i = 0; i < n; i++) {
-    covariance.push([]);
+    const rowI = series[i]!;
+    const meanI = rawMeans[i]!;
+    const row: number[] = [];
     for (let j = 0; j < n; j++) {
+      const rowJ = series[j]!;
+      const meanJ = rawMeans[j]!;
       let sum = 0;
       for (let k = 0; k < m; k++) {
-        sum += (series[i][k] - rawMeans[i]) * (series[j][k] - rawMeans[j]);
+        sum += (rowI[k]! - meanI) * (rowJ[k]! - meanJ);
       }
-      covariance[i][j] = (sum / (m - 1)) * periodsPerYear;
+      row.push((sum / (m - 1)) * periodsPerYear);
     }
+    covariance.push(row);
   }
   return { means, covariance };
 }
@@ -126,35 +134,41 @@ export function solveLinearSystem(
   if (!Array.isArray(vector) || vector.length !== n) {
     throw new RangeError('The vector must match the matrix size.');
   }
-  // Augment and eliminate.
-  const a = matrix.map((row, i) => [...row, vector[i]]);
+  // Augment and eliminate. Every index below is proven in range by the
+  // square-matrix check and the loop bounds; `!` marks that.
+  const a = matrix.map((row, i) => [...row, vector[i]!]);
   for (let col = 0; col < n; col++) {
     let pivot = col;
     for (let row = col + 1; row < n; row++) {
-      if (Math.abs(a[row][col]) > Math.abs(a[pivot][col])) pivot = row;
+      if (Math.abs(a[row]![col]!) > Math.abs(a[pivot]![col]!)) pivot = row;
     }
-    if (Math.abs(a[pivot][col]) < 1e-12) return null;
+    if (Math.abs(a[pivot]![col]!) < 1e-12) return null;
     if (pivot !== col) {
-      const temp = a[col];
-      a[col] = a[pivot];
+      const temp = a[col]!;
+      a[col] = a[pivot]!;
       a[pivot] = temp;
     }
     for (let row = col + 1; row < n; row++) {
-      const factor = a[row][col] / a[col][col];
-      for (let k = col; k <= n; k++) a[row][k] -= factor * a[col][k];
+      const target = a[row]!;
+      const source = a[col]!;
+      const factor = target[col]! / source[col]!;
+      for (let k = col; k <= n; k++) {
+        target[k] = target[k]! - factor * source[k]!;
+      }
     }
   }
   const x = new Array<number>(n).fill(0);
   for (let row = n - 1; row >= 0; row--) {
-    let sum = a[row][n];
-    for (let k = row + 1; k < n; k++) sum -= a[row][k] * x[k];
-    x[row] = sum / a[row][row];
+    const rowValues = a[row]!;
+    let sum = rowValues[n]!;
+    for (let k = row + 1; k < n; k++) sum -= rowValues[k]! * x[k]!;
+    x[row] = sum / rowValues[row]!;
   }
   return x;
 }
 
 function portfolioReturn(weights: number[], means: number[]): number {
-  return weights.reduce((sum, w, i) => sum + w * means[i], 0);
+  return weights.reduce((sum, w, i) => sum + w * means[i]!, 0);
 }
 
 function portfolioVariance(
@@ -164,7 +178,7 @@ function portfolioVariance(
   let total = 0;
   for (let i = 0; i < weights.length; i++) {
     for (let j = 0; j < weights.length; j++) {
-      total += weights[i] * weights[j] * covariance[i][j];
+      total += weights[i]! * weights[j]! * covariance[i]![j]!;
     }
   }
   return Math.max(0, total);
@@ -209,7 +223,7 @@ export function maxSharpeWeights(
     throw new RangeError('Means and covariance must describe the same assets.');
   }
   if (means.length === 1) {
-    if (means[0] <= riskFreeRate) return null;
+    if (means[0]! <= riskFreeRate) return null;
     return statsFor([1], means, covariance, riskFreeRate);
   }
   const excess = means.map((mu) => mu - riskFreeRate);
@@ -283,13 +297,13 @@ export function efficientFrontier(
     const vector: number[] = new Array(size).fill(0);
     for (let i = 0; i < n; i++) {
       const row = new Array<number>(size).fill(0);
-      for (let j = 0; j < n; j++) row[j] = 2 * covariance[i][j];
-      row[n] = means[i];
+      for (let j = 0; j < n; j++) row[j] = 2 * covariance[i]![j]!;
+      row[n] = means[i]!;
       row[n + 1] = 1;
       matrix.push(row);
     }
     const returnRow = new Array<number>(size).fill(0);
-    for (let j = 0; j < n; j++) returnRow[j] = means[j];
+    for (let j = 0; j < n; j++) returnRow[j] = means[j]!;
     matrix.push(returnRow);
     const unityRow = new Array<number>(size).fill(0);
     for (let j = 0; j < n; j++) unityRow[j] = 1;

@@ -39,8 +39,9 @@ export function sma(closes: number[], period: number): (number | null)[] {
   if (closes.length < period) return result;
   let window = 0;
   for (let i = 0; i < closes.length; i++) {
-    window += closes[i];
-    if (i >= period) window -= closes[i - period];
+    // The loop bounds prove every index below in range; `!` marks that.
+    window += closes[i]!;
+    if (i >= period) window -= closes[i - period]!;
     if (i >= period - 1) result[i] = window / period;
   }
   return result;
@@ -58,11 +59,11 @@ export function ema(closes: number[], period: number): (number | null)[] {
   if (closes.length < period) return result;
   const k = 2 / (period + 1);
   let previous = 0;
-  for (let i = 0; i < period; i++) previous += closes[i];
+  for (let i = 0; i < period; i++) previous += closes[i]!;
   previous /= period;
   result[period - 1] = previous;
   for (let i = period; i < closes.length; i++) {
-    previous = closes[i] * k + previous * (1 - k);
+    previous = closes[i]! * k + previous * (1 - k);
     result[i] = previous;
   }
   return result;
@@ -83,15 +84,15 @@ export function rsi(closes: number[], period = 14): (number | null)[] {
   const gains: number[] = [];
   const losses: number[] = [];
   for (let i = 1; i < closes.length; i++) {
-    const change = closes[i] - closes[i - 1];
+    const change = closes[i]! - closes[i - 1]!;
     gains.push(change > 0 ? change : 0);
     losses.push(change < 0 ? -change : 0);
   }
   let averageGain = 0;
   let averageLoss = 0;
   for (let i = 0; i < period; i++) {
-    averageGain += gains[i];
-    averageLoss += losses[i];
+    averageGain += gains[i]!;
+    averageLoss += losses[i]!;
   }
   averageGain /= period;
   averageLoss /= period;
@@ -101,8 +102,8 @@ export function rsi(closes: number[], period = 14): (number | null)[] {
   };
   result[period] = value();
   for (let i = period; i < gains.length; i++) {
-    averageGain = (averageGain * (period - 1) + gains[i]) / period;
-    averageLoss = (averageLoss * (period - 1) + losses[i]) / period;
+    averageGain = (averageGain * (period - 1) + gains[i]!) / period;
+    averageLoss = (averageLoss * (period - 1) + losses[i]!) / period;
     result[i + 1] = value();
   }
   return result;
@@ -139,27 +140,32 @@ export function macd(
   const line: number[] = [];
   const lineIndex: number[] = [];
   for (let i = 0; i < closes.length; i++) {
-    if (fastEma[i] !== null && slowEma[i] !== null) {
-      line.push(fastEma[i] - slowEma[i]);
+    const fast = fastEma[i];
+    const slow = slowEma[i];
+    if (typeof fast === "number" && typeof slow === "number") {
+      line.push(fast - slow);
       lineIndex.push(i);
     }
   }
   if (line.length < signalPeriod) return result;
   const k = 2 / (signalPeriod + 1);
   let signal = 0;
-  for (let i = 0; i < signalPeriod; i++) signal += line[i];
+  for (let i = 0; i < signalPeriod; i++) signal += line[i]!;
   signal /= signalPeriod;
-  result[lineIndex[signalPeriod - 1]] = {
-    macd: line[signalPeriod - 1],
+  const seedIndex = lineIndex[signalPeriod - 1]!;
+  const seedValue = line[signalPeriod - 1]!;
+  result[seedIndex] = {
+    macd: seedValue,
     signal,
-    histogram: line[signalPeriod - 1] - signal,
+    histogram: seedValue - signal,
   };
   for (let i = signalPeriod; i < line.length; i++) {
-    signal = line[i] * k + signal * (1 - k);
-    result[lineIndex[i]] = {
-      macd: line[i],
+    const value = line[i]!;
+    signal = value * k + signal * (1 - k);
+    result[lineIndex[i]!] = {
+      macd: value,
       signal,
-      histogram: line[i] - signal,
+      histogram: value - signal,
     };
   }
   return result;
