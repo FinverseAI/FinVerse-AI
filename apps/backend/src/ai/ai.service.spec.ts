@@ -1,5 +1,8 @@
 import { HttpException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { RagIngestService } from '../rag/rag.ingest';
+import type { RagRetrievalService } from '../rag/rag.retrieval';
+import type { RagService } from '../rag/rag.service';
 import {
   LlmProviderError,
   type ChatCompletion,
@@ -59,7 +62,30 @@ function makeService(
 ) {
   const config = { get: (key: string) => env[key] } as unknown as ConfigService;
   const tools = { execute: toolsExecute } as unknown as AiTools;
-  return new AiService(config, tools, client);
+  // Retrieval is unavailable by default here, so the pre-RAG behaviour
+  // (fundamentals-only explanations) is what these tests exercise; the
+  // RAG paths have their own spec (ai.rag.spec.ts).
+  const retrieval = {
+    retrieve: jest.fn().mockResolvedValue({
+      available: false,
+      chunks: [],
+      reason: 'Retrieval is unavailable right now.',
+    }),
+  } as unknown as RagRetrievalService;
+  const ingest = {
+    ensureProfileIndexed: jest.fn().mockResolvedValue(undefined),
+    indexNews: jest.fn().mockResolvedValue({
+      indexed: 0,
+      skipped: 0,
+      available: true,
+      reason: null,
+    }),
+  } as unknown as RagIngestService;
+  const rag = {
+    newsForSymbol: jest.fn(),
+    screen: jest.fn(),
+  } as unknown as RagService;
+  return new AiService(config, tools, client, retrieval, ingest, rag);
 }
 
 const DEFAULT_ENV: Record<string, string> = {

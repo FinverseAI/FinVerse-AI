@@ -3,6 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { SessionGuard } from '../auth/session.guard';
+import { RagIngestService } from '../rag/rag.ingest';
+import { RagRetrievalService } from '../rag/rag.retrieval';
+import { RagService } from '../rag/rag.service';
 import { AiController } from './ai.controller';
 import { LLM_CLIENT, type ChatCompletion, type LlmClient } from './ai.provider';
 import { AiService } from './ai.service';
@@ -31,19 +34,42 @@ describe('ai endpoints', () => {
     env: Record<string, string | undefined>,
     scripted: ChatCompletion[],
     toolsResult: unknown = {},
+    ragOverrides: {
+      retrievalResult?: unknown;
+      newsResult?: unknown;
+      screenResult?: unknown;
+    } = {},
   ) {
     const toolsExecute = jest.fn().mockResolvedValue(toolsResult);
     const queue = [...scripted];
-    const client: LlmClient = {
-      chat: jest.fn(
-        async () =>
-          queue.shift() ?? {
-            content: null,
-            toolCalls: [],
-            model: 'test-model',
-          },
-      ),
-    };
+    const chat = jest.fn(
+      async () =>
+        queue.shift() ?? {
+          content: null,
+          toolCalls: [],
+          model: 'test-model',
+        },
+    );
+    const client: LlmClient = { chat };
+    const retrieve = jest.fn().mockResolvedValue(
+      ragOverrides.retrievalResult ?? {
+        available: false,
+        chunks: [],
+        reason: 'Retrieval is unavailable right now.',
+      },
+    );
+    const newsForSymbol = jest
+      .fn()
+      .mockResolvedValue(ragOverrides.newsResult ?? null);
+    const screen = jest.fn().mockResolvedValue(
+      ragOverrides.screenResult ?? {
+        filters: {},
+        universe: [],
+        matches: [],
+        unavailable: [],
+        evaluatedAt: new Date().toISOString(),
+      },
+    );
     const module = await Test.createTestingModule({
       controllers: [AiController],
       providers: [
@@ -51,6 +77,20 @@ describe('ai endpoints', () => {
         SessionGuard,
         { provide: AiTools, useValue: { execute: toolsExecute } },
         { provide: LLM_CLIENT, useValue: client },
+        { provide: RagRetrievalService, useValue: { retrieve } },
+        {
+          provide: RagIngestService,
+          useValue: {
+            ensureProfileIndexed: jest.fn().mockResolvedValue(undefined),
+            indexNews: jest.fn().mockResolvedValue({
+              indexed: 0,
+              skipped: 0,
+              available: true,
+              reason: null,
+            }),
+          },
+        },
+        { provide: RagService, useValue: { newsForSymbol, screen } },
         {
           provide: ConfigService,
           useValue: {
@@ -63,7 +103,7 @@ describe('ai endpoints', () => {
     const app = module.createNestApplication();
     await app.init();
     apps.push(app);
-    return { app, toolsExecute, client };
+    return { app, toolsExecute, client, chat, retrieve, newsForSymbol, screen };
   }
 
   afterAll(async () => {
@@ -110,6 +150,14 @@ describe('ai endpoints', () => {
       await request(server)
         .post('/api/ai/explain-stock')
         .send({ symbol: 'RELIANCE' })
+        .expect(401);
+      await request(server)
+        .post('/api/ai/explain-news')
+        .send({ symbol: 'RELIANCE' })
+        .expect(401);
+      await request(server)
+        .post('/api/ai/screen')
+        .send({ query: 'cheap stocks' })
         .expect(401);
     });
 
@@ -204,6 +252,123 @@ describe('ai endpoints', () => {
       ).expect(200);
       expect(explain.body.fallback).toBe(true);
       expect(explain.body.metrics.symbol).toBe('RELIANCE');
+    });
+  });
+
+  describe('rag endpoints', () => {
+    const newsChunk = {
+      id: 'doc-1',
+      source_type: 'news',
+      source_id: 'https://example.test/a1',
+      user_id: null,
+      symbol: 'RELIANCE.NS',
+      title: 'Reliance profit jumps',
+      content: 'Reliance profit jumps. Source: Reuters.',
+      published_at: new Date('2026-11-18T10:00:00Z'),
+      url: 'https://example.test/a1',
+      metadata: { publisher: 'Reuters' },
+      created_at: new Date('2026-11-18T10:05:00Z'),
+      updated_at: new Date('2026-11-18T10:05:00Z'),
+      similarity: 0.82,
+    };
+
+    it('refuses a news explanation when nothing relevant was retrieved', async () => {
+      const { app, chat } = await createApp(
+        configuredEnv,
+        [],
+        {},
+        {
+          retrievalResult: { available: true, chunks: [], reason: null },
+        },
+      );
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-news')
+          .send({ symbol: 'RELIANCE' }),
+      ).expect(200);
+      expect(response.body.refused).toBe(true);
+      expect(response.body.refusalReason).toContain('No relevant news');
+      // The model is never consulted when there is nothing to ground on.
+      expect(chat).not.toHaveBeenCalled();
+    });
+
+    it('explains news from retrieved articles, citing them', async () => {
+      const { app } = await createApp(
+        configuredEnv,
+        [{ content: ANSWER_JSON, toolCalls: [], model: 'test-model' }],
+        {},
+        {
+          retrievalResult: {
+            available: true,
+            chunks: [newsChunk],
+            reason: null,
+          },
+        },
+      );
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-news')
+          .send({ symbol: 'RELIANCE' }),
+      ).expect(200);
+      expect(response.body.fallback).toBe(false);
+      expect(response.body.toolsUsed).toEqual(['searchKnowledge']);
+      expect(response.body.model).toBe('qwen/qwen-2.5-72b-instruct');
+    });
+
+    it('rejects an invalid news explanation request', async () => {
+      const { app } = await createApp(configuredEnv, []);
+      await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-news')
+          .send({ symbol: 'not a symbol!' }),
+      ).expect(400);
+    });
+
+    it('screens from a natural-language query', async () => {
+      const screenResult = {
+        filters: { minRsi: 70 },
+        universe: ['RELIANCE.NS'],
+        matches: [{ symbol: 'RELIANCE.NS', rsi14: 100 }],
+        unavailable: [],
+        evaluatedAt: new Date().toISOString(),
+      };
+      const { app, screen } = await createApp(
+        configuredEnv,
+        [
+          {
+            content: null,
+            toolCalls: [
+              {
+                id: 'call_1',
+                name: 'applyScreenerFilters',
+                arguments: JSON.stringify({ minRsi: 70 }),
+              },
+            ],
+            model: 'test-model',
+          },
+          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+        ],
+        {},
+        { screenResult },
+      );
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/screen')
+          .send({ query: 'overbought stocks' }),
+      ).expect(200);
+      expect(response.body.fallback).toBe(false);
+      expect(response.body.metrics.screen).toEqual(screenResult);
+      expect(response.body.metrics.filters).toEqual({ minRsi: 70 });
+      expect(screen).toHaveBeenCalledWith('owner', { minRsi: 70 });
+    });
+
+    it('rejects an empty screen query', async () => {
+      const { app } = await createApp(configuredEnv, []);
+      await session(
+        request(app.getHttpServer())
+          .post('/api/ai/screen')
+          .send({ query: '   ' }),
+      ).expect(400);
     });
   });
 

@@ -4,6 +4,8 @@ import { ProfileService } from '../profile/profile.service';
 import { MarketService } from '../market/market.service';
 import { PortfolioService } from '../market/portfolio.service';
 import { normalizeSymbol } from '../market/market.validation';
+import { RagRetrievalService } from '../rag/rag.retrieval';
+import { SCREEN_FILTERS_JSON_SCHEMA } from '../rag/rag.validation';
 import type { ToolDefinition } from './ai.provider';
 import { macd, rsi, sma } from './indicators';
 import {
@@ -12,6 +14,7 @@ import {
   GetStockFundamentalsArgsSchema,
   GetStockQuoteArgsSchema,
   GetTransactionsArgsSchema,
+  SearchKnowledgeArgsSchema,
   firstIssueMessage,
 } from './ai.validation';
 
@@ -141,7 +144,47 @@ export const AI_TOOL_DEFINITIONS: ToolDefinition[] = [
       parameters: { type: 'object', properties: {} },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'searchKnowledge',
+      description:
+        'Search the indexed knowledge for relevant context: recent news about a stock, company profile text, and the user\u2019s own transaction history. Use it when the question is about news, a stock\u2019s recent events, or past spending. Returns the matching chunks with their source title and date — cite those in the answer. An empty result means no relevant context was found: say so instead of answering from memory.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'What to search for, in plain language.',
+          },
+          symbol: {
+            type: 'string',
+            description:
+              'Optional stock symbol to limit the search to (e.g. RELIANCE.NS).',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
 ];
+
+/**
+ * The one-shot NL screener tool (strategy doc §3.1): the model
+ * translates a plain-language criterion into the screener's filter
+ * object, which is then executed exactly like a manually configured
+ * screen. It is NOT part of the chat tool loop — the AI service calls
+ * it in a dedicated translation round.
+ */
+export const APPLY_SCREENER_FILTERS_TOOL: ToolDefinition = {
+  type: 'function',
+  function: {
+    name: 'applyScreenerFilters',
+    description:
+      'Apply screener filters translated from the user\u2019s investment criterion. Call it exactly once with the filters the criterion implies.',
+    parameters: SCREEN_FILTERS_JSON_SCHEMA,
+  },
+};
 
 /** The twelve budget categories, mirroring apps/web/lib/onboarding.ts. */
 const BUDGET_CATEGORIES = [
@@ -225,6 +268,7 @@ export class AiTools {
     private readonly activity: ActivityService,
     private readonly market: MarketService,
     private readonly portfolio: PortfolioService,
+    private readonly retrieval: RagRetrievalService,
   ) {}
 
   /** Run one tool call from the model. Throws on unknown tools and bad args. */
@@ -236,6 +280,8 @@ export class AiTools {
         return this.budgetStatus(userId, args);
       case 'getTransactions':
         return this.transactions(userId, args);
+      case 'searchKnowledge':
+        return this.searchKnowledge(userId, args);
       case 'getStockQuote': {
         const parsed = GetStockQuoteArgsSchema.safeParse(args);
         if (!parsed.success) {
@@ -257,6 +303,39 @@ export class AiTools {
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
+  }
+
+  private async searchKnowledge(userId: string, args: unknown) {
+    const parsed = SearchKnowledgeArgsSchema.safeParse(args);
+    if (!parsed.success) {
+      throw new Error(firstIssueMessage(parsed.error));
+    }
+    const symbol = parsed.data.symbol
+      ? normalizeSymbol(parsed.data.symbol)
+      : undefined;
+    const result = await this.retrieval.retrieve(userId, parsed.data.query, {
+      symbol,
+    });
+    if (!result.available) {
+      return { available: false, reason: result.reason, chunks: [] };
+    }
+    return {
+      available: true,
+      chunks: result.chunks.map((chunk) => ({
+        sourceType: chunk.source_type,
+        title: chunk.title,
+        symbol: chunk.symbol,
+        publishedAt: chunk.published_at
+          ? chunk.published_at.toISOString().slice(0, 10)
+          : null,
+        url: chunk.url,
+        similarity: Math.round(chunk.similarity * 100) / 100,
+        content:
+          chunk.content.length > 600
+            ? `${chunk.content.slice(0, 600)}\u2026`
+            : chunk.content,
+      })),
+    };
   }
 
   private async budgetStatus(userId: string, args: unknown) {

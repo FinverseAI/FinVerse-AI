@@ -281,9 +281,15 @@ export class RagService {
  */
 function passesFilters(stock: ScreenedStock, filters: ScreenFilters): boolean {
   const { price, marketCap, trailingPE, rsi14, change1moPercent } = stock;
-  if (filters.minPrice !== undefined && (price === null || price < filters.minPrice))
+  if (
+    filters.minPrice !== undefined &&
+    (price === null || price < filters.minPrice)
+  )
     return false;
-  if (filters.maxPrice !== undefined && (price === null || price > filters.maxPrice))
+  if (
+    filters.maxPrice !== undefined &&
+    (price === null || price > filters.maxPrice)
+  )
     return false;
   if (
     filters.minMarketCapCr !== undefined &&
@@ -295,9 +301,15 @@ function passesFilters(stock: ScreenedStock, filters: ScreenFilters): boolean {
     (marketCap === null || marketCap > filters.maxMarketCapCr * CRORE)
   )
     return false;
-  if (filters.minRsi !== undefined && (rsi14 === null || rsi14 < filters.minRsi))
+  if (
+    filters.minRsi !== undefined &&
+    (rsi14 === null || rsi14 < filters.minRsi)
+  )
     return false;
-  if (filters.maxRsi !== undefined && (rsi14 === null || rsi14 > filters.maxRsi))
+  if (
+    filters.maxRsi !== undefined &&
+    (rsi14 === null || rsi14 > filters.maxRsi)
+  )
     return false;
   if (
     filters.minPe !== undefined &&

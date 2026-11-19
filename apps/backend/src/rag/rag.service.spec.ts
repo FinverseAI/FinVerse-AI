@@ -91,8 +91,8 @@ describe('RagService', () => {
     };
     const ingest = { indexNews: jest.fn() };
     const market = {
-      profile: jest.fn(
-        async (symbol: string) => profileFor(symbol),
+      profile: jest.fn(async (symbol: string): Promise<unknown> =>
+        profileFor(symbol),
       ),
       history: jest.fn(async (symbol: string) => ({
         symbol,
@@ -256,15 +256,11 @@ describe('RagService', () => {
       await expect(only({ trend: 'above-sma20' })).resolves.toEqual([
         'RELIANCE.NS',
       ]);
-      await expect(only({ trend: 'below-sma20' })).resolves.toEqual([
-        'TCS.NS',
-      ]);
+      await expect(only({ trend: 'below-sma20' })).resolves.toEqual(['TCS.NS']);
       await expect(only({ trend: 'golden-cross' })).resolves.toEqual([
         'RELIANCE.NS',
       ]);
-      await expect(only({ trend: 'death-cross' })).resolves.toEqual([
-        'TCS.NS',
-      ]);
+      await expect(only({ trend: 'death-cross' })).resolves.toEqual(['TCS.NS']);
       await expect(only({ sector: 'IT' })).resolves.toEqual(['TCS.NS']);
       await expect(only({ minPrice: 150 })).resolves.toEqual(['RELIANCE.NS']);
       await expect(only({ maxPrice: 150 })).resolves.toEqual(['TCS.NS']);
@@ -272,9 +268,7 @@ describe('RagService', () => {
         'RELIANCE.NS',
       ]);
       await expect(only({ maxPe: 27 })).resolves.toEqual(['RELIANCE.NS']);
-      await expect(only({ minChange1mo: 0 })).resolves.toEqual([
-        'RELIANCE.NS',
-      ]);
+      await expect(only({ minChange1mo: 0 })).resolves.toEqual(['RELIANCE.NS']);
       await expect(only({ maxChange1mo: 0 })).resolves.toEqual(['TCS.NS']);
     });
 

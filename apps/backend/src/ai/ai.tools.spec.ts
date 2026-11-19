@@ -3,8 +3,13 @@ import { ActivityService } from '../activity/activity.service';
 import { MarketService } from '../market/market.service';
 import { PortfolioService } from '../market/portfolio.service';
 import { ProfileService } from '../profile/profile.service';
+import { RagRetrievalService } from '../rag/rag.retrieval';
 import { rsi, sma } from './indicators';
-import { AI_TOOL_DEFINITIONS, AiTools } from './ai.tools';
+import {
+  AI_TOOL_DEFINITIONS,
+  APPLY_SCREENER_FILTERS_TOOL,
+  AiTools,
+} from './ai.tools';
 
 const USER_ID = 'user-123';
 
@@ -31,6 +36,7 @@ function makeTools(
     fundamentals?: unknown;
     history?: unknown;
     portfolio?: unknown;
+    retrieval?: unknown;
   } = {},
 ) {
   // The raw jest.fn references are returned alongside the services so
@@ -54,6 +60,11 @@ function makeTools(
   const portfolioSummary = jest
     .fn()
     .mockResolvedValue(overrides.portfolio ?? {});
+  const retrieve = jest
+    .fn()
+    .mockResolvedValue(
+      overrides.retrieval ?? { available: true, chunks: [], reason: null },
+    );
   const profile = { get } as unknown as ProfileService;
   const activity = { transactions } as unknown as ActivityService;
   const market = {
@@ -62,13 +73,22 @@ function makeTools(
     history,
   } as unknown as MarketService;
   const portfolio = { portfolioSummary } as unknown as PortfolioService;
-  const tools = new AiTools(profile, activity, market, portfolio);
-  return { tools, get, transactions, quote, history, portfolioSummary };
+  const retrieval = { retrieve } as unknown as RagRetrievalService;
+  const tools = new AiTools(profile, activity, market, portfolio, retrieval);
+  return {
+    tools,
+    get,
+    transactions,
+    quote,
+    history,
+    portfolioSummary,
+    retrieve,
+  };
 }
 
 describe('AiTools', () => {
   describe('AI_TOOL_DEFINITIONS', () => {
-    it('declares seven tools, each with a schema', () => {
+    it('declares eight tools, each with a schema', () => {
       const names = AI_TOOL_DEFINITIONS.map(
         (definition) => definition.function.name,
       );
@@ -80,11 +100,25 @@ describe('AiTools', () => {
         'getStockFundamentals',
         'getCategorySpending',
         'getGoalProgress',
+        'searchKnowledge',
       ]);
       for (const definition of AI_TOOL_DEFINITIONS) {
         expect(definition.function.description.length).toBeGreaterThan(0);
         expect(definition.function.parameters.type).toBe('object');
       }
+    });
+
+    it('keeps the screener translation tool out of the chat tool loop', () => {
+      const names = AI_TOOL_DEFINITIONS.map(
+        (definition) => definition.function.name,
+      );
+      expect(names).not.toContain('applyScreenerFilters');
+      expect(APPLY_SCREENER_FILTERS_TOOL.function.name).toBe(
+        'applyScreenerFilters',
+      );
+      expect(APPLY_SCREENER_FILTERS_TOOL.function.parameters.type).toBe(
+        'object',
+      );
     });
   });
 
@@ -507,12 +541,80 @@ describe('AiTools', () => {
             ),
         } as unknown as MarketService,
         {} as PortfolioService,
+        {} as RagRetrievalService,
       );
       await expect(
         failing.execute(USER_ID, 'getStockFundamentals', {
           symbol: 'RELIANCE',
         }),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('searchKnowledge returns labelled, truncated chunks', async () => {
+      const longContent = 'word '.repeat(200);
+      const { tools, retrieve } = makeTools({
+        retrieval: {
+          available: true,
+          reason: null,
+          chunks: [
+            {
+              source_type: 'news',
+              title: 'Reliance profit jumps',
+              symbol: 'RELIANCE.NS',
+              published_at: new Date('2026-11-18T10:00:00Z'),
+              url: 'https://example.test/a1',
+              similarity: 0.8234,
+              content: longContent,
+            },
+          ],
+        },
+      });
+      const result = (await tools.execute(USER_ID, 'searchKnowledge', {
+        query: 'Reliance news',
+        symbol: 'reliance.ns',
+      })) as {
+        available: boolean;
+        chunks: Array<Record<string, unknown>>;
+      };
+      expect(retrieve).toHaveBeenCalledWith(USER_ID, 'Reliance news', {
+        symbol: 'RELIANCE.NS',
+      });
+      expect(result.available).toBe(true);
+      expect(result.chunks).toHaveLength(1);
+      expect(result.chunks[0].title).toBe('Reliance profit jumps');
+      expect(result.chunks[0].publishedAt).toBe('2026-11-18');
+      expect(result.chunks[0].similarity).toBe(0.82);
+      expect((result.chunks[0].content as string).length).toBeLessThanOrEqual(
+        601,
+      );
+    });
+
+    it('searchKnowledge reports an outage instead of empty context', async () => {
+      const { tools } = makeTools({
+        retrieval: {
+          available: false,
+          reason: 'Retrieval is unavailable right now.',
+          chunks: [],
+        },
+      });
+      const result = await tools.execute(USER_ID, 'searchKnowledge', {
+        query: 'Reliance news',
+      });
+      expect(result).toEqual({
+        available: false,
+        reason: 'Retrieval is unavailable right now.',
+        chunks: [],
+      });
+    });
+
+    it('searchKnowledge rejects invalid arguments', async () => {
+      const { tools } = makeTools();
+      await expect(
+        tools.execute(USER_ID, 'searchKnowledge', { query: '' }),
+      ).rejects.toThrow();
+      await expect(
+        tools.execute(USER_ID, 'searchKnowledge', {}),
+      ).rejects.toThrow();
     });
   });
 });

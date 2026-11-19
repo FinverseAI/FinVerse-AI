@@ -27,6 +27,13 @@ describe('ai prompts', () => {
     );
   });
 
+  it('tells the model to retrieve before answering news questions', () => {
+    expect(SYSTEM_PROMPT).toContain('call searchKnowledge before answering');
+    expect(SYSTEM_PROMPT).toContain(
+      'say so plainly instead of answering from memory',
+    );
+  });
+
   it('carries the decision-support-not-advice disclaimer', () => {
     expect(AI_DISCLAIMER).toContain('not financial advice');
   });

@@ -202,6 +202,30 @@ describe('RagRepository', () => {
     });
   });
 
+  describe('hasPublicSource', () => {
+    it('returns true when a public document exists', async () => {
+      const { repo, queryRaw } = makeRepo();
+      queryRaw.mockResolvedValue([{ found: 1 }]);
+      await expect(
+        repo.hasPublicSource('profile', 'RELIANCE.NS'),
+      ).resolves.toBe(true);
+      const sql = sqlOf(queryRaw.mock.calls[0]);
+      expect(sql).toContain('"user_id" IS NULL');
+      expect(valuesOf(queryRaw.mock.calls[0])).toEqual([
+        'profile',
+        'RELIANCE.NS',
+      ]);
+    });
+
+    it('returns false when no public document exists', async () => {
+      const { repo, queryRaw } = makeRepo();
+      queryRaw.mockResolvedValue([]);
+      await expect(repo.hasPublicSource('profile', 'TCS.NS')).resolves.toBe(
+        false,
+      );
+    });
+  });
+
   describe('deleteStaleNews', () => {
     it('deletes news older than the cutoff and returns the count', async () => {
       const { repo, executeRaw } = makeRepo();

@@ -1,4 +1,8 @@
-import { ScreenFiltersSchema } from './rag.validation';
+import {
+  SCREEN_FILTERS_JSON_SCHEMA,
+  SCREEN_FILTER_KEYS,
+  ScreenFiltersSchema,
+} from './rag.validation';
 
 describe('ScreenFiltersSchema', () => {
   it('accepts an empty filter set', () => {
@@ -61,22 +65,37 @@ describe('ScreenFiltersSchema', () => {
   });
 
   it('rejects an out-of-range RSI', () => {
-    expect(
-      ScreenFiltersSchema.safeParse({ minRsi: -1 }).success,
-    ).toBe(false);
-    expect(
-      ScreenFiltersSchema.safeParse({ maxRsi: 101 }).success,
-    ).toBe(false);
+    expect(ScreenFiltersSchema.safeParse({ minRsi: -1 }).success).toBe(false);
+    expect(ScreenFiltersSchema.safeParse({ maxRsi: 101 }).success).toBe(false);
   });
 
   it('rejects an unknown trend', () => {
-    expect(
-      ScreenFiltersSchema.safeParse({ trend: 'sideways' }).success,
-    ).toBe(false);
+    expect(ScreenFiltersSchema.safeParse({ trend: 'sideways' }).success).toBe(
+      false,
+    );
   });
 
   it('rejects a limit outside 1..50', () => {
     expect(ScreenFiltersSchema.safeParse({ limit: 0 }).success).toBe(false);
     expect(ScreenFiltersSchema.safeParse({ limit: 51 }).success).toBe(false);
+  });
+
+  it('keeps the NL tool JSON schema in sync with the Zod schema', () => {
+    const properties = SCREEN_FILTERS_JSON_SCHEMA.properties as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(properties).sort()).toEqual(
+      [...SCREEN_FILTER_KEYS].sort(),
+    );
+    const trend = properties.trend as { enum: string[] };
+    expect(trend.enum).toEqual([
+      'above-sma20',
+      'below-sma20',
+      'above-sma50',
+      'below-sma50',
+      'golden-cross',
+      'death-cross',
+    ]);
   });
 });

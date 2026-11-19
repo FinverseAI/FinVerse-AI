@@ -37,9 +37,7 @@ import { RagRepository, type NewRagDocument } from './rag.repository';
  */
 
 export type IngestUnavailableReason =
-  | 'embeddings-not-configured'
-  | 'embeddings-unavailable'
-  | 'source-unavailable';
+  'embeddings-not-configured' | 'embeddings-unavailable' | 'source-unavailable';
 
 export interface IngestResult {
   indexed: number;
@@ -247,6 +245,20 @@ export class RagIngestService {
     };
   }
 
+  /**
+   * Index a profile only if it is not already stored. Profiles change
+   * rarely, so the explain-stock flow calls this instead of re-embedding
+   * on every request. Never throws.
+   */
+  async ensureProfileIndexed(symbol: string): Promise<void> {
+    try {
+      if (await this.repository.hasPublicSource('profile', symbol)) return;
+    } catch {
+      return;
+    }
+    await this.indexProfile(symbol);
+  }
+
   /** Drop news older than the retention window. Never throws. */
   async pruneStaleNews(): Promise<number> {
     const cutoff = new Date(
@@ -265,22 +277,21 @@ export class RagIngestService {
    */
   private async embedAndStore(
     documents: NewRagDocument[],
-  ): Promise<{ indexed: number; available: boolean; reason: IngestUnavailableReason | null }> {
+  ): Promise<{
+    indexed: number;
+    available: boolean;
+    reason: IngestUnavailableReason | null;
+  }> {
     let indexed = 0;
     for (
       let start = 0;
       start < documents.length;
       start += this.config.ingestBatchSize
     ) {
-      const batch = documents.slice(
-        start,
-        start + this.config.ingestBatchSize,
-      );
+      const batch = documents.slice(start, start + this.config.ingestBatchSize);
       let vectors: number[][];
       try {
-        vectors = await this.embeddings.embed(
-          batch.map((doc) => doc.content),
-        );
+        vectors = await this.embeddings.embed(batch.map((doc) => doc.content));
       } catch (error) {
         if (error instanceof RagEmbeddingError) {
           return {

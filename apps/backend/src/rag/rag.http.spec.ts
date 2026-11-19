@@ -71,7 +71,7 @@ describe('rag endpoints', () => {
           url: 'https://example.test/a1',
           sentiment: {
             score: 1,
-            label: 'positive',
+            label: 'positive' as const,
             matchedPositive: ['profit', 'surges'],
             matchedNegative: [],
           },
@@ -79,7 +79,7 @@ describe('rag endpoints', () => {
       ],
       overall: {
         score: 1,
-        label: 'positive',
+        label: 'positive' as const,
         positive: 1,
         negative: 0,
         neutral: 0,
@@ -102,7 +102,22 @@ describe('rag endpoints', () => {
     const screen = jest.fn(async () => ({
       filters: { minRsi: 70 },
       universe: ['RELIANCE.NS'],
-      matches: [{ symbol: 'RELIANCE.NS', rsi14: 100 }],
+      matches: [
+        {
+          symbol: 'RELIANCE.NS',
+          name: 'Reliance Industries',
+          price: 2600,
+          changePercent: 1.2,
+          marketCap: 17_600_000_000_000,
+          trailingPE: 25,
+          sector: 'Energy',
+          rsi14: 100,
+          sma20: 2500,
+          sma50: 2400,
+          change1moPercent: 5.5,
+          stale: false,
+        },
+      ],
       unavailable: [],
       evaluatedAt: new Date().toISOString(),
     }));

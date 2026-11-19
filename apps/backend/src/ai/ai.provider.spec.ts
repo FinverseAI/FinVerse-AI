@@ -79,6 +79,48 @@ describe('OpenRouterClient', () => {
     });
   });
 
+  it('sends tool_choice auto when tools are given, and a forced tool when asked', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { choices: [{ message: { content: '{}' } }] }),
+    );
+    const client = new OpenRouterClient('test-key', 'https://example.test/v1');
+    const tool = {
+      type: 'function' as const,
+      function: {
+        name: 'applyScreenerFilters',
+        description: 'filters',
+        parameters: { type: 'object', properties: {} },
+      },
+    };
+    await client.chat({
+      model: 'm',
+      messages: [],
+      tools: [tool],
+      timeoutMs: 5000,
+    });
+    const autoBody = JSON.parse(
+      (fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string,
+    );
+    expect(autoBody.tool_choice).toBe('auto');
+    await client.chat({
+      model: 'm',
+      messages: [],
+      tools: [tool],
+      toolChoice: {
+        type: 'function',
+        function: { name: 'applyScreenerFilters' },
+      },
+      timeoutMs: 5000,
+    });
+    const forcedBody = JSON.parse(
+      (fetchMock.mock.calls[1] as [string, RequestInit])[1].body as string,
+    );
+    expect(forcedBody.tool_choice).toEqual({
+      type: 'function',
+      function: { name: 'applyScreenerFilters' },
+    });
+  });
+
   it('requests JSON object mode when asked', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, { choices: [{ message: { content: '{}' } }] }),

@@ -71,10 +71,7 @@ export function resolveRagConfig(
       get('LLM_EMBEDDING_BASE_URL') ?? get('LLM_BASE_URL'),
       DEFAULT_EMBEDDING_BASE_URL,
     ),
-    embeddingModel: text(
-      get('LLM_EMBEDDING_MODEL'),
-      DEFAULT_EMBEDDING_MODEL,
-    ),
+    embeddingModel: text(get('LLM_EMBEDDING_MODEL'), DEFAULT_EMBEDDING_MODEL),
     timeoutMs: positiveInt(
       get('LLM_EMBEDDING_TIMEOUT_MS'),
       DEFAULT_EMBEDDING_TIMEOUT_MS,

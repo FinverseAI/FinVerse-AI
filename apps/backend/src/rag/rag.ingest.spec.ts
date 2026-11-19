@@ -25,6 +25,7 @@ describe('RagIngestService', () => {
       existingNewsSourceIds: jest.fn().mockResolvedValue(new Set()),
       existingSourceIds: jest.fn().mockResolvedValue(new Set()),
       deleteStaleNews: jest.fn().mockResolvedValue(0),
+      hasPublicSource: jest.fn().mockResolvedValue(false),
     };
     const embeddings = {
       embed: jest.fn(async (texts: string[]) =>
@@ -229,8 +230,7 @@ describe('RagIngestService', () => {
       );
       await service.indexTransactions('owner-1');
       const totalEmbedded = embeddings.embed.mock.calls.reduce(
-        (sum: number, call: unknown[]) =>
-          sum + (call[0] as string[]).length,
+        (sum: number, call: unknown[]) => sum + (call[0] as string[]).length,
         0,
       );
       expect(totalEmbedded).toBe(200);
@@ -248,9 +248,7 @@ describe('RagIngestService', () => {
       );
       await service.indexTransactions('owner-1');
       expect(embeddings.embed).toHaveBeenCalledTimes(3);
-      expect(
-        (embeddings.embed.mock.calls[0][0] as string[]).length,
-      ).toBe(2);
+      expect((embeddings.embed.mock.calls[0][0] as string[]).length).toBe(2);
     });
 
     it('reports unavailable when the activity fetch fails', async () => {
@@ -259,6 +257,45 @@ describe('RagIngestService', () => {
       const result = await service.indexTransactions('owner-1');
       expect(result.available).toBe(false);
       expect(result.reason).toBe('source-unavailable');
+    });
+  });
+
+  describe('ensureProfileIndexed', () => {
+    it('skips indexing when the profile is already stored', async () => {
+      const { service, repository, market } = withKey();
+      repository.hasPublicSource.mockResolvedValue(true);
+      await service.ensureProfileIndexed('RELIANCE.NS');
+      expect(repository.hasPublicSource).toHaveBeenCalledWith(
+        'profile',
+        'RELIANCE.NS',
+      );
+      expect(market.profile).not.toHaveBeenCalled();
+    });
+
+    it('indexes when the profile is missing', async () => {
+      const { service, market } = withKey();
+      market.profile.mockResolvedValue({
+        symbol: 'RELIANCE.NS',
+        name: 'Reliance Industries',
+        sector: 'Energy',
+        fundamentals: {
+          sector: 'Energy',
+          industry: 'Oil & Gas',
+          description: 'Operates refineries and retail.',
+        },
+        fundamentalsAvailable: true,
+      });
+      await service.ensureProfileIndexed('RELIANCE.NS');
+      expect(market.profile).toHaveBeenCalledWith('RELIANCE.NS');
+    });
+
+    it('never throws when the existence check fails', async () => {
+      const { service, repository, market } = withKey();
+      repository.hasPublicSource.mockRejectedValue(new Error('db down'));
+      await expect(
+        service.ensureProfileIndexed('RELIANCE.NS'),
+      ).resolves.toBeUndefined();
+      expect(market.profile).not.toHaveBeenCalled();
     });
   });
 

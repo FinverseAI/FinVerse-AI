@@ -139,9 +139,7 @@ export class RagRepository {
     const literal = vectorLiteral(embedding);
     const symbol = options.symbol ?? null;
     const sourceType = options.sourceType ?? null;
-    const rows = await this.prisma.$queryRaw<
-      Array<Record<string, unknown>>
-    >`
+    const rows = await this.prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT "id", "source_type", "source_id", "user_id", "symbol",
              "title", "content", "published_at", "url", "metadata",
              "created_at", "updated_at",
@@ -161,10 +159,11 @@ export class RagRepository {
   }
 
   /** The newest indexed news for a symbol, most recent first. */
-  async listRecentNews(symbol: string, limit: number): Promise<RagDocumentRow[]> {
-    const rows = await this.prisma.$queryRaw<
-      Array<Record<string, unknown>>
-    >`
+  async listRecentNews(
+    symbol: string,
+    limit: number,
+  ): Promise<RagDocumentRow[]> {
+    const rows = await this.prisma.$queryRaw<Array<Record<string, unknown>>>`
       SELECT "id", "source_type", "source_id", "user_id", "symbol",
              "title", "content", "published_at", "url", "metadata",
              "created_at", "updated_at"
@@ -213,6 +212,21 @@ export class RagRepository {
       WHERE "source_type" = 'news' AND "symbol" = ${symbol}
     `;
     return new Set(rows.map((row) => row.source_id));
+  }
+
+  /** Whether a public (user_id NULL) document already exists. */
+  async hasPublicSource(
+    sourceType: RagSourceType,
+    sourceId: string,
+  ): Promise<boolean> {
+    const rows = await this.prisma.$queryRaw<Array<{ found: number }>>`
+      SELECT 1 AS "found" FROM "rag_documents"
+      WHERE "source_type" = ${sourceType}
+        AND "source_id" = ${sourceId}
+        AND "user_id" IS NULL
+      LIMIT 1
+    `;
+    return rows.length > 0;
   }
 
   /** Drop news older than the cutoff so the store stays fresh. */

@@ -7,6 +7,17 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { normalizeSymbol } from '../market/market.validation';
+import { RagIngestService } from '../rag/rag.ingest';
+import {
+  formatRetrievedContext,
+  formatScreenResults,
+} from '../rag/rag.prompts';
+import {
+  RagRetrievalService,
+  type RetrievedContext,
+} from '../rag/rag.retrieval';
+import { RagService } from '../rag/rag.service';
+import { ScreenFiltersSchema } from '../rag/rag.validation';
 import { AiResponseCache } from './ai.cache';
 import { resolveAiConfig, type AiConfig } from './ai.config';
 import {
@@ -18,17 +29,27 @@ import {
 } from './ai.provider';
 import {
   AI_DISCLAIMER,
+  NEWS_EXPLANATION_INTRO,
+  NO_RETRIEVED_CONTEXT_NOTE,
+  SCREENER_SUMMARY_INTRO,
+  SCREENER_TRANSLATION_INTRO,
   STOCK_EXPLANATION_INTRO,
   STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
   correctionPrompt,
 } from './ai.prompts';
 import { AiRateLimiter } from './ai.rate-limit';
-import { AI_TOOL_DEFINITIONS, AiTools } from './ai.tools';
+import {
+  AI_TOOL_DEFINITIONS,
+  APPLY_SCREENER_FILTERS_TOOL,
+  AiTools,
+} from './ai.tools';
 import {
   AiAnswerSchema,
   ChatRequestSchema,
+  ExplainNewsRequestSchema,
   ExplainStockRequestSchema,
+  ScreenQueryRequestSchema,
   firstIssueMessage,
   parseStructuredJson,
   type AiAnswer,
@@ -98,6 +119,9 @@ export class AiService {
     configService: ConfigService,
     private readonly tools: AiTools,
     @Inject(LLM_CLIENT) private readonly client: LlmClient,
+    private readonly retrieval: RagRetrievalService,
+    private readonly ingest: RagIngestService,
+    private readonly rag: RagService,
   ) {
     this.config = resolveAiConfig((key) => configService.get<string>(key));
     this.limiter = new AiRateLimiter(
@@ -170,6 +194,7 @@ export class AiService {
       'getStockFundamentals',
       { symbol },
     );
+    const context = await this.retrieveStockContext(userId, symbol);
     const response =
       this.config.apiKey === undefined
         ? this.explainFallback(
@@ -177,7 +202,120 @@ export class AiService {
             fundamentals,
             'AI explanations are not configured yet. Here are the computed figures without the narrative.',
           )
-        : await this.explainWithModel(symbol, question, fundamentals);
+        : await this.explainWithModel(symbol, question, fundamentals, context);
+    this.cache.set(cacheKey, response);
+    return response;
+  }
+
+  /**
+   * A RAG-grounded explanation of a stock's recent news. The news index
+   * is refreshed first; then retrieval decides the path:
+   *
+   * - retrieval unavailable → fall back to the raw news list;
+   * - retrieval available but nothing relevant → a deterministic honest
+   *   refusal WITHOUT calling the model (the model has nothing to ground
+   *   an answer in, so asking it would only invite memory);
+   * - relevant articles found → the model explains from them, citing
+   *   each article by title and date.
+   */
+  async explainNews(userId: string, input: unknown): Promise<AiChatResponse> {
+    const parsed = ExplainNewsRequestSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new BadRequestException(firstIssueMessage(parsed.error));
+    }
+    const symbol = normalizeSymbol(parsed.data.symbol);
+    const question = parsed.data.question;
+    const cacheKey = `explain-news:${userId}:${symbol}:${(question ?? '').toLowerCase()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+    if (!this.limiter.allow(userId)) {
+      throw new HttpException(
+        'You are asking too quickly. Please wait a moment and try again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    await this.ingest.indexNews(symbol);
+    if (this.config.apiKey === undefined) {
+      const response = await this.newsFallback(
+        symbol,
+        'AI explanations are not configured yet. Here are the recent articles without the narrative.',
+      );
+      this.cache.set(cacheKey, response);
+      return response;
+    }
+    const context = await this.retrieval.retrieve(
+      userId,
+      question ? `${question} ${symbol}` : `news about ${symbol}`,
+      { symbol, sourceType: 'news' },
+    );
+    let response: AiChatResponse;
+    if (!context.available) {
+      response = await this.newsFallback(
+        symbol,
+        'News explanations are unavailable right now. Here are the recent articles without the narrative.',
+      );
+    } else if (context.chunks.length === 0) {
+      response = {
+        answer: `No relevant news was found for ${symbol} in the indexed articles, so there is nothing to explain from. Try again later, when newer articles may have been indexed.`,
+        claims: [],
+        refused: true,
+        refusalReason: `No relevant news articles were retrieved for ${symbol}.`,
+        fallback: false,
+        fallbackReason: null,
+        metrics: null,
+        model: null,
+        toolsUsed: ['searchKnowledge'],
+        disclaimer: AI_DISCLAIMER,
+      };
+    } else {
+      response = await this.explainNewsWithModel(symbol, question, context);
+    }
+    this.cache.set(cacheKey, response);
+    return response;
+  }
+
+  /**
+   * The natural-language screener (strategy doc §3.1): the model
+   * translates the criterion into filter conditions via one forced tool
+   * call, the deterministic screen runs those filters, and the model
+   * summarises the results. If the translation fails, the screen still
+   * runs — unfiltered — and the summary says the criterion could not be
+   * turned into exact filters.
+   */
+  async screenByQuery(userId: string, input: unknown): Promise<AiChatResponse> {
+    const parsed = ScreenQueryRequestSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new BadRequestException(firstIssueMessage(parsed.error));
+    }
+    const query = parsed.data.query;
+    const cacheKey = `screen:${userId}:${query.toLowerCase()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+    if (!this.limiter.allow(userId)) {
+      throw new HttpException(
+        'You are asking too quickly. Please wait a moment and try again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (this.config.apiKey === undefined) {
+      const screen = await this.rag.screen(userId, {});
+      const response: AiChatResponse = {
+        answer: null,
+        claims: [],
+        refused: false,
+        refusalReason: null,
+        fallback: true,
+        fallbackReason:
+          'AI explanations are not configured yet. Here are the screened stocks without the summary.',
+        metrics: { screen, filters: {} },
+        model: null,
+        toolsUsed: ['screenStocks'],
+        disclaimer: AI_DISCLAIMER,
+      };
+      this.cache.set(cacheKey, response);
+      return response;
+    }
+    const response = await this.screenByQueryWithModel(userId, query);
     this.cache.set(cacheKey, response);
     return response;
   }
@@ -251,15 +389,44 @@ export class AiService {
     }
   }
 
+  /**
+   * The stock's retrieved context: the company profile is indexed on
+   * first use (cheap no-op afterwards), then news + profile chunks are
+   * retrieved for the symbol. Retrieval never throws — an outage yields
+   * available: false and the explanation proceeds from fundamentals
+   * alone.
+   */
+  private async retrieveStockContext(
+    userId: string,
+    symbol: string,
+  ): Promise<RetrievedContext> {
+    await this.ingest.ensureProfileIndexed(symbol);
+    return this.retrieval.retrieve(
+      userId,
+      `news and background for ${symbol}`,
+      {
+        symbol,
+      },
+    );
+  }
+
   private async explainWithModel(
     symbol: string,
     question: string | undefined,
     fundamentals: unknown,
+    context: RetrievedContext,
   ): Promise<AiChatResponse> {
     try {
+      const contextBlock =
+        context.available && context.chunks.length > 0
+          ? formatRetrievedContext(context.chunks)
+          : context.available
+            ? NO_RETRIEVED_CONTEXT_NOTE
+            : '';
       const userContent = [
         STOCK_EXPLANATION_INTRO,
         question ? `The user asks: ${question}` : '',
+        contextBlock,
         `Computed data for ${symbol}:`,
         truncate(JSON.stringify(fundamentals), MAX_EXPLAIN_DATA_CHARS),
       ]
@@ -283,7 +450,10 @@ export class AiService {
         fallbackReason: null,
         metrics: null,
         model: this.config.reasoningModel,
-        toolsUsed: ['getStockFundamentals'],
+        toolsUsed:
+          context.available && context.chunks.length > 0
+            ? ['getStockFundamentals', 'searchKnowledge']
+            : ['getStockFundamentals'],
         disclaimer: AI_DISCLAIMER,
       };
     } catch (error) {
@@ -301,6 +471,203 @@ export class AiService {
       }
       throw error;
     }
+  }
+
+  private async explainNewsWithModel(
+    symbol: string,
+    question: string | undefined,
+    context: RetrievedContext,
+  ): Promise<AiChatResponse> {
+    try {
+      const userContent = [
+        NEWS_EXPLANATION_INTRO,
+        question ? `The user asks: ${question}` : '',
+        formatRetrievedContext(context.chunks),
+      ]
+        .filter((line) => line !== '')
+        .join('\n');
+      const messages: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ];
+      const answer = await this.structuredAnswer(
+        messages,
+        this.config.primaryModel,
+      );
+      return {
+        answer: answer.answer,
+        claims: answer.claims,
+        refused: answer.refused,
+        refusalReason: answer.refusalReason ?? null,
+        fallback: false,
+        fallbackReason: null,
+        metrics: null,
+        model: this.config.primaryModel,
+        toolsUsed: ['searchKnowledge'],
+        disclaimer: AI_DISCLAIMER,
+      };
+    } catch (error) {
+      if (
+        error instanceof LlmProviderError ||
+        error instanceof AiUnverifiableError
+      ) {
+        return this.newsFallback(
+          symbol,
+          error instanceof AiUnverifiableError
+            ? 'The AI answer could not be verified. Here are the recent articles without the narrative.'
+            : 'The AI service is unavailable right now. Here are the recent articles without the narrative.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  /** The raw news list + sentiment, shown when the narrative is unavailable. */
+  private async newsFallback(
+    symbol: string,
+    reason: string,
+  ): Promise<AiChatResponse> {
+    const news = await this.rag.newsForSymbol(symbol).catch(() => null);
+    return {
+      answer: null,
+      claims: [],
+      refused: false,
+      refusalReason: null,
+      fallback: true,
+      fallbackReason: reason,
+      metrics: news ? { symbol, news } : { symbol },
+      model: null,
+      toolsUsed: ['searchKnowledge'],
+      disclaimer: AI_DISCLAIMER,
+    };
+  }
+
+  private async screenByQueryWithModel(
+    userId: string,
+    query: string,
+  ): Promise<AiChatResponse> {
+    let filters: unknown = {};
+    let translationNote: string | null = null;
+    try {
+      const translation = await this.client.chat({
+        model: this.config.primaryModel,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `${SCREENER_TRANSLATION_INTRO}\n\nThe user's criterion: "${query}"`,
+          },
+        ],
+        tools: [APPLY_SCREENER_FILTERS_TOOL],
+        toolChoice: {
+          type: 'function',
+          function: { name: 'applyScreenerFilters' },
+        },
+        timeoutMs: this.config.timeoutMs,
+      });
+      const call = translation.toolCalls.find(
+        (toolCall) => toolCall.name === 'applyScreenerFilters',
+      );
+      if (call) {
+        try {
+          const parsed = ScreenFiltersSchema.safeParse(
+            JSON.parse(call.arguments),
+          );
+          if (parsed.success) {
+            filters = parsed.data;
+          } else {
+            translationNote =
+              'The criterion could not be turned into exact filters, so all screened stocks are shown.';
+          }
+        } catch {
+          translationNote =
+            'The criterion could not be turned into exact filters, so all screened stocks are shown.';
+        }
+      } else {
+        translationNote =
+          'The criterion could not be turned into exact filters, so all screened stocks are shown.';
+      }
+    } catch (error) {
+      if (error instanceof LlmProviderError) {
+        return this.screenFallback(
+          userId,
+          'The AI service is unavailable right now. Here are the screened stocks without the summary.',
+        );
+      }
+      throw error;
+    }
+    const screen = await this.rag.screen(userId, filters);
+    try {
+      const userContent = [
+        SCREENER_SUMMARY_INTRO,
+        `The user's criterion was: "${query}"`,
+        formatScreenResults(screen),
+      ].join('\n');
+      const messages: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ];
+      const answer = await this.structuredAnswer(
+        messages,
+        this.config.primaryModel,
+      );
+      return {
+        answer: answer.answer,
+        claims: answer.claims,
+        refused: answer.refused,
+        refusalReason: answer.refusalReason ?? null,
+        fallback: false,
+        fallbackReason: null,
+        metrics: {
+          screen,
+          filters,
+          note: translationNote,
+        },
+        model: this.config.primaryModel,
+        toolsUsed: ['screenStocks'],
+        disclaimer: AI_DISCLAIMER,
+      };
+    } catch (error) {
+      if (
+        error instanceof LlmProviderError ||
+        error instanceof AiUnverifiableError
+      ) {
+        return {
+          answer: null,
+          claims: [],
+          refused: false,
+          refusalReason: null,
+          fallback: true,
+          fallbackReason:
+            'The AI summary is unavailable right now. Here are the screened stocks without the summary.',
+          metrics: { screen, filters, note: translationNote },
+          model: null,
+          toolsUsed: ['screenStocks'],
+          disclaimer: AI_DISCLAIMER,
+        };
+      }
+      throw error;
+    }
+  }
+
+  /** The unfiltered screen, shown when the translation call itself fails. */
+  private async screenFallback(
+    userId: string,
+    reason: string,
+  ): Promise<AiChatResponse> {
+    const screen = await this.rag.screen(userId, {});
+    return {
+      answer: null,
+      claims: [],
+      refused: false,
+      refusalReason: null,
+      fallback: true,
+      fallbackReason: reason,
+      metrics: { screen, filters: {} },
+      model: null,
+      toolsUsed: ['screenStocks'],
+      disclaimer: AI_DISCLAIMER,
+    };
   }
 
   /**

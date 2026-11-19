@@ -36,4 +36,18 @@ export class AiController {
   explainStock(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.ai.explainStock(request.userId, body);
   }
+
+  @Post('explain-news')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  explainNews(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.ai.explainNews(request.userId, body);
+  }
+
+  @Post('screen')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  screen(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.ai.screenByQuery(request.userId, body);
+  }
 }

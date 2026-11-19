@@ -67,10 +67,7 @@ function overlapTail(text: string, chars: number): string {
 }
 
 export function chunkText(text: string, options: ChunkOptions = {}): string[] {
-  const maxChars = Math.max(
-    50,
-    options.maxChars ?? DEFAULT_CHUNK_MAX_CHARS,
-  );
+  const maxChars = Math.max(50, options.maxChars ?? DEFAULT_CHUNK_MAX_CHARS);
   const overlapChars = Math.min(
     Math.max(0, options.overlapChars ?? DEFAULT_CHUNK_OVERLAP_CHARS),
     Math.floor(maxChars / 2),

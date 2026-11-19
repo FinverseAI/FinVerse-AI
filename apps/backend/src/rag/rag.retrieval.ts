@@ -1,10 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { resolveRagConfig, type RagConfig } from './rag.config';
-import {
-  EMBEDDINGS_CLIENT,
-  type EmbeddingsClient,
-} from './rag.embeddings';
+import { EMBEDDINGS_CLIENT, type EmbeddingsClient } from './rag.embeddings';
 import {
   RagRepository,
   type RagSourceType,

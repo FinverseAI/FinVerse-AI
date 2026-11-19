@@ -187,7 +187,9 @@ export interface SentimentAggregate {
  * articles split, so a "neutral" mean over a polarised set is visible
  * instead of hiding the disagreement.
  */
-export function aggregateSentiment(scores: SentimentResult[]): SentimentAggregate {
+export function aggregateSentiment(
+  scores: SentimentResult[],
+): SentimentAggregate {
   const positive = scores.filter((s) => s.label === 'positive').length;
   const negative = scores.filter((s) => s.label === 'negative').length;
   const neutral = scores.length - positive - negative;

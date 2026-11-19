@@ -48,6 +48,8 @@ export interface ChatOptions {
   model: string;
   messages: ChatMessage[];
   tools?: ToolDefinition[];
+  /** Force one tool call (used by the NL screener translation). */
+  toolChoice?: { type: 'function'; function: { name: string } };
   /** Ask for a JSON object response (structured output). */
   responseFormatJson?: boolean;
   maxTokens?: number;
@@ -97,7 +99,8 @@ export class OpenRouterClient implements LlmClient {
           model: options.model,
           messages: options.messages,
           tools: options.tools,
-          tool_choice: options.tools ? 'auto' : undefined,
+          tool_choice:
+            options.toolChoice ?? (options.tools ? 'auto' : undefined),
           response_format: options.responseFormatJson
             ? { type: 'json_object' }
             : undefined,

@@ -117,12 +117,9 @@ function parseEmbeddings(
     const index = (item as Record<string, unknown>).index;
     return typeof index === 'number' ? index : null;
   };
-  const sorted =
-    items.every((item) => indexed(item) !== null)
-      ? [...items].sort(
-          (a, b) => (indexed(a) as number) - (indexed(b) as number),
-        )
-      : items;
+  const sorted = items.every((item) => indexed(item) !== null)
+    ? [...items].sort((a, b) => (indexed(a) as number) - (indexed(b) as number))
+    : items;
   for (const item of sorted) {
     if (!item || typeof item !== 'object') {
       throw new RagEmbeddingError(

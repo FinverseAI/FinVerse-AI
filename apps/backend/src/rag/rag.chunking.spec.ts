@@ -89,9 +89,7 @@ describe('chunk text builders', () => {
         'Reuters',
         new Date('2026-11-18T10:00:00Z'),
       ),
-    ).toBe(
-      'Reliance profit jumps 12%. Source: Reuters. Published: 2026-11-18',
-    );
+    ).toBe('Reliance profit jumps 12%. Source: Reuters. Published: 2026-11-18');
   });
 
   it('omits missing news metadata', () => {
@@ -115,7 +113,12 @@ describe('chunk text builders', () => {
 
   it('builds transaction text with direction and amount', () => {
     expect(
-      buildTransactionChunkText('Swiggy order', 'Food & Dining', -420.5, '2026-11-15'),
+      buildTransactionChunkText(
+        'Swiggy order',
+        'Food & Dining',
+        -420.5,
+        '2026-11-15',
+      ),
     ).toBe('Swiggy order: spent ₹420.50 on Food & Dining on 2026-11-15.');
     expect(
       buildTransactionChunkText('Salary', 'Income', 85000, '2026-11-01'),

@@ -1,5 +1,8 @@
 import { EMBEDDING_DIMENSIONS } from './rag.config';
-import { OpenRouterEmbeddingsClient, RagEmbeddingError } from './rag.embeddings';
+import {
+  OpenRouterEmbeddingsClient,
+  RagEmbeddingError,
+} from './rag.embeddings';
 
 const vector = (seed: number) =>
   Array.from({ length: EMBEDDING_DIMENSIONS }, (_, i) => (seed + i) / 1000);
@@ -31,12 +34,15 @@ describe('OpenRouterEmbeddingsClient', () => {
       }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
-    const result = await client("test-key").embed(['first', 'second']);
+    const result = await client('test-key').embed(['first', 'second']);
     expect(result).toHaveLength(2);
     expect(result[0][0]).toBeCloseTo(0.001);
     expect(result[1][0]).toBeCloseTo(0.002);
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [
+      string,
+      RequestInit,
+    ];
     expect(url).toBe('https://openrouter.ai/api/v1/embeddings');
     expect(JSON.parse(init.body as string)).toEqual({
       model: 'baai/bge-base-en-v1.5',
@@ -56,7 +62,7 @@ describe('OpenRouterEmbeddingsClient', () => {
         ],
       }),
     ) as unknown as typeof fetch;
-    const result = await client("test-key").embed(['first', 'second']);
+    const result = await client('test-key').embed(['first', 'second']);
     expect(result[0][0]).toBeCloseTo(0.001);
     expect(result[1][0]).toBeCloseTo(0.002);
   });
@@ -65,7 +71,7 @@ describe('OpenRouterEmbeddingsClient', () => {
     global.fetch = jest.fn(async () =>
       Response.json({ data: [{ index: 0, embedding: vector(3) }] }),
     ) as unknown as typeof fetch;
-    const result = await client("test-key").embedOne('only');
+    const result = await client('test-key').embedOne('only');
     expect(result).toHaveLength(EMBEDDING_DIMENSIONS);
     expect(result[0]).toBeCloseTo(0.003);
   });
@@ -73,7 +79,7 @@ describe('OpenRouterEmbeddingsClient', () => {
   it('returns [] for empty input without calling the provider', async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
-    await expect(client("test-key").embed([])).resolves.toEqual([]);
+    await expect(client('test-key').embed([])).resolves.toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -90,7 +96,7 @@ describe('OpenRouterEmbeddingsClient', () => {
     global.fetch = jest.fn(async () =>
       Response.json({ data: [{ index: 0, embedding: [0.1, 0.2, 0.3] }] }),
     ) as unknown as typeof fetch;
-    await expect(client("test-key").embed(['x'])).rejects.toThrow(
+    await expect(client('test-key').embed(['x'])).rejects.toThrow(
       `expected ${EMBEDDING_DIMENSIONS}`,
     );
   });
@@ -101,14 +107,16 @@ describe('OpenRouterEmbeddingsClient', () => {
     global.fetch = jest.fn(async () =>
       Response.json({ data: [{ index: 0, embedding: bad }] }),
     ) as unknown as typeof fetch;
-    await expect(client("test-key").embed(['x'])).rejects.toThrow('non-numeric');
+    await expect(client('test-key').embed(['x'])).rejects.toThrow(
+      'non-numeric',
+    );
   });
 
   it('rejects the wrong number of vectors', async () => {
     global.fetch = jest.fn(async () =>
       Response.json({ data: [{ index: 0, embedding: vector(1) }] }),
     ) as unknown as typeof fetch;
-    await expect(client("test-key").embed(['one', 'two'])).rejects.toThrow(
+    await expect(client('test-key').embed(['one', 'two'])).rejects.toThrow(
       'wrong number of vectors',
     );
   });
@@ -117,7 +125,7 @@ describe('OpenRouterEmbeddingsClient', () => {
     global.fetch = jest.fn(async () =>
       Response.json({ error: { message: 'nope' } }, { status: 429 }),
     ) as unknown as typeof fetch;
-    const error = await client("test-key")
+    const error = await client('test-key')
       .embed(['x'])
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(RagEmbeddingError);
@@ -130,7 +138,7 @@ describe('OpenRouterEmbeddingsClient', () => {
       error.name = 'TimeoutError';
       throw error;
     }) as unknown as typeof fetch;
-    const error = await client("test-key")
+    const error = await client('test-key')
       .embed(['x'])
       .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(RagEmbeddingError);
@@ -141,13 +149,17 @@ describe('OpenRouterEmbeddingsClient', () => {
     global.fetch = jest.fn(async () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
-    await expect(client("test-key").embed(['x'])).rejects.toThrow(
+    await expect(client('test-key').embed(['x'])).rejects.toThrow(
       'could not be reached',
     );
   });
 
   it('rejects an invalid JSON response', async () => {
-    global.fetch = jest.fn(async () => new Response('not json', {})) as unknown as typeof fetch;
-    await expect(client("test-key").embed(['x'])).rejects.toThrow('invalid response');
+    global.fetch = jest.fn(
+      async () => new Response('not json', {}),
+    ) as unknown as typeof fetch;
+    await expect(client('test-key').embed(['x'])).rejects.toThrow(
+      'invalid response',
+    );
   });
 });
