@@ -4,8 +4,7 @@ import { cagr, cagrFromDates, xirr } from "../lib/portfolio.ts";
 
 const closeTo = (actual, expected, tolerance = 1e-9) => {
   assert.ok(
-    typeof actual === "number" &&
-      Math.abs(actual - expected) <= tolerance,
+    typeof actual === "number" && Math.abs(actual - expected) <= tolerance,
     `expected ${actual} to be within ${tolerance} of ${expected}`,
   );
 };
@@ -30,15 +29,8 @@ test("cagr returns null for inputs with no defined rate", () => {
 
 test("cagrFromDates measures years in 365-day years", () => {
   // Exactly two 365-day years: 10000 → 12100 is 10%.
-  closeTo(
-    cagrFromDates(10000, 12100, "2024-01-01", "2026-01-01"),
-    0.1,
-    0.001,
-  );
-  assert.equal(
-    cagrFromDates(10000, 12100, "2026-01-01", "2024-01-01"),
-    null,
-  );
+  closeTo(cagrFromDates(10000, 12100, "2024-01-01", "2026-01-01"), 0.1, 0.001);
+  assert.equal(cagrFromDates(10000, 12100, "2026-01-01", "2024-01-01"), null);
   assert.equal(cagrFromDates(10000, 12100, "2026-01-01", "2026-01-01"), null);
   assert.equal(cagrFromDates(10000, 12100, "not-a-date", "2026-01-01"), null);
 });

@@ -54,13 +54,10 @@ export function HoldingsSection({
 
   async function updateHolding(data: HoldingFormData) {
     if (!editing) return;
-    await activityRequest(
-      `/api/holdings/${encodeURIComponent(editing.id)}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    await activityRequest(`/api/holdings/${encodeURIComponent(editing.id)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
     setActionError("");
     onChanged();
   }
@@ -108,9 +105,8 @@ export function HoldingsSection({
           </p>
         ) : holdings.length === 0 ? (
           <p className="p-6 text-sm text-dash-muted">
-            No holdings yet. Add one to track its value, gains and sector —
-            or open a stock page and add it from there with the price
-            prefilled.
+            No holdings yet. Add one to track its value, gains and sector — or
+            open a stock page and add it from there with the price prefilled.
           </p>
         ) : (
           <table className="w-full min-w-[720px] text-left text-sm">
@@ -253,9 +249,10 @@ export function HoldingsSection({
           busy={removeBusy}
         >
           <p className="text-sm leading-6 text-dash-muted">
-            This deletes the holding record for {removing.name ?? removing.symbol}{" "}
-            ({removing.quantity} × {formatPrice(removing.buyPrice)} bought{" "}
-            {removing.buyDate}). Your portfolio totals will update right away.
+            This deletes the holding record for{" "}
+            {removing.name ?? removing.symbol} ({removing.quantity} ×{" "}
+            {formatPrice(removing.buyPrice)} bought {removing.buyDate}). Your
+            portfolio totals will update right away.
           </p>
           {actionError && (
             <p role="alert" className="mt-4 text-sm text-dash-red">

@@ -41,7 +41,7 @@ export function logReturns(closes: number[]): number[] {
     const current = closes[i]!;
     const previous = closes[i - 1]!;
     if (current <= 0 || previous <= 0) {
-      throw new RangeError('Prices must be positive to compute returns.');
+      throw new RangeError("Prices must be positive to compute returns.");
     }
     returns.push(Math.log(current / previous));
   }
@@ -71,7 +71,7 @@ export function returnsStats(
   for (const asset of series) {
     if (!Array.isArray(asset) || asset.length !== m) return null;
     for (const value of asset) {
-      if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+      if (typeof value !== "number" || !Number.isFinite(value)) return null;
     }
   }
   const rawMeans = series.map((asset) => mean(asset));
@@ -114,7 +114,7 @@ function checkSquare(matrix: number[][], label: string) {
       throw new RangeError(`${label} must be a non-empty square matrix.`);
     }
     for (const value of row) {
-      if (typeof value !== 'number' || !Number.isFinite(value)) {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
         throw new TypeError(`${label} must contain finite numbers.`);
       }
     }
@@ -129,10 +129,10 @@ export function solveLinearSystem(
   matrix: number[][],
   vector: number[],
 ): number[] | null {
-  checkSquare(matrix, 'The matrix');
+  checkSquare(matrix, "The matrix");
   const n = matrix.length;
   if (!Array.isArray(vector) || vector.length !== n) {
-    throw new RangeError('The vector must match the matrix size.');
+    throw new RangeError("The vector must match the matrix size.");
   }
   // Augment and eliminate. Every index below is proven in range by the
   // square-matrix check and the loop bounds; `!` marks that.
@@ -171,10 +171,7 @@ function portfolioReturn(weights: number[], means: number[]): number {
   return weights.reduce((sum, w, i) => sum + w * means[i]!, 0);
 }
 
-function portfolioVariance(
-  weights: number[],
-  covariance: number[][],
-): number {
+function portfolioVariance(weights: number[], covariance: number[][]): number {
   let total = 0;
   for (let i = 0; i < weights.length; i++) {
     for (let j = 0; j < weights.length; j++) {
@@ -222,9 +219,9 @@ export function maxSharpeWeights(
   covariance: number[][],
   riskFreeRate: number,
 ): PortfolioStats | null {
-  checkSquare(covariance, 'The covariance matrix');
+  checkSquare(covariance, "The covariance matrix");
   if (means.length !== covariance.length) {
-    throw new RangeError('Means and covariance must describe the same assets.');
+    throw new RangeError("Means and covariance must describe the same assets.");
   }
   if (means.length === 1) {
     if (means[0]! <= riskFreeRate) return null;
@@ -247,15 +244,13 @@ export function minVarianceWeights(
   covariance: number[][],
   riskFreeRate: number,
 ): PortfolioStats | null {
-  checkSquare(covariance, 'The covariance matrix');
+  checkSquare(covariance, "The covariance matrix");
   if (means.length !== covariance.length) {
-    throw new RangeError('Means and covariance must describe the same assets.');
+    throw new RangeError("Means and covariance must describe the same assets.");
   }
-  if (means.length === 1) return portfolioStats([1], means, covariance, riskFreeRate);
-  const raw = solveLinearSystem(
-    covariance,
-    new Array(means.length).fill(1),
-  );
+  if (means.length === 1)
+    return portfolioStats([1], means, covariance, riskFreeRate);
+  const raw = solveLinearSystem(covariance, new Array(means.length).fill(1));
   if (raw === null) return null;
   const weights = longOnly(raw);
   if (weights === null) return null;
@@ -275,12 +270,12 @@ export function efficientFrontier(
   riskFreeRate: number,
   points = 12,
 ): FrontierPoint[] {
-  checkSquare(covariance, 'The covariance matrix');
+  checkSquare(covariance, "The covariance matrix");
   if (means.length !== covariance.length) {
-    throw new RangeError('Means and covariance must describe the same assets.');
+    throw new RangeError("Means and covariance must describe the same assets.");
   }
   if (!Number.isInteger(points) || points < 2) {
-    throw new RangeError('The frontier needs at least two points.');
+    throw new RangeError("The frontier needs at least two points.");
   }
   const n = means.length;
   // The efficient frontier is the upper branch: from the minimum-variance

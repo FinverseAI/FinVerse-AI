@@ -4,8 +4,7 @@ import { ema, macd, rsi, sma } from "../lib/indicators.ts";
 
 const closeTo = (actual, expected, tolerance = 1e-9) => {
   assert.ok(
-    typeof actual === "number" &&
-      Math.abs(actual - expected) <= tolerance,
+    typeof actual === "number" && Math.abs(actual - expected) <= tolerance,
     `expected ${actual} to be within ${tolerance} of ${expected}`,
   );
 };
@@ -19,13 +18,7 @@ test("sma averages the last N closes and aligns with nulls", () => {
 
 test("ema seeds with the SMA and smooths with k = 2 / (n + 1)", () => {
   // Seed SMA(10, 11, 12) = 11; k = 0.5; EMA(13) = 12; EMA(14) = 13.
-  assert.deepEqual(ema([10, 11, 12, 13, 14], 3), [
-    null,
-    null,
-    11,
-    12,
-    13,
-  ]);
+  assert.deepEqual(ema([10, 11, 12, 13, 14], 3), [null, null, 11, 12, 13]);
   // EMA(2): k = 2/3; seed SMA(10, 12) = 11; EMA(11) = 11; EMA(13) = 37/3.
   const values = ema([10, 12, 11, 13], 2);
   closeTo(values[1], 11);
@@ -43,7 +36,10 @@ test("rsi matches the Investopedia example: 55.55", () => {
     closes.push(closes[closes.length - 1] - 0.8);
   }
   const values = rsi(closes, 14);
-  assert.equal(values.slice(0, 14).every((v) => v === null), true);
+  assert.equal(
+    values.slice(0, 14).every((v) => v === null),
+    true,
+  );
   closeTo(values[14], 55.555555, 0.01);
 });
 
@@ -52,13 +48,7 @@ test("rsi applies Wilder smoothing after the first value", () => {
   // First averages: gain 0.5, loss 0.5 → RSI 50.
   // Smooth with +1: gain 0.75, loss 0.25 → RS 3 → RSI 75.
   // Smooth with −1: gain 0.375, loss 0.625 → RS 0.6 → RSI 37.5.
-  assert.deepEqual(rsi([10, 11, 10, 11, 10], 2), [
-    null,
-    null,
-    50,
-    75,
-    37.5,
-  ]);
+  assert.deepEqual(rsi([10, 11, 10, 11, 10], 2), [null, null, 50, 75, 37.5]);
 });
 
 test("rsi handles one-sided and flat markets", () => {

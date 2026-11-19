@@ -70,7 +70,7 @@ function FrontierChart({
         `${i === 0 ? "M" : "L"}${xFor(point.volatility).toFixed(1)},${yFor(point.expectedReturn).toFixed(1)}`,
     )
     .join(" ");
-  const hovered = hover !== null ? frontier[hover] ?? null : null;
+  const hovered = hover !== null ? (frontier[hover] ?? null) : null;
 
   return (
     <div className="relative">
@@ -81,8 +81,7 @@ function FrontierChart({
         aria-label={`Efficient frontier: ${frontier.length} portfolios from ${(frontier[0]?.volatility ?? 0) * 100}% volatility to ${(frontier[frontier.length - 1]?.volatility ?? 0) * 100}% volatility`}
         onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
-          const x =
-            ((event.clientX - rect.left) / rect.width) * width;
+          const x = ((event.clientX - rect.left) / rect.width) * width;
           let nearest = 0;
           let nearestDistance = Infinity;
           frontier.forEach((point, i) => {
@@ -270,11 +269,7 @@ function FrontierChart({
   );
 }
 
-export function OptimizerSection({
-  holdings,
-}: {
-  holdings: ValuedHolding[];
-}) {
+export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
   const priced = useMemo(
     () =>
       holdings.filter(
@@ -294,9 +289,7 @@ export function OptimizerSection({
   const [error, setError] = useState("");
   const riskFreeRate = Number(riskFreePercent) / 100;
   const riskFreeValid =
-    Number.isFinite(riskFreeRate) &&
-    riskFreeRate >= 0 &&
-    riskFreeRate <= 0.3;
+    Number.isFinite(riskFreeRate) && riskFreeRate >= 0 && riskFreeRate <= 0.3;
 
   // The effect only sets state in promise callbacks (never synchronously);
   // the "fetching" UI is derived from the absence of a result below.
@@ -359,8 +352,8 @@ export function OptimizerSection({
       return { shortHistory: commonDates.length, available };
     }
     const series = available.map((symbol) => {
-      const closes = commonDates.map(
-        (date) => bySymbol.get(symbol)!.get(date)!,
+      const closes = commonDates.map((date) =>
+        bySymbol.get(symbol)!.get(date)!,
       );
       return logReturns(closes);
     });
@@ -370,7 +363,8 @@ export function OptimizerSection({
       const holding = priced.find((item) => item.symbol === symbol)!;
       const total = available.reduce(
         (sum, other) =>
-          sum + (priced.find((item) => item.symbol === other)?.currentValue ?? 0),
+          sum +
+          (priced.find((item) => item.symbol === other)?.currentValue ?? 0),
         0,
       );
       return total > 0 ? (holding.currentValue ?? 0) / total : 0;
@@ -411,7 +405,11 @@ export function OptimizerSection({
   }, [histories, symbols, riskFreeRate, riskFreeValid, priced]);
 
   return (
-    <section id="optimizer" aria-label="Suggested allocation" className="scroll-mt-24">
+    <section
+      id="optimizer"
+      aria-label="Suggested allocation"
+      className="scroll-mt-24"
+    >
       <PanelHeading icon="target" title="Suggested allocation" />
       <p className="mt-3 text-sm leading-6 text-dash-muted">
         A Markowitz mean-variance optimisation over your holdings&apos; last
@@ -449,14 +447,12 @@ export function OptimizerSection({
         ) : priced.length < 2 ? (
           <p className="mt-4 text-sm text-dash-muted">
             Add at least two holdings with live prices to compare allocations.
-            The optimiser needs two or more assets to weigh against each
-            other.
+            The optimiser needs two or more assets to weigh against each other.
           </p>
         ) : failed.length > 0 && histories.size < 2 ? (
           <p className="mt-4 text-sm text-dash-muted">
             Could not fetch price history for {failed.join(", ")} — the
-            optimiser needs history for at least two holdings. Try again
-            later.
+            optimiser needs history for at least two holdings. Try again later.
           </p>
         ) : !result ? (
           <p role="status" className="mt-4 text-sm text-dash-muted">
@@ -466,8 +462,8 @@ export function OptimizerSection({
           <p className="mt-4 text-sm text-dash-muted">
             Only {result.shortHistory} trading days where all{" "}
             {result.available.length} holdings traded together — the optimiser
-            needs at least {MIN_DAYS + 1} shared days. A recently listed
-            holding shortens the shared window.
+            needs at least {MIN_DAYS + 1} shared days. A recently listed holding
+            shortens the shared window.
           </p>
         ) : "singular" in result ? (
           <p className="mt-4 text-sm text-dash-muted">
@@ -486,9 +482,9 @@ export function OptimizerSection({
             {result.suggested === null ? (
               <p className="text-sm text-dash-muted">
                 No holding&apos;s average return beats the risk-free rate of{" "}
-                {formatPercent(result.riskFreeRate * 100, false)} — at this
-                rate the model suggests holding cash rather than any mix of
-                these holdings. Lower the risk-free rate to see an allocation.
+                {formatPercent(result.riskFreeRate * 100, false)} — at this rate
+                the model suggests holding cash rather than any mix of these
+                holdings. Lower the risk-free rate to see an allocation.
               </p>
             ) : (
               <>
@@ -593,8 +589,7 @@ export function OptimizerSection({
                   <p className="text-xs leading-5 text-dash-muted">
                     The lowest-risk mix of these holdings would return{" "}
                     {formatPercent(result.minVar.expectedReturn * 100, false)}{" "}
-                    at{" "}
-                    {formatPercent(result.minVar.volatility * 100, false)}{" "}
+                    at {formatPercent(result.minVar.volatility * 100, false)}{" "}
                     volatility.
                   </p>
                 )}
@@ -621,10 +616,10 @@ export function OptimizerSection({
             <p className="text-xs leading-5 text-dash-muted">
               Computed from {result.days} shared trading days of daily closes
               over the last year, annualised over 252 trading days. Expected
-              returns are the historical average — they describe the past
-              year, not the next one. This is a model output, not investment
-              advice: past returns do not predict future returns, and the
-              optimiser knows nothing about a company&apos;s business.
+              returns are the historical average — they describe the past year,
+              not the next one. This is a model output, not investment advice:
+              past returns do not predict future returns, and the optimiser
+              knows nothing about a company&apos;s business.
             </p>
           </div>
         )}

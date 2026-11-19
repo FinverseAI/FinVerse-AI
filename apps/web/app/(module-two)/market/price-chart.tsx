@@ -50,9 +50,7 @@ function xFor(index: number, count: number) {
 
 function yFor(value: number, min: number, max: number, height: number) {
   const span = max - min || 1;
-  return (
-    PAD_TOP + (1 - (value - min) / span) * (height - PAD_TOP - PAD_BOTTOM)
-  );
+  return PAD_TOP + (1 - (value - min) / span) * (height - PAD_TOP - PAD_BOTTOM);
 }
 
 /** Builds an SVG path through contiguous non-null runs of a series. */
@@ -71,7 +69,9 @@ function linePath(
     }
     const x = xFor(i, values.length);
     const y = yFor(value, min, max, height);
-    path += penDown ? ` L${x.toFixed(1)},${y.toFixed(1)}` : ` M${x.toFixed(1)},${y.toFixed(1)}`;
+    path += penDown
+      ? ` L${x.toFixed(1)},${y.toFixed(1)}`
+      : ` M${x.toFixed(1)},${y.toFixed(1)}`;
     penDown = true;
   });
   return path;
@@ -346,8 +346,7 @@ export function RsiChart({
       </p>
     );
   }
-  const hovered =
-    hover.index !== null ? (values[hover.index] ?? null) : null;
+  const hovered = hover.index !== null ? (values[hover.index] ?? null) : null;
   return (
     <div className="relative">
       <svg
@@ -441,9 +440,7 @@ export function MacdChart({
     const pad = (high - low || 1) * 0.1;
     return { min: low - pad, max: high + pad };
   }, [values]);
-  const defined = values.filter(
-    (point): point is MacdPoint => point !== null,
-  );
+  const defined = values.filter((point): point is MacdPoint => point !== null);
   if (defined.length < 2) {
     return (
       <p className="py-10 text-center text-sm text-dash-muted">

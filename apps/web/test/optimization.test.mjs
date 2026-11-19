@@ -12,8 +12,7 @@ import {
 
 const closeTo = (actual, expected, tolerance = 1e-9) => {
   assert.ok(
-    typeof actual === "number" &&
-      Math.abs(actual - expected) <= tolerance,
+    typeof actual === "number" && Math.abs(actual - expected) <= tolerance,
     `expected ${actual} to be within ${tolerance} of ${expected}`,
   );
 };
@@ -162,7 +161,11 @@ test("efficientFrontier returns a valid risk-return curve", () => {
   const frontier = efficientFrontier(means, covariance, 0, 6);
   assert.equal(frontier.length, 6);
   for (const point of frontier) {
-    closeTo(point.weights.reduce((a, b) => a + b, 0), 1, 1e-9);
+    closeTo(
+      point.weights.reduce((a, b) => a + b, 0),
+      1,
+      1e-9,
+    );
     assert.ok(point.weights.every((w) => w >= -1e-12));
     assert.ok(point.volatility >= 0);
   }

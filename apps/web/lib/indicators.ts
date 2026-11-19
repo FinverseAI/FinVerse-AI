@@ -19,14 +19,14 @@ export interface IndicatorBar {
 
 function checkPeriod(period: number) {
   if (!Number.isInteger(period) || period < 1) {
-    throw new RangeError('The period must be a positive integer.');
+    throw new RangeError("The period must be a positive integer.");
   }
 }
 
 function checkCloses(closes: number[]) {
   for (const close of closes) {
-    if (typeof close !== 'number' || !Number.isFinite(close)) {
-      throw new TypeError('Closes must be finite numbers.');
+    if (typeof close !== "number" || !Number.isFinite(close)) {
+      throw new TypeError("Closes must be finite numbers.");
     }
   }
 }
@@ -133,7 +133,9 @@ export function macd(
   checkCloses(closes);
   const result: (MacdPoint | null)[] = new Array(closes.length).fill(null);
   if (fast >= slow) {
-    throw new RangeError('The fast period must be shorter than the slow period.');
+    throw new RangeError(
+      "The fast period must be shorter than the slow period.",
+    );
   }
   const fastEma = ema(closes, fast);
   const slowEma = ema(closes, slow);

@@ -10,7 +10,11 @@ import {
 } from "../../../lib/market";
 import { cagrFromDates, xirr } from "../../../lib/portfolio";
 import { money } from "../../(module-one)/dashboard/data";
-import { MiniStat, PanelHeading, ProgressBar } from "../../(module-one)/dashboard/ui";
+import {
+  MiniStat,
+  PanelHeading,
+  ProgressBar,
+} from "../../(module-one)/dashboard/ui";
 
 function GainText({ value, percent }: { value: number; percent: number }) {
   const up = value >= 0;
@@ -90,7 +94,9 @@ export function PortfolioSection({
               </p>
               <p className="mt-3 text-xs leading-5 text-dash-muted">
                 {returns.priced} of {returns.total} holdings priced
-                {summary.asOf ? ` · as of ${formatFetchedAt(summary.asOf)}` : ""}
+                {summary.asOf
+                  ? ` · as of ${formatFetchedAt(summary.asOf)}`
+                  : ""}
               </p>
             </article>
             <article className="dash-panel">
@@ -145,8 +151,7 @@ export function PortfolioSection({
                           {sector.sector}
                         </span>
                         <span className="font-mono text-xs text-dash-muted">
-                          {money(sector.value, 2)} ·{" "}
-                          {sector.weight.toFixed(1)}%
+                          {money(sector.value, 2)} · {sector.weight.toFixed(1)}%
                         </span>
                       </div>
                       <div className="mt-2">
@@ -162,8 +167,8 @@ export function PortfolioSection({
               )}
               <p className="mt-4 text-xs leading-5 text-dash-muted">
                 Sectors come from each holding&apos;s stored sector, falling
-                back to the quote&apos;s sector. Holdings without a sector
-                group under “Unknown”.
+                back to the quote&apos;s sector. Holdings without a sector group
+                under “Unknown”.
               </p>
             </article>
             <article className="dash-panel">
@@ -187,14 +192,13 @@ export function PortfolioSection({
                 />
               </div>
               <p className="mt-4 text-xs leading-5 text-dash-muted">
-                XIRR prices your actual buy dates — it is the right measure
-                when money went in at different times. CAGR treats the whole
+                XIRR prices your actual buy dates — it is the right measure when
+                money went in at different times. CAGR treats the whole
                 portfolio as one sum held since your earliest buy (
                 {earliestBuyDate(summary.holdings) ?? "—"}). The two differ
                 whenever buys were spread out; neither is wrong, they answer
-                different questions. Unpriced holdings are excluded from
-                both — their value is unknown, and guessing would corrupt the
-                rates.
+                different questions. Unpriced holdings are excluded from both —
+                their value is unknown, and guessing would corrupt the rates.
               </p>
               {summary.stale && (
                 <p className="mt-3 text-xs text-dash-warning">
@@ -210,8 +214,8 @@ export function PortfolioSection({
               )}
               <p className="mt-3 text-xs leading-5 text-dash-muted">
                 Values use exact-paise arithmetic: each holding is valued in
-                paise and rounded once, so the totals always reconcile with
-                the rows below.
+                paise and rounded once, so the totals always reconcile with the
+                rows below.
               </p>
             </article>
           </div>

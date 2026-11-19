@@ -88,9 +88,7 @@ export function HoldingForm({
           <input
             className="dash-input"
             value={symbol}
-            onChange={(event) =>
-              setSymbol(event.target.value.toUpperCase())
-            }
+            onChange={(event) => setSymbol(event.target.value.toUpperCase())}
             placeholder="RELIANCE.NS"
             maxLength={20}
             readOnly={lockSymbol}

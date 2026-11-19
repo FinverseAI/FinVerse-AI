@@ -59,7 +59,7 @@ function toUtcMs(date: string | Date): number | null {
     const ms = date.getTime();
     return Number.isFinite(ms) ? ms : null;
   }
-  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return null;
   }
   const ms = Date.parse(`${date}T00:00:00.000Z`);
@@ -86,7 +86,7 @@ export function xirr(cashFlows: CashFlow[], guess = 0.1): number | null {
     const ms = toUtcMs(flow.date);
     if (
       ms === null ||
-      typeof flow.amount !== 'number' ||
+      typeof flow.amount !== "number" ||
       !Number.isFinite(flow.amount) ||
       flow.amount === 0
     ) {
@@ -119,9 +119,7 @@ export function xirr(cashFlows: CashFlow[], guess = 0.1): number | null {
   const npvDerivative = (rate: number) => {
     let total = 0;
     for (const flow of flows) {
-      total +=
-        (-flow.amount * flow.years) /
-        Math.pow(1 + rate, flow.years + 1);
+      total += (-flow.amount * flow.years) / Math.pow(1 + rate, flow.years + 1);
     }
     return total;
   };

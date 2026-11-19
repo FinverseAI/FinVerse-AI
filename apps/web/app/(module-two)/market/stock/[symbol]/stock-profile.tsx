@@ -163,7 +163,11 @@ export default function StockProfile({
         sma20: [] as (number | null)[],
         sma50: [] as (number | null)[],
         rsi14: [] as (number | null)[],
-        macdValues: [] as ({ macd: number; signal: number; histogram: number } | null)[],
+        macdValues: [] as ({
+          macd: number;
+          signal: number;
+          histogram: number;
+        } | null)[],
       };
     }
     return {
@@ -175,14 +179,8 @@ export default function StockProfile({
   }, [closes]);
   // EMA is not plotted, but the 12/26 EMAs are the MACD inputs; computing
   // them here keeps the indicator set complete for the stats row.
-  const ema12 = useMemo(
-    () => (closes.length ? ema(closes, 12) : []),
-    [closes],
-  );
-  const ema26 = useMemo(
-    () => (closes.length ? ema(closes, 26) : []),
-    [closes],
-  );
+  const ema12 = useMemo(() => (closes.length ? ema(closes, 12) : []), [closes]);
+  const ema26 = useMemo(() => (closes.length ? ema(closes, 26) : []), [closes]);
 
   const latestRsi = lastDefined(indicators.rsi14);
   const latestMacd = useMemo(() => {
@@ -255,10 +253,7 @@ export default function StockProfile({
               {profileError ||
                 "This symbol could not be loaded. It may not exist, or market data may be unavailable."}
             </p>
-            <button
-              className="dash-small-button mt-4"
-              onClick={retryProfile}
-            >
+            <button className="dash-small-button mt-4" onClick={retryProfile}>
               Try again
             </button>
           </div>
@@ -365,10 +360,7 @@ export default function StockProfile({
             <p role="alert" className="text-sm text-dash-red">
               {historyError}
             </p>
-            <button
-              className="dash-small-button mt-4"
-              onClick={retryHistory}
-            >
+            <button className="dash-small-button mt-4" onClick={retryHistory}>
               Try again
             </button>
           </div>
@@ -400,9 +392,7 @@ export default function StockProfile({
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               <MiniStat
                 label="Latest close"
-                value={
-                  latestBar ? formatPrice(latestBar.close, currency) : "—"
-                }
+                value={latestBar ? formatPrice(latestBar.close, currency) : "—"}
               />
               <MiniStat
                 label="Latest volume"
@@ -448,8 +438,8 @@ export default function StockProfile({
           </div>
         ) : (
           <p className="mt-4 text-sm text-dash-muted">
-            No price history is available for this symbol in this range. It
-            may be newly listed.
+            No price history is available for this symbol in this range. It may
+            be newly listed.
           </p>
         )}
       </section>
@@ -513,17 +503,14 @@ export default function StockProfile({
           </p>
         ) : !profile?.fundamentalsAvailable || !fundamentals ? (
           <p className="mt-4 text-sm text-dash-muted">
-            Fundamentals are unavailable right now. The price and history
-            above are still current.
+            Fundamentals are unavailable right now. The price and history above
+            are still current.
           </p>
         ) : (
           <>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <MiniStat label="Sector" value={fundamentals.sector ?? "—"} />
-              <MiniStat
-                label="Industry"
-                value={fundamentals.industry ?? "—"}
-              />
+              <MiniStat label="Industry" value={fundamentals.industry ?? "—"} />
               <MiniStat
                 label="Market cap"
                 value={

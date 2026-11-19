@@ -59,7 +59,9 @@ function IndexCard({ quote }: { quote: MarketQuote }) {
     <article className="dash-panel flex flex-col">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold">{quote.name ?? quote.symbol}</h3>
+          <h3 className="text-sm font-semibold">
+            {quote.name ?? quote.symbol}
+          </h3>
           <p className="mt-1 font-mono text-xs text-dash-muted">
             {quote.symbol}
           </p>
@@ -279,8 +281,8 @@ export default function Market({ user }: { user?: AuthUser }) {
           />
         </label>
         <p id="stock-search-help" className="mt-2 text-xs text-dash-muted">
-          NSE symbols end in .NS and BSE symbols in .BO. Results come from
-          Yahoo Finance.
+          NSE symbols end in .NS and BSE symbols in .BO. Results come from Yahoo
+          Finance.
         </p>
         {searching && showResults && (
           <p role="status" className="mt-4 text-sm text-dash-muted">
@@ -292,12 +294,15 @@ export default function Market({ user }: { user?: AuthUser }) {
             {searchError}
           </p>
         )}
-        {!searching && showResults && visibleResults.length === 0 && !searchError && (
-          <p className="mt-4 text-sm text-dash-muted">
-            No matches for “{query.trim()}”. Check the spelling or try the
-            symbol directly.
-          </p>
-        )}
+        {!searching &&
+          showResults &&
+          visibleResults.length === 0 &&
+          !searchError && (
+            <p className="mt-4 text-sm text-dash-muted">
+              No matches for “{query.trim()}”. Check the spelling or try the
+              symbol directly.
+            </p>
+          )}
         {visibleResults.length > 0 && (
           <ul className="mt-4 divide-y divide-dash-border">
             {visibleResults.map((result) => {
@@ -356,8 +361,8 @@ export default function Market({ user }: { user?: AuthUser }) {
           </p>
         ) : overview && overview.watchlist.length === 0 ? (
           <p className="mt-4 text-sm text-dash-muted">
-            Your watchlist is empty. Search for a stock above to start
-            following it.
+            Your watchlist is empty. Search for a stock above to start following
+            it.
           </p>
         ) : (
           <ul className="mt-4 divide-y divide-dash-border">
@@ -391,9 +396,7 @@ export default function Market({ user }: { user?: AuthUser }) {
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-dash-muted">
-                      Price unavailable
-                    </p>
+                    <p className="text-xs text-dash-muted">Price unavailable</p>
                   )}
                   <button
                     type="button"
@@ -441,11 +444,11 @@ export default function Market({ user }: { user?: AuthUser }) {
           <MiniStat label="History cache" value="24 hours" />
         </div>
         <p className="mt-4 text-xs leading-5 text-dash-muted">
-          Prices are cached for up to 15 minutes and history for up to a day,
-          so a quote may lag the live market by a few minutes. Every price
-          shows when it was fetched; a stale price is labelled as last known,
-          and a price that cannot be fetched at all is shown as unavailable
-          rather than estimated.
+          Prices are cached for up to 15 minutes and history for up to a day, so
+          a quote may lag the live market by a few minutes. Every price shows
+          when it was fetched; a stale price is labelled as last known, and a
+          price that cannot be fetched at all is shown as unavailable rather
+          than estimated.
         </p>
       </section>
     </MarketShell>

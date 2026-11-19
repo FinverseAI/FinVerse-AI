@@ -5,10 +5,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return forwardApiRequest(
-    request,
-    `/api/holdings/${encodeURIComponent(id)}`,
-  );
+  return forwardApiRequest(request, `/api/holdings/${encodeURIComponent(id)}`);
 }
 
 export async function DELETE(
@@ -16,8 +13,5 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return forwardApiRequest(
-    request,
-    `/api/holdings/${encodeURIComponent(id)}`,
-  );
+  return forwardApiRequest(request, `/api/holdings/${encodeURIComponent(id)}`);
 }

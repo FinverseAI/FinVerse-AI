@@ -5,8 +5,5 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return forwardApiRequest(
-    request,
-    `/api/watchlist/${encodeURIComponent(id)}`,
-  );
+  return forwardApiRequest(request, `/api/watchlist/${encodeURIComponent(id)}`);
 }
