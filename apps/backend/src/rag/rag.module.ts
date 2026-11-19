@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ActivityModule } from '../activity/activity.module';
+import { SessionGuard } from '../auth/session.guard';
 import { MarketModule } from '../market/market.module';
 import { resolveRagConfig } from './rag.config';
+import { RagController } from './rag.controller';
 import {
   EMBEDDINGS_CLIENT,
   OpenRouterEmbeddingsClient,
@@ -10,13 +12,17 @@ import {
 import { RagIngestService } from './rag.ingest';
 import { RagRepository } from './rag.repository';
 import { RagRetrievalService } from './rag.retrieval';
+import { RagService } from './rag.service';
 
 @Module({
   imports: [ActivityModule, MarketModule],
+  controllers: [RagController],
   providers: [
     RagRepository,
     RagIngestService,
     RagRetrievalService,
+    RagService,
+    SessionGuard,
     {
       provide: EMBEDDINGS_CLIENT,
       useFactory: (config: ConfigService) => {
@@ -31,6 +37,6 @@ import { RagRetrievalService } from './rag.retrieval';
       inject: [ConfigService],
     },
   ],
-  exports: [RagRepository, RagIngestService, RagRetrievalService],
+  exports: [RagRepository, RagIngestService, RagRetrievalService, RagService],
 })
 export class RagModule {}

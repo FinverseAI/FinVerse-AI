@@ -8,6 +8,7 @@ import { ActivityModule } from './activity/activity.module';
 import { MarketModule } from './market/market.module';
 import { AiModule } from './ai/ai.module';
 import { validateEnvironment } from './config/environment';
+import { RagModule } from './rag/rag.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { validateEnvironment } from './config/environment';
     ProfileModule,
     ActivityModule,
     MarketModule,
+    RagModule,
     AiModule,
   ],
   controllers: [AppController],
