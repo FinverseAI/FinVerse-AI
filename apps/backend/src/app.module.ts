@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfileModule } from './profile/profile.module';
 import { ActivityModule } from './activity/activity.module';
+import { MarketModule } from './market/market.module';
 import { validateEnvironment } from './config/environment';
 
 @Module({
@@ -16,6 +17,7 @@ import { validateEnvironment } from './config/environment';
     PrismaModule,
     ProfileModule,
     ActivityModule,
+    MarketModule,
   ],
   controllers: [AppController],
 })
