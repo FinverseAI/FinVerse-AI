@@ -184,7 +184,11 @@ function portfolioVariance(
   return Math.max(0, total);
 }
 
-function statsFor(
+/**
+ * Expected return, volatility and Sharpe ratio for a given weight vector
+ * — used to compare the current portfolio with the optimiser's suggestion.
+ */
+export function portfolioStats(
   weights: number[],
   means: number[],
   covariance: number[][],
@@ -224,14 +228,14 @@ export function maxSharpeWeights(
   }
   if (means.length === 1) {
     if (means[0]! <= riskFreeRate) return null;
-    return statsFor([1], means, covariance, riskFreeRate);
+    return portfolioStats([1], means, covariance, riskFreeRate);
   }
   const excess = means.map((mu) => mu - riskFreeRate);
   const raw = solveLinearSystem(covariance, excess);
   if (raw === null) return null;
   const weights = longOnly(raw);
   if (weights === null) return null;
-  return statsFor(weights, means, covariance, riskFreeRate);
+  return portfolioStats(weights, means, covariance, riskFreeRate);
 }
 
 /**
@@ -247,7 +251,7 @@ export function minVarianceWeights(
   if (means.length !== covariance.length) {
     throw new RangeError('Means and covariance must describe the same assets.');
   }
-  if (means.length === 1) return statsFor([1], means, covariance, riskFreeRate);
+  if (means.length === 1) return portfolioStats([1], means, covariance, riskFreeRate);
   const raw = solveLinearSystem(
     covariance,
     new Array(means.length).fill(1),
@@ -255,7 +259,7 @@ export function minVarianceWeights(
   if (raw === null) return null;
   const weights = longOnly(raw);
   if (weights === null) return null;
-  return statsFor(weights, means, covariance, riskFreeRate);
+  return portfolioStats(weights, means, covariance, riskFreeRate);
 }
 
 /**
@@ -316,7 +320,7 @@ export function efficientFrontier(
     if (weights === null) continue;
     frontier.push({
       targetReturn: target,
-      ...statsFor(weights, means, covariance, riskFreeRate),
+      ...portfolioStats(weights, means, covariance, riskFreeRate),
     });
   }
   frontier.sort((a, b) => a.volatility - b.volatility);

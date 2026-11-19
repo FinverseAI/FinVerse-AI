@@ -6,6 +6,7 @@ import type { AuthUser } from "../../../auth/types";
 import type {
   MarketQuote,
   OverviewResponse,
+  PortfolioSummary,
   SearchResult,
 } from "../../../lib/market";
 import {
@@ -19,6 +20,9 @@ import {
 } from "../../(module-one)/dashboard/use-activity";
 import { Icon, MiniStat, PanelHeading } from "../../(module-one)/dashboard/ui";
 import { MarketShell } from "./market-shell";
+import { PortfolioSection } from "./portfolio";
+import { HoldingsSection } from "./holdings";
+import { OptimizerSection } from "./optimizer";
 
 function ChangeBadge({ quote }: { quote: MarketQuote }) {
   if (quote.price === null || quote.changePercent === null) return null;
@@ -92,11 +96,15 @@ export default function Market({ user }: { user?: AuthUser }) {
   const [watchBusy, setWatchBusy] = useState<string | null>(null);
   const [watchError, setWatchError] = useState("");
 
-  // Follows the useActivity pattern: the effect fetches with promise
+  // Follows the useActivity pattern: each effect fetches with promise
   // callbacks (state only changes when the fetch settles), and a revision
-  // counter drives refetches. The retry button re-arms the loading flag;
-  // refreshes after a watchlist change keep the old data on screen.
-  const [revision, setRevision] = useState(0);
+  // counter drives refetches. Retry buttons re-arm the loading flags;
+  // refreshes after a change keep the old data on screen.
+  const [overviewRevision, setOverviewRevision] = useState(0);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState("");
+  const [summaryRevision, setSummaryRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -116,16 +124,46 @@ export default function Market({ user }: { user?: AuthUser }) {
     return () => {
       active = false;
     };
-  }, [revision]);
+  }, [overviewRevision]);
+
+  useEffect(() => {
+    let active = true;
+    activityRequest<PortfolioSummary>("/api/portfolio/summary")
+      .then((data) => {
+        if (active) {
+          setSummary(data);
+          setSummaryError("");
+        }
+      })
+      .catch((caught: unknown) => {
+        if (active) setSummaryError(activityError(caught));
+      })
+      .finally(() => {
+        if (active) setSummaryLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [summaryRevision]);
 
   function retryOverview() {
     setLoading(true);
     setError("");
-    setRevision((current) => current + 1);
+    setOverviewRevision((current) => current + 1);
   }
 
   function refreshOverview() {
-    setRevision((current) => current + 1);
+    setOverviewRevision((current) => current + 1);
+  }
+
+  function retrySummary() {
+    setSummaryLoading(true);
+    setSummaryError("");
+    setSummaryRevision((current) => current + 1);
+  }
+
+  function refreshSummary() {
+    setSummaryRevision((current) => current + 1);
   }
 
   useEffect(() => {
@@ -378,6 +416,22 @@ export default function Market({ user }: { user?: AuthUser }) {
           </p>
         )}
       </section>
+
+      <PortfolioSection
+        summary={summary}
+        loading={summaryLoading}
+        error={summaryError}
+        onRetry={retrySummary}
+      />
+
+      <HoldingsSection
+        summary={summary}
+        loading={summaryLoading}
+        error={summaryError}
+        onChanged={refreshSummary}
+      />
+
+      <OptimizerSection holdings={summary?.holdings ?? []} />
 
       <section aria-label="Data notes" className="dash-panel">
         <PanelHeading icon="bulb" title="About these prices" />
