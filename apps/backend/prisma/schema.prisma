@@ -26,6 +26,8 @@ model User {
   bills            UserBill[]
   billPayments     UserBillPayment[]
   transactions     UserTransaction[]
+  holdings         UserHolding[]
+  watchlist        WatchlistItem[]
 }
 
 model Session {
@@ -208,4 +210,60 @@ model UserTransaction {
 
   @@index([user_id, date])
   @@map("user_transactions")
+}
+
+model UserHolding {
+  id         String   @id @default(cuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  symbol     String   @db.VarChar(20)
+  name       String?  @db.VarChar(120)
+  sector     String?  @db.VarChar(80)
+  quantity   Decimal  @db.Decimal(12, 4)
+  buy_price  Decimal  @db.Decimal(12, 2)
+  buy_date   DateTime @db.Date
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@unique([user_id, symbol])
+  @@map("user_holdings")
+}
+
+model WatchlistItem {
+  id         String   @id @default(cuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  symbol     String   @db.VarChar(20)
+  name       String?  @db.VarChar(120)
+  created_at DateTime @default(now())
+
+  @@unique([user_id, symbol])
+  @@map("watchlist_items")
+}
+
+model MarketQuote {
+  symbol         String   @id @db.VarChar(20)
+  name           String?  @db.VarChar(120)
+  price          Decimal  @db.Decimal(14, 4)
+  previous_close Decimal? @db.Decimal(14, 4)
+  currency       String   @db.VarChar(8)
+  sector         String?  @db.VarChar(80)
+  fetched_at     DateTime
+
+  @@map("market_quotes")
+}
+
+model MarketHistory {
+  id         String   @id @default(cuid())
+  symbol     String   @db.VarChar(20)
+  date       DateTime @db.Date
+  open       Decimal  @db.Decimal(14, 4)
+  high       Decimal  @db.Decimal(14, 4)
+  low        Decimal  @db.Decimal(14, 4)
+  close      Decimal  @db.Decimal(14, 4)
+  volume     BigInt?
+  fetched_at DateTime
+
+  @@unique([symbol, date])
+  @@map("market_history")
 }
