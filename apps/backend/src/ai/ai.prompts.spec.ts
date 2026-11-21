@@ -2,6 +2,7 @@ import {
   AI_DISCLAIMER,
   STOCK_EXPLANATION_INTRO,
   SYSTEM_PROMPT,
+  guardrailCorrectionPrompt,
 } from './ai.prompts';
 
 /**
@@ -36,5 +37,36 @@ describe('ai prompts', () => {
 
   it('carries the decision-support-not-advice disclaimer', () => {
     expect(AI_DISCLAIMER).toContain('not financial advice');
+  });
+
+  it('names the failed claims and correct values in the guardrail retry', () => {
+    const prompt = guardrailCorrectionPrompt([
+      {
+        claimText: 'You spent ₹9,200 on Food & Dining.',
+        detail: "'totalSpent' was 9200 but the tool result says 8200.",
+        expected: '8200',
+      },
+      {
+        claimText: 'FAKECO is trading at ₹100.',
+        detail: "'FAKECO.NS' does not appear in the getStockQuote result.",
+        expected: null,
+      },
+    ]);
+    expect(prompt).toContain('did not pass verification');
+    expect(prompt).toContain('₹9,200');
+    expect(prompt).toContain('The correct value is 8200.');
+    expect(prompt).toContain('FAKECO');
+    expect(prompt).toContain('if a claim cannot be fixed, drop it');
+  });
+
+  it('caps the guardrail retry at eight failures', () => {
+    const failures = Array.from({ length: 12 }, (_, index) => ({
+      claimText: `Claim ${index}`,
+      detail: 'wrong',
+      expected: null,
+    }));
+    const prompt = guardrailCorrectionPrompt(failures);
+    expect(prompt).toContain('Claim 7');
+    expect(prompt).not.toContain('Claim 8');
   });
 });
