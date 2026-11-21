@@ -13,6 +13,19 @@ export interface AiClaim {
   };
 }
 
+/**
+ * Phase 3: how the backend verified this answer before it reached the
+ * user. `verified` — every claim checked out; `template` — the model's
+ * answer failed verification twice, so this summary was generated from
+ * the verified numbers instead; `refused` — the model declined;
+ * `unavailable` — no model answer was produced (raw metrics fallback).
+ */
+export interface VerificationState {
+  status: "verified" | "template" | "refused" | "unavailable";
+  checksPassed: number;
+  checksFailed: number;
+}
+
 export interface AiChatResponse {
   answer: string | null;
   claims: AiClaim[];
@@ -24,6 +37,7 @@ export interface AiChatResponse {
   model: string | null;
   toolsUsed: string[];
   disclaimer: string;
+  verification: VerificationState;
 }
 
 export interface AiStatus {
@@ -111,6 +125,16 @@ export function isAiChatResponse(value: unknown): value is AiChatResponse {
   if (typeof value.model !== "string" && value.model !== null) return false;
   if (!Array.isArray(value.toolsUsed)) return false;
   if (typeof value.disclaimer !== "string") return false;
+  if (!isRecord(value.verification)) return false;
+  if (
+    value.verification.status !== "verified" &&
+    value.verification.status !== "template" &&
+    value.verification.status !== "refused" &&
+    value.verification.status !== "unavailable"
+  )
+    return false;
+  if (typeof value.verification.checksPassed !== "number") return false;
+  if (typeof value.verification.checksFailed !== "number") return false;
   for (const claim of value.claims) {
     if (!isRecord(claim)) return false;
     if (typeof claim.text !== "string") return false;

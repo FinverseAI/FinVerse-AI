@@ -404,6 +404,39 @@ function FallbackMetrics({ metrics }: { metrics: Record<string, unknown> }) {
   );
 }
 
+/**
+ * Phase 3: how this answer was verified. Verified answers show their
+ * check count; template answers say plainly that the AI's text did not
+ * pass verification and the summary below was built from the verified
+ * numbers instead. Refusals and raw-metrics fallbacks need no note.
+ */
+function VerificationNote({
+  verification,
+}: {
+  verification: AiChatResponse["verification"];
+}) {
+  if (verification.status === "verified") {
+    return (
+      <p className="mt-2 text-xs text-emerald-600">
+        ✓ Verified against your data ({verification.checksPassed}{" "}
+        {verification.checksPassed === 1 ? "check" : "checks"} passed)
+      </p>
+    );
+  }
+  if (verification.status === "template") {
+    return (
+      <p
+        role="note"
+        className="mt-2 rounded-lg border border-dash-border bg-dash-bg px-3 py-2 text-xs text-dash-muted"
+      >
+        The AI&rsquo;s explanation didn&rsquo;t pass verification, so this
+        summary was generated from your verified numbers instead.
+      </p>
+    );
+  }
+  return null;
+}
+
 function ReasoningIndicator() {
   return (
     <p
@@ -681,6 +714,7 @@ export default function AiChat() {
                       {response.answer}
                     </p>
                   )}
+                  <VerificationNote verification={response.verification} />
                   {response.claims.length > 0 && (
                     <div className="mt-4">
                       <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
