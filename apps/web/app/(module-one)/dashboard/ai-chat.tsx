@@ -70,7 +70,8 @@ export async function aiRequest<T>(path: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-function aiErrorMessage(error: unknown): string {
+/** Shared by the readiness card (Phase 4), which explains through the same AI routes. */
+export function aiErrorMessage(error: unknown): string {
   if (error instanceof ActivityApiError && error.status === 429) {
     return "You are asking too quickly. Please wait a moment and try again.";
   }
@@ -410,7 +411,7 @@ function FallbackMetrics({ metrics }: { metrics: Record<string, unknown> }) {
  * pass verification and the summary below was built from the verified
  * numbers instead. Refusals and raw-metrics fallbacks need no note.
  */
-function VerificationNote({
+export function VerificationNote({
   verification,
 }: {
   verification: AiChatResponse["verification"];
@@ -437,7 +438,7 @@ function VerificationNote({
   return null;
 }
 
-function ReasoningIndicator() {
+export function ReasoningIndicator() {
   return (
     <p
       role="status"
