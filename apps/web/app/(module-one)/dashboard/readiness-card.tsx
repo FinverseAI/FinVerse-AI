@@ -3,10 +3,7 @@
 import { useEffect, useState } from "react";
 import { PanelHeading, ProgressBar } from "./ui";
 import type { Tone } from "./data";
-import {
-  activityError,
-  activityRequest,
-} from "./use-activity";
+import { activityError, activityRequest } from "./use-activity";
 import {
   aiErrorMessage,
   aiRequest,
@@ -175,9 +172,8 @@ export default function ReadinessCard() {
                 </div>
                 {assessment.maxScore < assessment.scale && (
                   <p className="mt-2 text-xs text-dash-muted">
-                    Based on {assessment.maxScore} of {assessment.scale}{" "}
-                    points —{" "}
-                    {missingFactors.map((factor) => factor.name).join(", ")}{" "}
+                    Based on {assessment.maxScore} of {assessment.scale} points
+                    — {missingFactors.map((factor) => factor.name).join(", ")}{" "}
                     could not be measured.
                   </p>
                 )}
@@ -207,9 +203,7 @@ export default function ReadinessCard() {
                       </div>
                       {factor.available && (
                         <ProgressBar
-                          value={
-                            (factor.points / factor.maxPoints) * 100
-                          }
+                          value={(factor.points / factor.maxPoints) * 100}
                           label={`${factor.name} score`}
                           tone={
                             factor.points >= factor.maxPoints

@@ -423,9 +423,7 @@ export function readinessTemplate(assessment: unknown): TemplateAnswer {
   );
 }
 
-function readinessFactorClaim(
-  factor: Record<string, unknown>,
-): AiClaim | null {
+function readinessFactorClaim(factor: Record<string, unknown>): AiClaim | null {
   const name = asString(factor.name);
   const points = asNumber(factor.points);
   const maxPoints = asNumber(factor.maxPoints);
@@ -467,7 +465,14 @@ function readinessFactorClaim(
         text: `Debt-to-income: ${inr0.format(totalDebt)} of debt against ${inr0.format(annualIncome)} of annual income (ratio ${ratio}), worth ${points} of ${maxPoints} points.`,
         source: {
           tool: 'getReadinessScore',
-          values: { name, totalDebt, annualIncome, debtToIncomeRatio: ratio, points, maxPoints },
+          values: {
+            name,
+            totalDebt,
+            annualIncome,
+            debtToIncomeRatio: ratio,
+            points,
+            maxPoints,
+          },
         },
       };
     }
@@ -479,7 +484,13 @@ function readinessFactorClaim(
         text: `Monthly surplus: ${inr0.format(surplus)} a month (${rate}% of income), worth ${points} of ${maxPoints} points.`,
         source: {
           tool: 'getReadinessScore',
-          values: { name, surplus, surplusRatePercent: rate, points, maxPoints },
+          values: {
+            name,
+            surplus,
+            surplusRatePercent: rate,
+            points,
+            maxPoints,
+          },
         },
       };
     }
@@ -515,9 +526,7 @@ function readinessFactorClaim(
           values: {
             name,
             volatilityPercent: volatility,
-            ...(holdingsWithHistory !== null
-              ? { holdingsWithHistory }
-              : {}),
+            ...(holdingsWithHistory !== null ? { holdingsWithHistory } : {}),
             points,
             maxPoints,
           },

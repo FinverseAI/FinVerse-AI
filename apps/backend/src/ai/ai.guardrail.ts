@@ -48,11 +48,7 @@ import type { AiAnswer, AiClaim } from './ai.validation';
  */
 
 export type GuardrailFeature =
-  | 'chat'
-  | 'explain-stock'
-  | 'explain-news'
-  | 'screen'
-  | 'explain-readiness';
+  'chat' | 'explain-stock' | 'explain-news' | 'screen' | 'explain-readiness';
 
 export type GuardrailCheckType = 'source' | 'value' | 'text' | 'citation';
 

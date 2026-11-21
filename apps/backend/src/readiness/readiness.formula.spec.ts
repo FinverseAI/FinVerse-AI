@@ -36,7 +36,7 @@ function assessed(inputs: ReadinessInputs): ReadinessAssessment {
 
 describe('annualizedVolatility', () => {
   it('is zero for flat prices', () => {
-    expect(annualizedVolatility(new Array(30).fill(100))).toBe(0);
+    expect(annualizedVolatility(Array.from({ length: 30 }, () => 100))).toBe(0);
   });
 
   it('is zero for perfectly steady growth', () => {
@@ -53,11 +53,13 @@ describe('annualizedVolatility', () => {
   });
 
   it('returns null with too little history', () => {
-    expect(annualizedVolatility(new Array(29).fill(100))).toBeNull();
+    expect(
+      annualizedVolatility(Array.from({ length: 29 }, () => 100)),
+    ).toBeNull();
   });
 
   it('returns null for non-positive closes', () => {
-    const closes = new Array(30).fill(100);
+    const closes = Array.from({ length: 30 }, () => 100);
     closes[10] = 0;
     expect(annualizedVolatility(closes)).toBeNull();
   });

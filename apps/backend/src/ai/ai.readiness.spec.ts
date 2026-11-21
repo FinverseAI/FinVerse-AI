@@ -111,18 +111,15 @@ const CORRUPTED_SCORE_JSON = answerJson(
 );
 
 /** A wrong amount: the surplus is ₹10,000, the model says ₹99,999. */
-const CORRUPTED_SURPLUS_JSON = answerJson(
-  'Your monthly surplus is ₹99,999.',
-  [
-    {
-      text: 'Your monthly surplus is ₹99,999.',
-      source: {
-        tool: 'getReadinessScore',
-        values: { name: 'Monthly surplus', surplus: 99999 },
-      },
+const CORRUPTED_SURPLUS_JSON = answerJson('Your monthly surplus is ₹99,999.', [
+  {
+    text: 'Your monthly surplus is ₹99,999.',
+    source: {
+      tool: 'getReadinessScore',
+      values: { name: 'Monthly surplus', surplus: 99999 },
     },
-  ],
-);
+  },
+]);
 
 interface LoggedCheck {
   context: GuardrailContext;

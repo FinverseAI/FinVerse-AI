@@ -390,9 +390,7 @@ describe('ai endpoints', () => {
         assessment,
       );
       const response = await session(
-        request(app.getHttpServer())
-          .post('/api/ai/explain-readiness')
-          .send({}),
+        request(app.getHttpServer()).post('/api/ai/explain-readiness').send({}),
       ).expect(200);
       expect(response.body.model).toBe('deepseek/deepseek-r1-0528');
       expect(response.body.toolsUsed).toEqual(['getReadinessScore']);
@@ -406,9 +404,7 @@ describe('ai endpoints', () => {
         missing: ['financial profile'],
       });
       const response = await session(
-        request(app.getHttpServer())
-          .post('/api/ai/explain-readiness')
-          .send({}),
+        request(app.getHttpServer()).post('/api/ai/explain-readiness').send({}),
       ).expect(200);
       expect(response.body.refused).toBe(true);
       expect(response.body.refusalReason).toBe(
@@ -419,9 +415,7 @@ describe('ai endpoints', () => {
     it('falls back to the raw score when unconfigured', async () => {
       const { app } = await createApp({}, [], assessment);
       const response = await session(
-        request(app.getHttpServer())
-          .post('/api/ai/explain-readiness')
-          .send({}),
+        request(app.getHttpServer()).post('/api/ai/explain-readiness').send({}),
       ).expect(200);
       expect(response.body.fallback).toBe(true);
       expect(response.body.metrics.assessment.score).toBe(71);

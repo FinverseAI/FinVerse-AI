@@ -110,7 +110,9 @@ describe('ReadinessService', () => {
     portfolioSummary.mockResolvedValue(
       summary([holding('RELIANCE.NS', 50000), holding('TCS.NS', 50000)]),
     );
-    marketHistory.mockResolvedValue(historyBars(new Array(40).fill(100)));
+    marketHistory.mockResolvedValue(
+      historyBars(Array.from({ length: 40 }, () => 100)),
+    );
   });
 
   function assessed(result: unknown): ReadinessAssessment {
@@ -170,7 +172,7 @@ describe('ReadinessService', () => {
 
   it('excludes a holding whose history fails, keeping the others', async () => {
     marketHistory
-      .mockResolvedValueOnce(historyBars(new Array(40).fill(100)))
+      .mockResolvedValueOnce(historyBars(Array.from({ length: 40 }, () => 100)))
       .mockRejectedValueOnce(new Error('provider down'));
     const result = assessed(await service.assess('owner'));
     const volatility = result.factors.find(
@@ -181,7 +183,9 @@ describe('ReadinessService', () => {
   });
 
   it('marks volatility unavailable when no holding has enough history', async () => {
-    marketHistory.mockResolvedValue(historyBars(new Array(10).fill(100)));
+    marketHistory.mockResolvedValue(
+      historyBars(Array.from({ length: 10 }, () => 100)),
+    );
     const result = assessed(await service.assess('owner'));
     const volatility = result.factors.find(
       (factor) => factor.metric === 'volatilityPercent',

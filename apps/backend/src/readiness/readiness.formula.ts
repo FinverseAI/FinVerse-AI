@@ -250,9 +250,7 @@ export function bandForScore(score: number): ReadinessBand {
   return 'Ready';
 }
 
-function emergencyFactor(
-  band: EmergencyFundBand | null,
-): ReadinessFactor {
+function emergencyFactor(band: EmergencyFundBand | null): ReadinessFactor {
   const maxPoints = READINESS_WEIGHTS.emergencyFund;
   if (band === null) {
     return {
@@ -280,10 +278,7 @@ function emergencyFactor(
   };
 }
 
-function debtFactor(
-  monthlyIncome: number,
-  totalDebt: number,
-): ReadinessFactor {
+function debtFactor(monthlyIncome: number, totalDebt: number): ReadinessFactor {
   const maxPoints = READINESS_WEIGHTS.debtToIncome;
   if (!(monthlyIncome > 0)) {
     return {
@@ -329,14 +324,13 @@ function surplusFactor(
       points: 0,
       maxPoints,
       available: false,
-      detail: 'Your monthly income is ₹0, so the surplus rate cannot be measured.',
+      detail:
+        'Your monthly income is ₹0, so the surplus rate cannot be measured.',
     };
   }
   const surplus = monthlyIncome - monthlyExpenses;
   const rate = surplus / monthlyIncome;
-  const points = round1(
-    maxPoints * clamp(rate / SURPLUS_FULL_RATE, 0, 1),
-  );
+  const points = round1(maxPoints * clamp(rate / SURPLUS_FULL_RATE, 0, 1));
   return {
     name: 'Monthly surplus',
     metric: 'surplusRatePercent',
@@ -373,8 +367,7 @@ function concentrationFactor(
   );
   const weight = largest.currentValue / totalValue;
   const points = round1(
-    maxPoints *
-      clamp((1 - weight) / (1 - CONCENTRATION_FULL_WEIGHT), 0, 1),
+    maxPoints * clamp((1 - weight) / (1 - CONCENTRATION_FULL_WEIGHT), 0, 1),
   );
   return {
     name: 'Portfolio concentration',
@@ -419,7 +412,11 @@ function volatilityFactor(
     ) / totalValue;
   const points = round1(
     maxPoints *
-      clamp((VOLATILITY_ZERO - weighted) / (VOLATILITY_ZERO - VOLATILITY_FULL), 0, 1),
+      clamp(
+        (VOLATILITY_ZERO - weighted) / (VOLATILITY_ZERO - VOLATILITY_FULL),
+        0,
+        1,
+      ),
   );
   return {
     name: 'Portfolio volatility',
@@ -505,9 +502,7 @@ function buildSuggestions(
  * produce the same assessment. Returns `available: false` when no
  * factor can be measured at all.
  */
-export function scoreReadiness(
-  inputs: ReadinessInputs,
-): ReadinessResult {
+export function scoreReadiness(inputs: ReadinessInputs): ReadinessResult {
   const factors: ReadinessFactor[] = [
     emergencyFactor(inputs.emergencyFundBand),
     debtFactor(inputs.monthlyIncome, inputs.totalDebt),
@@ -543,16 +538,17 @@ export function scoreReadiness(
           b.currentValue > a.currentValue ? b : a,
         )
       : null;
-  const volatility = inputs.holdingVolatilities.length > 0
-    ? inputs.holdingVolatilities.reduce(
-        (sum, holding) => sum + holding.volatility * holding.currentValue,
-        0,
-      ) /
-      inputs.holdingVolatilities.reduce(
-        (sum, holding) => sum + holding.currentValue,
-        0,
-      )
-    : null;
+  const volatility =
+    inputs.holdingVolatilities.length > 0
+      ? inputs.holdingVolatilities.reduce(
+          (sum, holding) => sum + holding.volatility * holding.currentValue,
+          0,
+        ) /
+        inputs.holdingVolatilities.reduce(
+          (sum, holding) => sum + holding.currentValue,
+          0,
+        )
+      : null;
   const monthlySurplus = inputs.monthlyIncome - inputs.monthlyExpenses;
   return {
     available: true,

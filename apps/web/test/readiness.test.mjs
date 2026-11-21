@@ -1,9 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  isReadinessAssessment,
-  isReadinessResult,
-} from "../lib/readiness.ts";
+import { isReadinessAssessment, isReadinessResult } from "../lib/readiness.ts";
 
 const validAssessment = {
   available: true,
@@ -67,7 +64,8 @@ const validAssessment = {
   suggestions: [
     {
       factor: "Monthly surplus",
-      action: "Raising your monthly surplus to ₹15,000 (30% of income) would add 8.3 points.",
+      action:
+        "Raising your monthly surplus to ₹15,000 (30% of income) would add 8.3 points.",
       pointsGain: 8.3,
       targetSurplus: 15000,
       targetRatePercent: 30,
