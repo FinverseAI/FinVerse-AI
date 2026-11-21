@@ -29,6 +29,7 @@ model User {
   holdings         UserHolding[]
   watchlist        WatchlistItem[]
   ragDocuments     RagDocument[]
+  guardrailChecks  GuardrailCheck[]
 }
 
 model Session {
