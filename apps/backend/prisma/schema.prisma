@@ -304,3 +304,31 @@ model RagDocument {
   @@index([source_type, published_at])
   @@map("rag_documents")
 }
+
+// One guardrail check on one LLM claim (Phase 3). Every check the
+// guardrail runs — numeric comparison, source existence, text-number
+// match, citation match — is logged here, pass or fail, with the
+// claimed and verified values, so Phase 5 can compute the guardrail
+// pass rate (the factual-grounding metric) from this table. request_id
+// correlates the checks of one answer; attempt distinguishes the first
+// verification from the one retry.
+model GuardrailCheck {
+  id          String   @id @default(cuid())
+  request_id  String
+  user_id     String
+  user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  feature     String
+  attempt     Int
+  claim_text  String
+  source_tool String
+  check_type  String
+  expected    String?
+  actual      String?
+  verdict     String
+  created_at  DateTime @default(now())
+
+  @@index([user_id])
+  @@index([feature])
+  @@index([request_id])
+  @@map("guardrail_checks")
+}
