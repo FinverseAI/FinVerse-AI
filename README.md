@@ -32,16 +32,15 @@ The browser calls Next.js `/api/*` routes. Next forwards cookies to NestJS, whic
 
 ## Local setup
 
-Use Node.js 24 or later and npm 11. The lockfile is authoritative. Start PostgreSQL 17, then:
+Use Node.js 24 or later and npm 11. Install dependencies from the repository root and create any missing environment files.
 
 ```powershell
 npm ci
-Copy-Item apps/web/.env.example apps/web/.env
-Copy-Item apps/backend/.env.example apps/backend/.env
-docker compose up -d postgres
+if (!(Test-Path apps/web/.env)) { Copy-Item apps/web/.env.example apps/web/.env }
+if (!(Test-Path apps/backend/.env)) { Copy-Item apps/backend/.env.example apps/backend/.env }
 ```
 
-Copy the examples only on first setup; do not overwrite existing environment files. The Compose database credentials are for local development only. Redis is present in Compose for future work but is not used by the app.
+Neon hosts the PostgreSQL database. In the Neon Console, select your development branch and database and open **Connect**. Copy the pooled connection string into `DATABASE_URL` in both apps. Turn off connection pooling in the dialog and copy the direct connection string into `DIRECT_URL` in `apps/backend/.env` for Prisma migrations.
 
 Set a random secret of at least 32 characters in `apps/web/.env`. For example, generate one locally with:
 
@@ -63,8 +62,8 @@ Open `http://localhost:3000`. NestJS listens on port 3001 by default. Restart bo
 
 | Variable                                   | Application    | Purpose                                                                                                 |
 | ------------------------------------------ | -------------- | ------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                             | Both           | Same PostgreSQL database, including schema                                                              |
-| `DIRECT_URL`                               | Backend/Prisma | Direct connection for migrations; can match the local database URL                                      |
+| `DATABASE_URL`                             | Both           | Pooled Neon URL for the same branch, database, and schema                                               |
+| `DIRECT_URL`                               | Backend/Prisma | Direct Neon URL for migrations on that branch and database                                              |
 | `BETTER_AUTH_URL`                          | Both           | Browser-facing web origin; HTTPS for deployed hosts                                                     |
 | `BETTER_AUTH_SECRET`                       | Web            | Random secret, at least 32 characters; required for production builds/runtime or enabled authentication |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Web            | Google OAuth credentials                                                                                |
