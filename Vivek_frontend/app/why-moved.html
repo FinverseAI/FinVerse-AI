@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Why Did My Stock Move? · FinVerse</title>
+  <meta name="description" content="A visible chain of thought explaining why your stock moved today. Concept preview.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="why-moved" data-title="Why Did My Stock Move?">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Why did my stock move?</h1>
+              <span class="badge badge-concept">Concept preview</span>
+            </div>
+            <p class="lede">FinVerse AI shows its working: a visible chain of thought from price action to news to market mood.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-gold" style="margin-bottom:1.25rem">
+          <strong>Concept preview.</strong> This page shows the planned vision from the FinVerse synopsis — the visible chain-of-thought explainer is not built yet in the real app. The numbers below come from the demo dataset, so you can see how the finished feature will feel.
+        </div>
+
+        <section class="card" aria-labelledby="pick-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="pick-heading">Pick a stock</h2>
+              <p>Today's move, then the reasoning behind it.</p>
+            </div>
+          </div>
+          <div class="form-row" style="align-items:end">
+            <div class="field" style="margin-bottom:0">
+              <label for="stock-select">Stock</label>
+              <select id="stock-select">
+                <option value="RELIANCE">RELIANCE — Reliance Industries</option>
+                <option value="TCS">TCS — Tata Consultancy Services</option>
+                <option value="INFY">INFY — Infosys</option>
+                <option value="TATAMOTORS">TATAMOTORS — Tata Motors</option>
+                <option value="HINDUNILVR">HINDUNILVR — Hindustan Unilever</option>
+              </select>
+            </div>
+            <div>
+              <button class="btn btn-primary" type="button" id="run-btn">Run the reasoning</button>
+            </div>
+          </div>
+          <div class="grid grid-3" style="margin-top:1.25rem">
+            <div><div class="stat-label">Current price</div><div class="stat-value" id="move-price" style="font-size:1.4rem">—</div></div>
+            <div><div class="stat-label">Today's move</div><div class="stat-value" id="move-change" style="font-size:1.4rem">—</div></div>
+            <div><div class="stat-label">60-day range</div><div class="stat-value" id="move-range" style="font-size:1.4rem">—</div></div>
+          </div>
+        </section>
+
+        <div class="grid grid-main-side">
+          <section class="card" aria-labelledby="reasoning-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="reasoning-heading">Chain of thought</h2>
+                <p>Five steps, each with its evidence.</p>
+              </div>
+            </div>
+            <div class="empty-state" id="steps-empty">
+              <h3>Reasoning not run yet</h3>
+              <p>Choose a stock and press “Run the reasoning” to see the analysis step by step.</p>
+            </div>
+            <ol class="thought-steps" id="thought-steps" hidden></ol>
+          </section>
+
+          <section class="card" aria-labelledby="attribution-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="attribution-heading">Attribution</h2>
+                <p>What drove today's move.</p>
+              </div>
+            </div>
+            <div class="empty-state" id="attribution-empty">
+              <h3>Awaiting reasoning</h3>
+              <p>The contribution breakdown appears once the reasoning runs.</p>
+            </div>
+            <div id="attribution-body" hidden>
+              <div id="attribution-bars" style="display:grid;gap:0.9rem"></div>
+              <p id="attribution-conclusion" style="margin:1.25rem 0 0;color:var(--ink-soft)"></p>
+            </div>
+          </section>
+        </div>
+
+        <div class="disclaimer">Decision support, not financial advice. Attribution is an explanation of past movement, not a prediction of what happens next.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/why-moved.js"></script>
+</body>
+</html>

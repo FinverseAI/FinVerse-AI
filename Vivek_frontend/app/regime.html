@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market Regime · FinVerse</title>
+  <meta name="description" content="The current market regime and the signals behind it. Concept preview.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="regime" data-title="Market Regime">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Market regime</h1>
+              <span class="badge badge-concept">Concept preview</span>
+            </div>
+            <p class="lede">Is this a market for steady investing, caution, or patience? The regime answers in one line — and shows its signals.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-gold" style="margin-bottom:1.25rem">
+          <strong>Concept preview.</strong> This page shows the planned vision from the FinVerse synopsis — regime detection is not built yet in the real app. The signals below come from the demo dataset, so you can see how the finished feature will feel.
+        </div>
+
+        <section class="card" aria-labelledby="regime-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="regime-heading">Current regime</h2>
+              <p id="regime-updated">Updated —</p>
+            </div>
+            <span class="badge badge-live" id="regime-badge">—</span>
+          </div>
+          <div class="grid grid-2" style="align-items:center">
+            <div>
+              <div class="stat-value" id="regime-current" style="font-size:2rem">—</div>
+              <p style="color:var(--ink-soft);margin:0.5rem 0 0">The market is in a broad, calm uptrend: the index sits above its long-term average, volatility is low, and most stocks are rising together.</p>
+            </div>
+            <div>
+              <div class="meter">
+                <span class="stat-label" style="min-width:6.5rem">Confidence</span>
+                <div class="progress"><i id="regime-meter" style="width:0%"></i></div>
+                <strong id="regime-confidence">—</strong>
+              </div>
+              <p class="demo-note" style="margin-top:0.75rem">Confidence is the share of signals that agree with the current regime.</p>
+            </div>
+          </div>
+        </section>
+
+        <h2 style="font-size:1.28rem;margin-bottom:1rem">Signals behind the regime</h2>
+        <div class="grid grid-3" id="signals-grid" style="margin-bottom:1.25rem"></div>
+
+        <div class="callout" style="margin-bottom:1.25rem">
+          <strong>What this means for you.</strong> A bull, low-volatility regime favours steady SIP investing — keep your monthly investments running and avoid trying to time a lump sum. Your emergency fund stays untouched: regimes change, and the fund is what lets you ride out the change. Check your <a href="readiness.html">investment readiness</a> before raising your SIP.
+        </div>
+
+        <div class="grid grid-main-side">
+          <section class="card" aria-labelledby="history-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="history-heading">Regime history</h2>
+                <p>How the market's mood has shifted this year.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data" id="history-table">
+                <thead><tr><th scope="col">Period</th><th scope="col">Regime</th><th scope="col">Note</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="method-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="method-heading">How the regime is detected</h2>
+              </div>
+            </div>
+            <p style="color:var(--ink-soft);margin:0 0 0.75rem">The regime is computed by deterministic rules over four inputs — trend, volatility, breadth and flows — not by gut feel:</p>
+            <ul class="list-rows">
+              <li><div class="row-main"><div class="row-title">Trend</div><div class="row-sub">Nifty 50 vs its 50- and 200-day averages</div></div></li>
+              <li><div class="row-main"><div class="row-title">Volatility</div><div class="row-sub">India VIX level and direction</div></div></li>
+              <li><div class="row-main"><div class="row-title">Breadth</div><div class="row-sub">Share of NSE stocks above their 50-day average</div></div></li>
+              <li><div class="row-main"><div class="row-title">Flows</div><div class="row-sub">FII and DII net buying over 30 days</div></div></li>
+            </ul>
+            <p style="color:var(--ink-soft);margin:1rem 0 0">The AI only writes the explanation — the classification itself comes from the rules, so it is the same every time for the same data.</p>
+          </section>
+        </div>
+
+        <div class="disclaimer">Decision support, not financial advice. Regimes describe the recent past; they do not forecast the next move.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/regime.js"></script>
+</body>
+</html>

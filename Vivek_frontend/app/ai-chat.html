@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ask FinVerse AI · FinVerse</title>
+  <meta name="description" content="Ask FinVerse AI about your budget, stocks and readiness — every answer checked against your own data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="ai-chat" data-title="Ask FinVerse AI">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Ask FinVerse AI</h1>
+            </div>
+            <p class="lede">An explained answer, with evidence — every number checked against your own ledger, holdings and market data.</p>
+          </div>
+          <div class="page-head-actions">
+            <div class="pill-switch" role="tablist" aria-label="Chat mode">
+              <button type="button" id="mode-ask" class="active" role="tab" aria-selected="true">Ask</button>
+              <button type="button" id="mode-explain" role="tab" aria-selected="false">Explain a stock</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-shell">
+          <div class="chat-log" id="chat-log" aria-live="polite"></div>
+
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button class="suggestion" type="button">How is my budget this month?</button>
+            <button class="suggestion" type="button">Is RELIANCE a good buy right now?</button>
+            <button class="suggestion" type="button">Am I ready to invest?</button>
+            <button class="suggestion" type="button">Which bills are due soon?</button>
+          </div>
+
+          <div class="card" id="explain-panel" hidden>
+            <div class="card-head">
+              <div>
+                <h2>Explain a stock</h2>
+                <p>Price action, indicators, news and what to watch — in plain words.</p>
+              </div>
+            </div>
+            <div class="form-row" style="align-items:end">
+              <div class="field" style="margin-bottom:0">
+                <label for="explain-stock">Choose a stock</label>
+                <select id="explain-stock"></select>
+              </div>
+              <div>
+                <button class="btn btn-primary" type="button" id="explain-btn">Explain</button>
+              </div>
+            </div>
+          </div>
+
+          <form class="chat-input-row" id="chat-form">
+            <label class="sr-only" for="chat-input">Your question</label>
+            <input id="chat-input" type="text" placeholder="Ask about your budget, a stock, your bills…" autocomplete="off">
+            <button class="btn btn-primary" type="submit">Send</button>
+          </form>
+
+          <div class="disclaimer">Decision support, not financial advice. FinVerse AI explains your data — it does not tell you what to buy or sell.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/ai-chat.js"></script>
+</body>
+</html>

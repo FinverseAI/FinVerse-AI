@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What-If Simulator · FinVerse</title>
+  <meta name="description" content="Simulate what your SIP and lump sum could grow to under bear, base and bull scenarios. Concept preview.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="simulator" data-title="What-If Simulator">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>What-if simulator</h1>
+              <span class="badge badge-concept">Concept preview</span>
+            </div>
+            <p class="lede">What could your money become? Move the sliders and see bear, base and bull outcomes side by side.</p>
+          </div>
+        </div>
+
+        <div class="callout callout-gold" style="margin-bottom:1.25rem">
+          <strong>Concept preview.</strong> This page shows the planned vision from the FinVerse synopsis — the what-if simulator is not built yet in the real app. The projections below are computed live from the inputs you enter, using monthly compounding.
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="inputs-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="inputs-heading">Your plan</h2>
+                <p>Everything recalculates as you change it.</p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="sim-sip">Monthly SIP (₹)</label>
+                <input id="sim-sip" type="number" min="500" max="500000" step="500" value="15000">
+              </div>
+              <div class="field">
+                <label for="sim-lumpsum">Lump sum (₹)</label>
+                <input id="sim-lumpsum" type="number" min="0" max="10000000" step="1000" value="100000">
+              </div>
+            </div>
+            <div class="field">
+              <label for="sim-years">Years: <strong id="sim-years-label">10</strong></label>
+              <input id="sim-years" type="range" min="1" max="20" step="1" value="10">
+              <div class="progress-labels"><span>1 year</span><span>20 years</span></div>
+            </div>
+            <div class="field">
+              <label for="sim-return">Expected annual return: <strong id="sim-return-label">11%</strong></label>
+              <input id="sim-return" type="range" min="4" max="18" step="0.5" value="11">
+              <div class="progress-labels"><span>4%</span><span>18%</span></div>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <span class="stat-label" style="font-weight:600;color:var(--ink-soft)">Scenario presets</span>
+              <div class="pill-switch" id="scenario-switch" role="group" aria-label="Scenario presets">
+                <button type="button" data-return="6">Bear · 6%</button>
+                <button type="button" data-return="11" class="active">Base · 11%</button>
+                <button type="button" data-return="14">Bull · 14%</button>
+              </div>
+            </div>
+          </section>
+
+          <div class="grid">
+            <div class="stat-card">
+              <div><div class="stat-label">Projected value</div><div class="stat-value" id="out-value">—</div><div class="stat-sub" id="out-value-sub">Base scenario</div></div>
+            </div>
+            <div class="stat-card">
+              <div><div class="stat-label">Total invested</div><div class="stat-value" id="out-invested">—</div><div class="stat-sub">SIP + lump sum</div></div>
+            </div>
+            <div class="stat-card">
+              <div><div class="stat-label">Wealth gained</div><div class="stat-value" id="out-gained">—</div><div class="stat-sub" id="out-gained-sub">Growth over what you put in</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-bottom:1.25rem" id="sip-boost-line"></div>
+
+        <section class="card" aria-labelledby="chart-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="chart-heading">Three scenarios, one plan</h2>
+              <p>Projected value over time at 6%, 11% and 14% annual returns.</p>
+            </div>
+          </div>
+          <div class="chart-box-lg"><canvas id="sim-chart" aria-label="Line chart comparing bear, base and bull projections" role="img"></canvas></div>
+        </section>
+
+        <section class="card" aria-labelledby="table-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="table-heading">Year by year</h2>
+              <p id="table-sub">Base scenario · 11% per year</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="sim-table">
+              <thead><tr><th scope="col">Year</th><th scope="col" class="num">Invested so far</th><th scope="col" class="num">Value</th><th scope="col" class="num">Wealth gained</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+
+        <div class="disclaimer">Decision support, not financial advice. Projections assume a fixed annual return with monthly compounding; real markets vary year to year and returns are not guaranteed.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/simulator.js"></script>
+</body>
+</html>

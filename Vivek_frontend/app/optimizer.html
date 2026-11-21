@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Optimizer · FinVerse</title>
+  <meta name="description" content="Markowitz mean-variance optimisation for your portfolio — the efficient frontier and the allocation with the best risk-adjusted return.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="optimizer" data-title="Optimizer">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Portfolio Optimizer</h1>
+            </div>
+            <p class="lede"><a href="portfolio.html">← Back to Portfolio</a> · Find the mix of your holdings with the best return for the risk you take.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-primary" type="button" id="apply-optimal">Apply optimal allocation</button>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-bottom:1.25rem">
+          <strong>Markowitz mean-variance optimisation, in plain words:</strong>
+          for every possible mix of your holdings there is an expected return and a risk (how much the
+          return wobbles). The mixes that give the most return for each level of risk form the
+          <strong>efficient frontier</strong>. The best mix on it is the one with the highest
+          <strong>Sharpe ratio</strong> — return earned per unit of risk:
+          <strong>Sharpe = (Rp − Rf) / σp</strong>, where Rp is the portfolio return, Rf the risk-free
+          rate and σp the portfolio's volatility.
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Current Sharpe</div><div class="stat-value" id="stat-current-sharpe">1.42</div><div class="stat-sub" id="stat-current-sharpe-sub">Your portfolio today</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg></div>
+            <div><div class="stat-label">Optimal Sharpe</div><div class="stat-value">1.86</div><div class="stat-sub">Best mix on the frontier</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><path d="M4 18h16"/></svg></div>
+            <div><div class="stat-label">Current portfolio</div><div class="stat-value" id="stat-current-rr" style="font-size:1.25rem">15.9% risk · 15.2% return</div><div class="stat-sub">Annualised volatility · expected return</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Optimal portfolio</div><div class="stat-value" style="font-size:1.25rem">12.8% risk · 14.6% return</div><div class="stat-sub">Lower risk, nearly the same return</div></div>
+          </div>
+        </div>
+
+        <section class="card" aria-labelledby="frontier-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="frontier-heading">Efficient frontier</h2>
+              <p>Risk vs expected return for every efficient mix of your holdings. The gold dot is where you are now; the green dot is the optimum.</p>
+            </div>
+          </div>
+          <div class="chart-box-lg"><canvas id="frontier-chart" aria-label="Scatter chart of the efficient frontier with current and optimal portfolios" role="img"></canvas></div>
+        </section>
+
+        <section class="card" aria-labelledby="alloc-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="alloc-heading">Allocation: current vs optimal</h2>
+              <p>How much of the portfolio each holding should take.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="alloc-table">
+              <thead><tr>
+                <th scope="col">Symbol</th>
+                <th scope="col" class="num">Current %</th>
+                <th scope="col" class="num">Optimal %</th>
+                <th scope="col" class="num">Change</th>
+              </tr></thead>
+              <tbody></tbody>
+              <tfoot>
+                <tr>
+                  <td><strong>Total</strong></td>
+                  <td class="num" id="foot-current">100%</td>
+                  <td class="num" id="foot-optimal">100%</td>
+                  <td class="num">—</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p class="demo-note" style="margin-top:1rem">Optimisation runs over your current holdings plus a NIFTYBEES ETF option — the optimal mix adds 10% in the ETF to spread risk.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/optimizer.js"></script>
+</body>
+</html>

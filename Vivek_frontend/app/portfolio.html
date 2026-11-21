@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio · FinVerse</title>
+  <meta name="description" content="Your holdings, total value, profit and loss, and allocation — computed from live demo prices.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="portfolio" data-title="Portfolio">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Your portfolio</h1>
+            </div>
+            <p class="lede">Holdings valued at today's prices, with profit, loss and allocation in one place.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-outline" type="button" data-open-modal="add-holding-modal">+ Add holding</button>
+            <a class="btn btn-primary" href="optimizer.html">Optimise this portfolio →</a>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:0.6rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/></svg></div>
+            <div><div class="stat-label">Total value</div><div class="stat-value" id="stat-total-value">—</div><div class="stat-sub" id="stat-holdings-count">6 holdings</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Invested amount</div><div class="stat-value" id="stat-invested">—</div><div class="stat-sub">Sum of quantity × average cost</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Total P&amp;L</div><div class="stat-value" id="stat-pnl">—</div><div class="stat-sub" id="stat-pnl-pct">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">XIRR</div><div class="stat-value">18.4%</div><div class="stat-sub">CAGR 16.2%</div></div>
+          </div>
+        </div>
+        <p class="demo-note" style="margin:0 0 1.25rem">XIRR and CAGR are computed from your transaction history.</p>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="holdings-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="holdings-heading">Holdings</h2>
+                <p>Valued at today's closing prices.</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="data" id="holdings-table">
+                <thead><tr>
+                  <th scope="col">Symbol</th>
+                  <th scope="col" class="num">Qty</th>
+                  <th scope="col" class="num">Avg cost</th>
+                  <th scope="col" class="num">Current price</th>
+                  <th scope="col" class="num">Current value</th>
+                  <th scope="col" class="num">P&amp;L</th>
+                  <th scope="col" class="num">P&amp;L %</th>
+                </tr></thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <td><strong>Total</strong></td>
+                    <td class="num">—</td>
+                    <td class="num" id="foot-invested">—</td>
+                    <td class="num">—</td>
+                    <td class="num" id="foot-value">—</td>
+                    <td class="num" id="foot-pnl">—</td>
+                    <td class="num" id="foot-pnl-pct">—</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          <div class="grid">
+            <section class="card" aria-labelledby="alloc-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="alloc-heading">Allocation</h2>
+                  <p>Share of portfolio value by holding.</p>
+                </div>
+              </div>
+              <div class="chart-box-sm"><canvas id="alloc-chart" aria-label="Donut chart of allocation by holding" role="img"></canvas></div>
+              <ul class="legend" id="alloc-legend" style="font-size:.95rem;margin-top:1rem"></ul>
+            </section>
+            <section class="card" aria-labelledby="sector-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="sector-heading">Allocation by sector</h2>
+                  <p>Share of portfolio value by sector.</p>
+                </div>
+              </div>
+              <div id="sector-bars" style="display:grid;gap:1rem"></div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add holding modal -->
+  <div class="modal-backdrop" id="add-holding-modal" role="dialog" aria-modal="true" aria-labelledby="add-holding-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="add-holding-title">Add a holding</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="add-holding-form">
+        <div class="field">
+          <label for="holding-symbol">Stock</label>
+          <select id="holding-symbol" name="symbol" required></select>
+          <p class="hint">Only stocks you don't already hold are listed.</p>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="holding-qty">Quantity</label>
+            <input id="holding-qty" name="qty" type="number" min="1" step="1" placeholder="e.g. 25" required>
+          </div>
+          <div class="field">
+            <label for="holding-cost">Average cost (₹)</label>
+            <input id="holding-cost" name="avgCost" type="number" min="0.01" step="0.01" placeholder="e.g. 1850.00" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add holding</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/portfolio.js"></script>
+</body>
+</html>

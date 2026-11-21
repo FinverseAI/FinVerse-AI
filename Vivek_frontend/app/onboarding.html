@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile &amp; Risk · FinVerse</title>
+  <meta name="description" content="Your profile and risk questionnaire — find the risk profile that fits you.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="onboarding" data-title="Profile &amp; Risk">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Profile &amp; risk</h1>
+            </div>
+            <p class="lede">Tell FinVerse about yourself and answer five quick questions — it will suggest the risk profile and allocation that fit you.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="align-items:start">
+          <section class="card" aria-labelledby="profile-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="profile-heading">Your profile</h2>
+                <p>The basics FinVerse uses to personalise your plan.</p>
+              </div>
+            </div>
+            <form id="profile-form">
+              <div class="field">
+                <label for="profile-name">Full name</label>
+                <input id="profile-name" type="text" value="Vivek Bartwal" required>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="profile-age">Age band</label>
+                  <select id="profile-age">
+                    <option value="under-25" selected>Under 25</option>
+                    <option value="25-34">25–34</option>
+                    <option value="35-44">35–44</option>
+                    <option value="45-54">45–54</option>
+                    <option value="55-plus">55+</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="profile-horizon">Investment horizon</label>
+                  <select id="profile-horizon">
+                    <option value="short">Under 1 year</option>
+                    <option value="medium">1–5 years</option>
+                    <option value="long" selected>5+ years</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="profile-income">Monthly income (₹)</label>
+                  <input id="profile-income" type="number" min="0" step="1000" value="60000" required>
+                </div>
+                <div class="field">
+                  <label for="profile-capacity">Monthly investment capacity (₹)</label>
+                  <input id="profile-capacity" type="number" min="0" step="500" value="15000" required>
+                </div>
+              </div>
+              <button class="btn btn-primary" type="submit">Save profile</button>
+            </form>
+          </section>
+
+          <section class="card" aria-labelledby="quiz-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="quiz-heading">Risk-profile quiz</h2>
+                <p>Five questions, one honest answer each.</p>
+              </div>
+            </div>
+            <form id="quiz-form">
+              <fieldset style="border:0;padding:0;margin:0 0 1.1rem">
+                <legend style="font-weight:600;font-size:0.93rem;margin-bottom:0.5rem">1. If your portfolio fell 20% in a month, you would…</legend>
+                <label class="check-row"><input type="radio" name="q1" value="1"> Sell everything to stop the loss</label>
+                <label class="check-row"><input type="radio" name="q1" value="3" checked> Hold and wait for a recovery</label>
+                <label class="check-row"><input type="radio" name="q1" value="5"> Buy more at lower prices</label>
+              </fieldset>
+              <fieldset style="border:0;padding:0;margin:0 0 1.1rem">
+                <legend style="font-weight:600;font-size:0.93rem;margin-bottom:0.5rem">2. Your investment horizon is…</legend>
+                <label class="check-row"><input type="radio" name="q2" value="1"> Under 1 year</label>
+                <label class="check-row"><input type="radio" name="q2" value="3" checked> 1–5 years</label>
+                <label class="check-row"><input type="radio" name="q2" value="5"> 5+ years</label>
+              </fieldset>
+              <fieldset style="border:0;padding:0;margin:0 0 1.1rem">
+                <legend style="font-weight:600;font-size:0.93rem;margin-bottom:0.5rem">3. How stable is your income?</legend>
+                <label class="check-row"><input type="radio" name="q3" value="1"> Irregular — it varies a lot</label>
+                <label class="check-row"><input type="radio" name="q3" value="3" checked> Stable salary</label>
+                <label class="check-row"><input type="radio" name="q3" value="5"> Stable salary + side income</label>
+              </fieldset>
+              <fieldset style="border:0;padding:0;margin:0 0 1.1rem">
+                <legend style="font-weight:600;font-size:0.93rem;margin-bottom:0.5rem">4. How much investing experience do you have?</legend>
+                <label class="check-row"><input type="radio" name="q4" value="1"> None — I'm just starting</label>
+                <label class="check-row"><input type="radio" name="q4" value="3" checked> Some — I've invested before</label>
+                <label class="check-row"><input type="radio" name="q4" value="5"> Experienced — I follow markets closely</label>
+              </fieldset>
+              <fieldset style="border:0;padding:0;margin:0 0 1.1rem">
+                <legend style="font-weight:600;font-size:0.93rem;margin-bottom:0.5rem">5. What matters more to you?</legend>
+                <label class="check-row"><input type="radio" name="q5" value="1"> Protecting my capital</label>
+                <label class="check-row"><input type="radio" name="q5" value="3" checked> Balanced growth</label>
+                <label class="check-row"><input type="radio" name="q5" value="5"> Maximum growth</label>
+              </fieldset>
+              <button class="btn btn-primary" type="submit">See my risk profile</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="card" id="profile-result" aria-labelledby="result-heading" style="margin-top:1.25rem" hidden>
+          <div class="card-head">
+            <div>
+              <h2 id="result-heading">Your risk profile</h2>
+              <p id="result-score">—</p>
+            </div>
+            <span class="badge badge-live" id="result-badge">—</span>
+          </div>
+          <div class="grid grid-2" style="align-items:center">
+            <div>
+              <p id="result-explanation" style="color:var(--ink-soft);margin:0 0 1rem"></p>
+              <ul class="legend" id="result-legend" style="font-size:.95rem"></ul>
+              <p style="margin:1rem 0 0"><a class="btn btn-outline btn-sm" href="simulator.html">Try the what-if simulator →</a></p>
+            </div>
+            <div class="chart-box-sm"><canvas id="allocation-chart" aria-label="Donut chart of suggested asset allocation" role="img"></canvas></div>
+          </div>
+        </section>
+
+        <div class="disclaimer">Decision support, not financial advice. Your risk profile is a starting point for planning — it is not a recommendation to buy any specific product.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/onboarding.js"></script>
+</body>
+</html>
