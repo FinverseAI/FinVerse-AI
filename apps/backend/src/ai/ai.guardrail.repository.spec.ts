@@ -2,9 +2,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import type { GuardrailCheckRow } from './ai.guardrail';
 import { GuardrailCheckRepository } from './ai.guardrail.repository';
 
-function check(
-  overrides: Partial<GuardrailCheckRow> = {},
-): GuardrailCheckRow {
+function check(overrides: Partial<GuardrailCheckRow> = {}): GuardrailCheckRow {
   return {
     claimIndex: 0,
     claimText: 'You spent ₹8,200 on Food & Dining.',
@@ -78,9 +76,7 @@ describe('GuardrailCheckRepository', () => {
   describe('passRate', () => {
     it('computes the pass rate from the log', async () => {
       const { repository, count } = makeRepository();
-      count
-        .mockResolvedValueOnce(10)
-        .mockResolvedValueOnce(8);
+      count.mockResolvedValueOnce(10).mockResolvedValueOnce(8);
       await expect(repository.passRate()).resolves.toEqual({
         total: 10,
         passed: 8,
@@ -95,9 +91,7 @@ describe('GuardrailCheckRepository', () => {
 
     it('scopes the pass rate to one feature', async () => {
       const { repository, count } = makeRepository();
-      count
-        .mockResolvedValueOnce(4)
-        .mockResolvedValueOnce(3);
+      count.mockResolvedValueOnce(4).mockResolvedValueOnce(3);
       await expect(repository.passRate('explain-stock')).resolves.toEqual({
         total: 4,
         passed: 3,

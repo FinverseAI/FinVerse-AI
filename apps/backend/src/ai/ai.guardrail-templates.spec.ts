@@ -148,8 +148,7 @@ const NEWS_CHUNK = {
   user_id: null,
   symbol: 'RELIANCE.NS',
   title: 'Reliance profit jumps',
-  content:
-    'Reliance profit jumps 12% on strong retail sales. Source: Reuters.',
+  content: 'Reliance profit jumps 12% on strong retail sales. Source: Reuters.',
   published_at: new Date('2026-11-18T10:00:00Z'),
   url: 'https://example.test/a1',
   metadata: { publisher: 'Reuters' },
@@ -304,9 +303,7 @@ describe('explainNewsTemplate', () => {
   it('lists the retrieved articles with title and date', () => {
     const template = explainNewsTemplate('RELIANCE.NS', chunks);
     expect(template.answer).toContain('Recent news for RELIANCE.NS:');
-    expect(template.answer).toContain(
-      '"Reliance profit jumps" (2026-11-18).',
-    );
+    expect(template.answer).toContain('"Reliance profit jumps" (2026-11-18).');
     expect(template.claims).toHaveLength(1);
     expect(template.claims[0]?.source.tool).toBe('searchKnowledge');
   });

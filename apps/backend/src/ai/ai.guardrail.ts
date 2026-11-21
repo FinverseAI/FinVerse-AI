@@ -48,10 +48,7 @@ import type { AiAnswer, AiClaim } from './ai.validation';
  */
 
 export type GuardrailFeature =
-  | 'chat'
-  | 'explain-stock'
-  | 'explain-news'
-  | 'screen';
+  'chat' | 'explain-stock' | 'explain-news' | 'screen';
 
 export type GuardrailCheckType = 'source' | 'value' | 'text' | 'citation';
 
@@ -455,8 +452,7 @@ export function chunksFromToolResults(results: unknown[]): GuardrailChunk[] {
         title: asString(entry.title),
         symbol: asString(entry.symbol),
         publishedAt: asString(entry.publishedAt ?? entry.published_at),
-        sourceType:
-          asString(entry.sourceType ?? entry.source_type) ?? 'news',
+        sourceType: asString(entry.sourceType ?? entry.source_type) ?? 'news',
         content: asString(entry.content) ?? '',
       });
     }
@@ -491,10 +487,7 @@ function checkRow(
  * ("food" → "Food & Dining") is accepted; ambiguous prefixes do not
  * scope (an ambiguous scope would check against the wrong element).
  */
-function findScopedElement(
-  claim: AiClaim,
-  flat: FlatData,
-): FlatElement | null {
+function findScopedElement(claim: AiClaim, flat: FlatData): FlatElement | null {
   for (const value of Object.values(claim.source.values)) {
     if (typeof value !== 'string') continue;
     const norm = normalizeText(value);
@@ -502,8 +495,7 @@ function findScopedElement(
     const exact = flat.elements.find((element) => element.id === norm);
     if (exact) return exact;
     const prefixed = flat.elements.filter(
-      (element) =>
-        element.id.startsWith(norm) || norm.startsWith(element.id),
+      (element) => element.id.startsWith(norm) || norm.startsWith(element.id),
     );
     if (prefixed.length === 1) return prefixed[0] as FlatElement;
   }
@@ -714,9 +706,7 @@ function verifySearchKnowledgeClaim(
         if (!chunk.title) return false;
         const normChunk = normalizeText(chunk.title);
         if (normTitle.length < 10 || normChunk.length < 10) return false;
-        return (
-          normChunk.includes(normTitle) || normTitle.includes(normChunk)
-        );
+        return normChunk.includes(normTitle) || normTitle.includes(normChunk);
       }) ?? null;
     rows.push(
       checkRow(
@@ -778,13 +768,11 @@ function verifySearchKnowledgeClaim(
       (value): value is string =>
         typeof value === 'string' && normalizeText(value).length >= 10,
     );
-    const contentMatch =
-      strings.length > 0 &&
-      strings.some((value) =>
-        chunks.some((chunk) =>
-          normalizeText(chunk.content).includes(normalizeText(value)),
-        ),
-      );
+    const contentMatch = strings.some((value) =>
+      chunks.some((chunk) =>
+        normalizeText(chunk.content).includes(normalizeText(value)),
+      ),
+    );
     rows.push(
       checkRow(
         claimIndex,
@@ -825,9 +813,7 @@ function verifySearchKnowledgeClaim(
     );
   }
   for (const extracted of extractTextNumbers(claim.text)) {
-    rows.push(
-      checkTextNumber(claimIndex, claim, extracted, contentNumbers),
-    );
+    rows.push(checkTextNumber(claimIndex, claim, extracted, contentNumbers));
   }
   return { rows, numbers: contentNumbers };
 }
@@ -875,9 +861,7 @@ function verifyToolClaim(
   if (textNumbers.length > 0) {
     verifiable = true;
     for (const extracted of textNumbers) {
-      rows.push(
-        checkTextNumber(claimIndex, claim, extracted, declaredNumbers),
-      );
+      rows.push(checkTextNumber(claimIndex, claim, extracted, declaredNumbers));
     }
   }
   if (!verifiable) {

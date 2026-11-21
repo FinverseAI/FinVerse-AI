@@ -2,10 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import type { RagIngestService } from '../rag/rag.ingest';
 import type { RagRetrievalService } from '../rag/rag.retrieval';
 import type { RagService } from '../rag/rag.service';
-import type {
-  GuardrailCheckRow,
-  GuardrailContext,
-} from './ai.guardrail';
+import type { GuardrailCheckRow, GuardrailContext } from './ai.guardrail';
 import type { GuardrailCheckRepository } from './ai.guardrail.repository';
 import { GuardrailService } from './ai.guardrail.service';
 import type { ChatCompletion, ChatOptions, LlmClient } from './ai.provider';
@@ -75,7 +72,12 @@ const FUNDAMENTALS = {
 };
 
 function answerJson(answer: string, claims: unknown[]): string {
-  return JSON.stringify({ answer, claims, refused: false, refusalReason: null });
+  return JSON.stringify({
+    answer,
+    claims,
+    refused: false,
+    refusalReason: null,
+  });
 }
 
 /** A wrong amount: the tool says ₹12,800, the model says ₹99,999. */
@@ -106,15 +108,12 @@ const REFUSAL_JSON = JSON.stringify({
   refusalReason: 'I cannot predict what a stock will do tomorrow.',
 });
 
-const EXPLAIN_JSON = answerJson(
-  'RELIANCE.NS is trading at ₹2,600.00.',
-  [
-    {
-      text: 'The price is ₹2,600.00.',
-      source: { tool: 'getStockFundamentals', values: { price: 2600 } },
-    },
-  ],
-);
+const EXPLAIN_JSON = answerJson('RELIANCE.NS is trading at ₹2,600.00.', [
+  {
+    text: 'The price is ₹2,600.00.',
+    source: { tool: 'getStockFundamentals', values: { price: 2600 } },
+  },
+]);
 
 interface LoggedCheck {
   context: GuardrailContext;
@@ -328,8 +327,6 @@ describe('AiService guardrail flow', () => {
     expect(response.answer).not.toContain('₹5,00,000');
     expect(response.verification.status).toBe('template');
     const failures = repository.rows.filter((row) => !row.check.passed);
-    expect(
-      failures.some((row) => row.check.checkType === 'source'),
-    ).toBe(true);
+    expect(failures.some((row) => row.check.checkType === 'source')).toBe(true);
   });
 });

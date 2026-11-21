@@ -59,7 +59,9 @@ function asList(value: unknown): Array<Record<string, unknown>> {
 
 /** "+₹5,000" / "−₹3,000" — the sign stays with the number for matching. */
 function signedMoney(value: number): string {
-  return value < 0 ? `−${inr0.format(Math.abs(value))}` : `+${inr0.format(value)}`;
+  return value < 0
+    ? `−${inr0.format(Math.abs(value))}`
+    : `+${inr0.format(value)}`;
 }
 
 /** "+0.78%" / "−0.78%" — signed, so the text matches the declared value. */
@@ -80,7 +82,9 @@ function joinAnswer(claims: AiClaim[], empty: string): TemplateAnswer {
  * portfolio) the service already collects for the raw-metrics fallback.
  * Each section degrades independently; a missing section is skipped.
  */
-export function chatTemplate(snapshot: Record<string, unknown>): TemplateAnswer {
+export function chatTemplate(
+  snapshot: Record<string, unknown>,
+): TemplateAnswer {
   const claims: AiClaim[] = [];
   const budget = snapshot.getBudgetStatus;
   if (isRecord(budget) && budget.available !== false) {
@@ -295,10 +299,7 @@ export function explainStockTemplate(
       });
     }
   }
-  return joinAnswer(
-    claims,
-    `No computed figures are available for ${symbol}.`,
-  );
+  return joinAnswer(claims, `No computed figures are available for ${symbol}.`);
 }
 
 /** The explain-news fallback: the retrieved articles, listed. */

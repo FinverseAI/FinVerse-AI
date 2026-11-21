@@ -103,7 +103,15 @@ function makeService(
     newsForSymbol: jest.fn(),
     screen: jest.fn(),
   } as unknown as RagService;
-  return new AiService(config, tools, client, retrieval, ingest, rag, guardrail);
+  return new AiService(
+    config,
+    tools,
+    client,
+    retrieval,
+    ingest,
+    rag,
+    guardrail,
+  );
 }
 
 const DEFAULT_ENV: Record<string, string> = {

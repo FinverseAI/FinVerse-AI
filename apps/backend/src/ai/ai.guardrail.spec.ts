@@ -113,8 +113,7 @@ const NEWS_CHUNK = {
   user_id: null,
   symbol: 'RELIANCE.NS',
   title: 'Reliance profit jumps',
-  content:
-    'Reliance profit jumps 12% on strong retail sales. Source: Reuters.',
+  content: 'Reliance profit jumps 12% on strong retail sales. Source: Reuters.',
   published_at: new Date('2026-11-18T10:00:00Z'),
   url: 'https://example.test/a1',
   metadata: { publisher: 'Reuters' },
@@ -250,11 +249,9 @@ describe('verifyAnswer — legitimate answers pass', () => {
   it('passes a market-cap claim written in lakh crore', () => {
     const result = verifyAnswer(
       answer([
-        claim(
-          'The market cap is ₹17.6 lakh crore.',
-          'getStockFundamentals',
-          { marketCap: 17_600_000_000_000 },
-        ),
+        claim('The market cap is ₹17.6 lakh crore.', 'getStockFundamentals', {
+          marketCap: 17_600_000_000_000,
+        }),
       ]),
       context(),
     );
@@ -328,9 +325,7 @@ describe('verifyAnswer — legitimate answers pass', () => {
 
   it('accepts the P/E alias (pe → trailingPE)', () => {
     const result = verifyAnswer(
-      answer([
-        claim('The P/E is 25.4.', 'getStockFundamentals', { pe: 25.4 }),
-      ]),
+      answer([claim('The P/E is 25.4.', 'getStockFundamentals', { pe: 25.4 })]),
       context(),
     );
     expect(result.passed).toBe(true);
@@ -361,9 +356,9 @@ describe('verifyAnswer — corrupted outputs are caught (100%)', () => {
       context(),
     );
     expect(result.passed).toBe(false);
-    expect(
-      result.failures.some((check) => check.checkType === 'value'),
-    ).toBe(true);
+    expect(result.failures.some((check) => check.checkType === 'value')).toBe(
+      true,
+    );
     expect(result.failures[0]?.expected).toBe('8200');
   });
 
@@ -393,19 +388,18 @@ describe('verifyAnswer — corrupted outputs are caught (100%)', () => {
       context(),
     );
     expect(result.passed).toBe(false);
-    expect(
-      result.failures.some((check) => check.checkType === 'text'),
-    ).toBe(true);
+    expect(result.failures.some((check) => check.checkType === 'text')).toBe(
+      true,
+    );
   });
 
   it('catches a category swap (Food spending attributed to Transport)', () => {
     const result = verifyAnswer(
       answer([
-        claim(
-          'Transport is at ₹8,600 spent.',
-          'getBudgetStatus',
-          { category: 'Transport', spent: 8600 },
-        ),
+        claim('Transport is at ₹8,600 spent.', 'getBudgetStatus', {
+          category: 'Transport',
+          spent: 8600,
+        }),
       ]),
       context(),
     );
@@ -435,9 +429,9 @@ describe('verifyAnswer — corrupted outputs are caught (100%)', () => {
       context(),
     );
     expect(result.passed).toBe(false);
-    expect(
-      result.failures.some((check) => check.checkType === 'source'),
-    ).toBe(true);
+    expect(result.failures.some((check) => check.checkType === 'source')).toBe(
+      true,
+    );
   });
 
   it('catches a claim citing an invented tool', () => {
@@ -731,9 +725,9 @@ describe('extractTextNumbers', () => {
   });
 
   it('skips dates, years, periods, and small counts', () => {
-    expect(extractTextNumbers('On 2026-11-19 the 20-day average held.')).toEqual(
-      [],
-    );
+    expect(
+      extractTextNumbers('On 2026-11-19 the 20-day average held.'),
+    ).toEqual([]);
     expect(extractTextNumbers('Since 2024, across 3 signals.')).toEqual([]);
     expect(extractTextNumbers('The RSI (14) is steady.')).toEqual([]);
   });
@@ -780,8 +774,6 @@ describe('chunk normalisers', () => {
   });
 
   it('ignores malformed tool results', () => {
-    expect(chunksFromToolResults([null, {}, { chunks: 'nope' }])).toEqual(
-      [],
-    );
+    expect(chunksFromToolResults([null, {}, { chunks: 'nope' }])).toEqual([]);
   });
 });

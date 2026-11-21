@@ -421,9 +421,7 @@ export class AiService {
         userId,
         feature: 'chat',
         toolResults,
-        chunks: chunksFromToolResults(
-          toolResults.get('searchKnowledge') ?? [],
-        ),
+        chunks: chunksFromToolResults(toolResults.get('searchKnowledge') ?? []),
       };
       const { answer, verification } = await this.guardedAnswer(
         messages,
@@ -444,9 +442,7 @@ export class AiService {
         metrics: null,
         // A template answer is built by code, not by the model.
         model:
-          verification.status === 'template'
-            ? null
-            : this.config.primaryModel,
+          verification.status === 'template' ? null : this.config.primaryModel,
         toolsUsed,
         disclaimer: AI_DISCLAIMER,
         verification,
@@ -607,9 +603,7 @@ export class AiService {
         fallbackReason: null,
         metrics: null,
         model:
-          verification.status === 'template'
-            ? null
-            : this.config.primaryModel,
+          verification.status === 'template' ? null : this.config.primaryModel,
         toolsUsed: ['searchKnowledge'],
         disclaimer: AI_DISCLAIMER,
         verification,
@@ -743,9 +737,7 @@ export class AiService {
           note: translationNote,
         },
         model:
-          verification.status === 'template'
-            ? null
-            : this.config.primaryModel,
+          verification.status === 'template' ? null : this.config.primaryModel,
         toolsUsed: ['screenStocks'],
         disclaimer: AI_DISCLAIMER,
         verification,
@@ -873,7 +865,10 @@ export class AiService {
     const retryMessages: ChatMessage[] = [
       ...messages,
       { role: 'assistant', content: JSON.stringify(first) },
-      { role: 'user', content: guardrailCorrectionPrompt(firstResult.failures) },
+      {
+        role: 'user',
+        content: guardrailCorrectionPrompt(firstResult.failures),
+      },
     ];
     const second = await this.structuredAnswer(retryMessages, model, maxTokens);
     if (second.refused) {
