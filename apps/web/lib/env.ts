@@ -35,3 +35,14 @@ export function webOrigin() {
 export function backendUrl() {
   return configuredUrl("BACKEND_URL", "http://localhost:3001");
 }
+
+export function backendApiUrl(path: string) {
+  const base = configuredUrl("BACKEND_URL", "http://localhost:3001");
+  // Join the backend base path (e.g. /.netlify/functions/api) with the API
+  // path. new URL("/api/...", base) would DISCARD the base path because the
+  // path is absolute, so build the URL by string concatenation instead.
+  // With a path-less base (Render) this is identical to new URL(path, base).
+  const basePath = base.pathname.replace(/\/+$/, "");
+  const apiPath = path.startsWith("/") ? path : `/${path}`;
+  return new URL(`${basePath}${apiPath}`, base.origin);
+}

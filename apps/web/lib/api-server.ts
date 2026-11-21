@@ -1,5 +1,5 @@
 import "server-only";
-import { backendUrl, webOrigin } from "./env";
+import { backendApiUrl, webOrigin } from "./env";
 import { readRequestBody, RequestBodyError } from "./request-body";
 
 export async function forwardApiRequest(
@@ -31,7 +31,7 @@ export async function forwardApiRequest(
     );
   }
   try {
-    const response = await fetch(new URL(path, backendUrl()), {
+    const response = await fetch(backendApiUrl(path), {
       method: request.method,
       headers: {
         cookie: request.headers.get("cookie") ?? "",
