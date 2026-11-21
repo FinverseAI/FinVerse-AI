@@ -375,3 +375,194 @@ export function screenTemplate(screen: ScreenResponse): TemplateAnswer {
   }
   return joinAnswer(claims, 'No stocks matched your filters.');
 }
+
+/**
+ * The readiness fallback: the computed score, every factor with its
+ * measured number and points, and the deterministic suggestions. Every
+ * number in the prose is copied verbatim from the assessment with the
+ * tool's own field names, and every factor claim is scoped by the
+ * factor name so the guardrail checks it against that factor's own
+ * numbers. Percentages are stated with the stored 1-decimal value —
+ * restating 33.3% as 33% would fail the ±0.1 text check.
+ */
+export function readinessTemplate(assessment: unknown): TemplateAnswer {
+  const claims: AiClaim[] = [];
+  if (!isRecord(assessment) || assessment.available !== true) {
+    return joinAnswer(
+      claims,
+      'No readiness score is available — complete your financial profile first.',
+    );
+  }
+  const score = asNumber(assessment.score);
+  const scale = asNumber(assessment.scale);
+  const maxScore = asNumber(assessment.maxScore);
+  const band = asString(assessment.band);
+  if (score !== null && scale !== null) {
+    const values: Record<string, number> = { score, scale };
+    if (maxScore !== null) values.maxScore = maxScore;
+    let text = `Your investment readiness score is ${score} out of ${scale}${band ? ` (${band})` : ''}.`;
+    if (maxScore !== null && maxScore < scale) {
+      text += ` Only ${maxScore} of the ${scale} points could be measured from your data.`;
+    }
+    claims.push({
+      text,
+      source: { tool: 'getReadinessScore', values },
+    });
+  }
+  for (const factor of asList(assessment.factors)) {
+    const claim = readinessFactorClaim(factor);
+    if (claim) claims.push(claim);
+  }
+  for (const suggestion of asList(assessment.suggestions)) {
+    const claim = readinessSuggestionClaim(suggestion);
+    if (claim) claims.push(claim);
+  }
+  return joinAnswer(
+    claims,
+    'No readiness score is available — complete your financial profile first.',
+  );
+}
+
+function readinessFactorClaim(
+  factor: Record<string, unknown>,
+): AiClaim | null {
+  const name = asString(factor.name);
+  const points = asNumber(factor.points);
+  const maxPoints = asNumber(factor.maxPoints);
+  if (!name || points === null || maxPoints === null) return null;
+  if (factor.available !== true) {
+    // The factor's own detail says why (e.g. no priced holdings). A
+    // "₹0" in a detail still verifies: the factor's points are 0, and
+    // the scoped element's fields are part of the declared numbers.
+    const detail = asString(factor.detail);
+    const sentence = detail
+      ? `${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
+      : 'could not be measured.';
+    return {
+      text: `${name}: ${sentence}`,
+      source: { tool: 'getReadinessScore', values: { name } },
+    };
+  }
+  // The factor name is the first value so the guardrail scopes the
+  // numeric checks to this factor's own numbers.
+  const metric = asString(factor.metric);
+  switch (metric) {
+    case 'emergencyFundMonths': {
+      const months = asNumber(factor.months);
+      if (months === null) break;
+      return {
+        text: `Emergency fund: ${months} months of expenses saved, worth ${points} of ${maxPoints} points.`,
+        source: {
+          tool: 'getReadinessScore',
+          values: { name, months, points, maxPoints },
+        },
+      };
+    }
+    case 'debtToIncomeRatio': {
+      const totalDebt = asNumber(factor.totalDebt);
+      const annualIncome = asNumber(factor.annualIncome);
+      const ratio = asNumber(factor.debtToIncomeRatio);
+      if (totalDebt === null || annualIncome === null || ratio === null) break;
+      return {
+        text: `Debt-to-income: ${inr0.format(totalDebt)} of debt against ${inr0.format(annualIncome)} of annual income (ratio ${ratio}), worth ${points} of ${maxPoints} points.`,
+        source: {
+          tool: 'getReadinessScore',
+          values: { name, totalDebt, annualIncome, debtToIncomeRatio: ratio, points, maxPoints },
+        },
+      };
+    }
+    case 'surplusRatePercent': {
+      const surplus = asNumber(factor.surplus);
+      const rate = asNumber(factor.surplusRatePercent);
+      if (surplus === null || rate === null) break;
+      return {
+        text: `Monthly surplus: ${inr0.format(surplus)} a month (${rate}% of income), worth ${points} of ${maxPoints} points.`,
+        source: {
+          tool: 'getReadinessScore',
+          values: { name, surplus, surplusRatePercent: rate, points, maxPoints },
+        },
+      };
+    }
+    case 'largestHoldingWeightPercent': {
+      const largestHoldingSymbol = asString(factor.largestHoldingSymbol);
+      const weight = asNumber(factor.largestHoldingWeightPercent);
+      if (!largestHoldingSymbol || weight === null) break;
+      return {
+        text: `Portfolio concentration: your largest holding (${largestHoldingSymbol}) is ${weight}% of the portfolio, worth ${points} of ${maxPoints} points.`,
+        source: {
+          tool: 'getReadinessScore',
+          values: {
+            name,
+            largestHoldingSymbol,
+            largestHoldingWeightPercent: weight,
+            points,
+            maxPoints,
+          },
+        },
+      };
+    }
+    case 'volatilityPercent': {
+      const volatility = asNumber(factor.volatilityPercent);
+      const holdingsWithHistory = asNumber(factor.holdingsWithHistory);
+      if (volatility === null) break;
+      return {
+        text:
+          holdingsWithHistory !== null
+            ? `Portfolio volatility: ${volatility}% annualised across ${holdingsWithHistory} holding${holdingsWithHistory === 1 ? '' : 's'} with enough history, worth ${points} of ${maxPoints} points.`
+            : `Portfolio volatility: ${volatility}% annualised, worth ${points} of ${maxPoints} points.`,
+        source: {
+          tool: 'getReadinessScore',
+          values: {
+            name,
+            volatilityPercent: volatility,
+            ...(holdingsWithHistory !== null
+              ? { holdingsWithHistory }
+              : {}),
+            points,
+            maxPoints,
+          },
+        },
+      };
+    }
+    default:
+      break;
+  }
+  return {
+    text: `${name}: ${points} of ${maxPoints} points.`,
+    source: {
+      tool: 'getReadinessScore',
+      values: { name, points, maxPoints },
+    },
+  };
+}
+
+function readinessSuggestionClaim(
+  suggestion: Record<string, unknown>,
+): AiClaim | null {
+  // The action restates the factor's CURRENT numbers ("currently 50%")
+  // as well as the target, so the claim is scoped to the factor by
+  // name: the scoped element's fields then cover the current numbers
+  // in the prose, while the target fields fall through to the global
+  // scalars (the factor has no such fields).
+  const text = asString(suggestion.action);
+  const factorName = asString(suggestion.factor);
+  if (!text || !factorName) return null;
+  const values: Record<string, number | string> = { name: factorName };
+  for (const key of [
+    'pointsGain',
+    'targetMonths',
+    'targetDebt',
+    'targetSurplus',
+    'targetRatePercent',
+    'targetWeightPercent',
+    'targetVolatilityPercent',
+  ]) {
+    const value = asNumber(suggestion[key]);
+    if (value !== null) values[key] = value;
+  }
+  if (Object.keys(values).length <= 1) return null;
+  return {
+    text,
+    source: { tool: 'getReadinessScore', values },
+  };
+}

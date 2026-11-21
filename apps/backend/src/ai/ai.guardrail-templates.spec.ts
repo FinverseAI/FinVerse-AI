@@ -4,9 +4,14 @@ import {
   type GuardrailContext,
 } from './ai.guardrail';
 import {
+  scoreReadiness,
+  type ReadinessAssessment,
+} from '../readiness/readiness.formula';
+import {
   chatTemplate,
   explainNewsTemplate,
   explainStockTemplate,
+  readinessTemplate,
   screenTemplate,
   type TemplateAnswer,
 } from './ai.guardrail-templates';
@@ -345,6 +350,120 @@ describe('screenTemplate', () => {
     const result = verifyAnswer(
       asAnswer(template),
       context({ feature: 'screen', screen: SCREEN }),
+    );
+    expect(result.passed).toBe(true);
+    expect(result.checksFailed).toBe(0);
+  });
+});
+
+describe('readinessTemplate', () => {
+  function midAssessment(): ReadinessAssessment {
+    const result = scoreReadiness({
+      emergencyFundBand: '3-6',
+      monthlyIncome: 50000,
+      monthlyExpenses: 40000,
+      totalDebt: 120000,
+      holdings: [
+        { symbol: 'RELIANCE.NS', currentValue: 50000 },
+        { symbol: 'TCS.NS', currentValue: 50000 },
+      ],
+      holdingVolatilities: [
+        { symbol: 'RELIANCE.NS', volatility: 0.3, currentValue: 50000 },
+        { symbol: 'TCS.NS', volatility: 0.3, currentValue: 50000 },
+      ],
+    });
+    if (!result.available) throw new Error('expected an available assessment');
+    return result;
+  }
+
+  function noHoldingsAssessment(): ReadinessAssessment {
+    const result = scoreReadiness({
+      emergencyFundBand: '6+',
+      monthlyIncome: 60000,
+      monthlyExpenses: 30000,
+      totalDebt: 0,
+      holdings: [],
+      holdingVolatilities: [],
+    });
+    if (!result.available) throw new Error('expected an available assessment');
+    return result;
+  }
+
+  it('states the score, every factor, and the suggestions', () => {
+    const template = readinessTemplate(midAssessment());
+    expect(template.answer).toContain(
+      'Your investment readiness score is 71 out of 100 (Ready).',
+    );
+    expect(template.answer).toContain(
+      'Emergency fund: 4.5 months of expenses saved, worth 18.8 of 25 points.',
+    );
+    expect(template.answer).toContain(
+      'Debt-to-income: ₹1,20,000 of debt against ₹6,00,000 of annual income (ratio 0.2), worth 16 of 20 points.',
+    );
+    expect(template.answer).toContain(
+      'Monthly surplus: ₹10,000 a month (20% of income), worth 16.7 of 25 points.',
+    );
+    expect(template.answer).toContain(
+      'Portfolio concentration: your largest holding (RELIANCE.NS) is 50% of the portfolio, worth 9.4 of 15 points.',
+    );
+    expect(template.answer).toContain(
+      'Portfolio volatility: 30% annualised across 2 holdings with enough history, worth 10 of 15 points.',
+    );
+    expect(template.answer).toContain(
+      'Raising your monthly surplus to ₹15,000 (30% of income) would add 8.3 points.',
+    );
+  });
+
+  it('says which factors could not be measured, without inventing them', () => {
+    const template = readinessTemplate(noHoldingsAssessment());
+    expect(template.answer).toContain(
+      'Your investment readiness score is 100 out of 100 (Ready). Only 70 of the 100 points could be measured from your data.',
+    );
+    expect(template.answer).toContain(
+      'Portfolio concentration: no priced holdings, so concentration cannot be measured.',
+    );
+    expect(template.answer).toContain(
+      'Portfolio volatility: not enough price history for your holdings yet, so volatility cannot be measured.',
+    );
+  });
+
+  it('says so when no assessment exists at all', () => {
+    const template = readinessTemplate({
+      available: false,
+      reason: 'Complete your financial profile.',
+      missing: ['financial profile'],
+    });
+    expect(template.claims).toHaveLength(0);
+    expect(template.answer).toContain('No readiness score is available');
+  });
+
+  it('passes verification against the same assessment (invariant)', () => {
+    const assessment = midAssessment();
+    const template = readinessTemplate(assessment);
+    const result = verifyAnswer(
+      asAnswer(template),
+      context({
+        feature: 'explain-readiness',
+        toolResults: new Map<string, unknown[]>([
+          ['getReadinessScore', [assessment]],
+        ]),
+      }),
+    );
+    expect(result.passed).toBe(true);
+    expect(result.checksFailed).toBe(0);
+  });
+
+  it('passes verification with unavailable factors (invariant)', () => {
+    const assessment = noHoldingsAssessment();
+    const template = readinessTemplate(assessment);
+    const result = verifyAnswer(
+      asAnswer(template),
+      context({
+        feature: 'explain-readiness',
+        toolResults: new Map<string, unknown[]>([
+          ['getReadinessScore', [assessment]],
+        ]),
+      }),
     );
     expect(result.passed).toBe(true);
     expect(result.checksFailed).toBe(0);

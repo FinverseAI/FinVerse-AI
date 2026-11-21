@@ -4,6 +4,7 @@ import { MarketService } from '../market/market.service';
 import { PortfolioService } from '../market/portfolio.service';
 import { ProfileService } from '../profile/profile.service';
 import { RagRetrievalService } from '../rag/rag.retrieval';
+import { ReadinessService } from '../readiness/readiness.service';
 import { rsi, sma } from './indicators';
 import {
   AI_TOOL_DEFINITIONS,
@@ -37,6 +38,7 @@ function makeTools(
     history?: unknown;
     portfolio?: unknown;
     retrieval?: unknown;
+    readiness?: unknown;
   } = {},
 ) {
   // The raw jest.fn references are returned alongside the services so
@@ -65,6 +67,13 @@ function makeTools(
     .mockResolvedValue(
       overrides.retrieval ?? { available: true, chunks: [], reason: null },
     );
+  const assess = jest.fn().mockResolvedValue(
+    overrides.readiness ?? {
+      available: false,
+      reason: 'Complete your financial profile.',
+      missing: ['financial profile'],
+    },
+  );
   const profile = { get } as unknown as ProfileService;
   const activity = { transactions } as unknown as ActivityService;
   const market = {
@@ -74,7 +83,15 @@ function makeTools(
   } as unknown as MarketService;
   const portfolio = { portfolioSummary } as unknown as PortfolioService;
   const retrieval = { retrieve } as unknown as RagRetrievalService;
-  const tools = new AiTools(profile, activity, market, portfolio, retrieval);
+  const readiness = { assess } as unknown as ReadinessService;
+  const tools = new AiTools(
+    profile,
+    activity,
+    market,
+    portfolio,
+    retrieval,
+    readiness,
+  );
   return {
     tools,
     get,
@@ -83,12 +100,13 @@ function makeTools(
     history,
     portfolioSummary,
     retrieve,
+    assess,
   };
 }
 
 describe('AiTools', () => {
   describe('AI_TOOL_DEFINITIONS', () => {
-    it('declares eight tools, each with a schema', () => {
+    it('declares nine tools, each with a schema', () => {
       const names = AI_TOOL_DEFINITIONS.map(
         (definition) => definition.function.name,
       );
@@ -100,6 +118,7 @@ describe('AiTools', () => {
         'getStockFundamentals',
         'getCategorySpending',
         'getGoalProgress',
+        'getReadinessScore',
         'searchKnowledge',
       ]);
       for (const definition of AI_TOOL_DEFINITIONS) {
@@ -420,6 +439,26 @@ describe('AiTools', () => {
     });
   });
 
+  describe('getReadinessScore', () => {
+    it('returns the deterministic assessment from the readiness service', async () => {
+      const assessment = { available: true, score: 71, band: 'Ready' };
+      const { tools, assess } = makeTools({ readiness: assessment });
+      const result = await tools.execute(USER_ID, 'getReadinessScore', {});
+      expect(result).toBe(assessment);
+      expect(assess).toHaveBeenCalledWith(USER_ID);
+    });
+
+    it('passes the unavailable shape through unchanged', async () => {
+      const { tools } = makeTools();
+      const result = await tools.execute(USER_ID, 'getReadinessScore', {});
+      expect(result).toEqual({
+        available: false,
+        reason: 'Complete your financial profile.',
+        missing: ['financial profile'],
+      });
+    });
+  });
+
   describe('getStockQuote', () => {
     it('delegates to the market service', async () => {
       const quote = { symbol: 'RELIANCE', price: 1500, changePercent: 1.2 };
@@ -542,6 +581,7 @@ describe('AiTools', () => {
         } as unknown as MarketService,
         {} as PortfolioService,
         {} as RagRetrievalService,
+        {} as ReadinessService,
       );
       await expect(
         failing.execute(USER_ID, 'getStockFundamentals', {

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { SessionGuard } from '../auth/session.guard';
+import { scoreReadiness } from '../readiness/readiness.formula';
 import { RagIngestService } from '../rag/rag.ingest';
 import { RagRetrievalService } from '../rag/rag.retrieval';
 import { RagService } from '../rag/rag.service';
@@ -178,6 +179,10 @@ describe('ai endpoints', () => {
         .post('/api/ai/screen')
         .send({ query: 'cheap stocks' })
         .expect(401);
+      await request(server)
+        .post('/api/ai/explain-readiness')
+        .send({})
+        .expect(401);
     });
 
     it('rejects cross-origin requests', async () => {
@@ -345,6 +350,90 @@ describe('ai endpoints', () => {
       ).expect(200);
       expect(explain.body.fallback).toBe(true);
       expect(explain.body.metrics.symbol).toBe('RELIANCE');
+    });
+  });
+
+  describe('readiness endpoints', () => {
+    const assessment = scoreReadiness({
+      emergencyFundBand: '3-6',
+      monthlyIncome: 50000,
+      monthlyExpenses: 40000,
+      totalDebt: 120000,
+      holdings: [
+        { symbol: 'RELIANCE.NS', currentValue: 50000 },
+        { symbol: 'TCS.NS', currentValue: 50000 },
+      ],
+      holdingVolatilities: [
+        { symbol: 'RELIANCE.NS', volatility: 0.3, currentValue: 50000 },
+        { symbol: 'TCS.NS', volatility: 0.3, currentValue: 50000 },
+      ],
+    });
+    const readinessJson = JSON.stringify({
+      answer: 'Your readiness score is 71 out of 100 (Ready).',
+      claims: [
+        {
+          text: 'Your readiness score is 71 out of 100 (Ready).',
+          source: {
+            tool: 'getReadinessScore',
+            values: { score: 71, scale: 100 },
+          },
+        },
+      ],
+      refused: false,
+      refusalReason: null,
+    });
+
+    it('explains readiness with the reasoning model', async () => {
+      const { app } = await createApp(
+        configuredEnv,
+        [{ content: readinessJson, toolCalls: [], model: 'test-model' }],
+        assessment,
+      );
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-readiness')
+          .send({}),
+      ).expect(200);
+      expect(response.body.model).toBe('deepseek/deepseek-r1-0528');
+      expect(response.body.toolsUsed).toEqual(['getReadinessScore']);
+      expect(response.body.answer).toContain('71 out of 100');
+    });
+
+    it('refuses honestly when the score is unavailable', async () => {
+      const { app } = await createApp(configuredEnv, [], {
+        available: false,
+        reason: 'Complete your financial profile.',
+        missing: ['financial profile'],
+      });
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-readiness')
+          .send({}),
+      ).expect(200);
+      expect(response.body.refused).toBe(true);
+      expect(response.body.refusalReason).toBe(
+        'Complete your financial profile.',
+      );
+    });
+
+    it('falls back to the raw score when unconfigured', async () => {
+      const { app } = await createApp({}, [], assessment);
+      const response = await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-readiness')
+          .send({}),
+      ).expect(200);
+      expect(response.body.fallback).toBe(true);
+      expect(response.body.metrics.assessment.score).toBe(71);
+    });
+
+    it('rejects an over-long question', async () => {
+      const { app } = await createApp(configuredEnv, [], assessment);
+      await session(
+        request(app.getHttpServer())
+          .post('/api/ai/explain-readiness')
+          .send({ question: 'x'.repeat(501) }),
+      ).expect(400);
     });
   });
 
