@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   HttpException,
@@ -21,6 +22,20 @@ import { ScreenFiltersSchema } from '../rag/rag.validation';
 import { AiResponseCache } from './ai.cache';
 import { resolveAiConfig, type AiConfig } from './ai.config';
 import {
+  chunksFromRetrieved,
+  chunksFromToolResults,
+  type GuardrailContext,
+  type VerificationState,
+} from './ai.guardrail';
+import { GuardrailService } from './ai.guardrail.service';
+import {
+  chatTemplate,
+  explainNewsTemplate,
+  explainStockTemplate,
+  screenTemplate,
+  type TemplateAnswer,
+} from './ai.guardrail-templates';
+import {
   LLM_CLIENT,
   LlmProviderError,
   type ChatMessage,
@@ -37,6 +52,7 @@ import {
   STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
   correctionPrompt,
+  guardrailCorrectionPrompt,
 } from './ai.prompts';
 import { AiRateLimiter } from './ai.rate-limit';
 import {
@@ -80,6 +96,8 @@ export interface AiChatResponse {
   model: string | null;
   toolsUsed: string[];
   disclaimer: string;
+  /** Phase 3: how this answer was verified before it reached the user. */
+  verification: VerificationState;
 }
 
 /** The model answered twice without producing a valid structured answer. */
@@ -93,6 +111,24 @@ const REASONING_MAX_TOKENS = 4096;
 
 function truncate(value: string, max = MAX_TOOL_RESULT_CHARS): string {
   return value.length > max ? `${value.slice(0, max)}\u2026[truncated]` : value;
+}
+
+/** A tool result that is a failure marker, not evidence the model may cite. */
+function isToolError(result: unknown): boolean {
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    !Array.isArray(result) &&
+    typeof (result as Record<string, unknown>).error === 'string'
+  );
+}
+
+function unavailableVerification(): VerificationState {
+  return { status: 'unavailable', checksPassed: 0, checksFailed: 0 };
+}
+
+function refusedVerification(): VerificationState {
+  return { status: 'refused', checksPassed: 0, checksFailed: 0 };
 }
 
 /** A safe message to hand back to the model when a tool fails. */
@@ -122,6 +158,7 @@ export class AiService {
     private readonly retrieval: RagRetrievalService,
     private readonly ingest: RagIngestService,
     private readonly rag: RagService,
+    private readonly guardrail: GuardrailService,
   ) {
     this.config = resolveAiConfig((key) => configService.get<string>(key));
     this.limiter = new AiRateLimiter(
@@ -202,7 +239,13 @@ export class AiService {
             fundamentals,
             'AI explanations are not configured yet. Here are the computed figures without the narrative.',
           )
-        : await this.explainWithModel(symbol, question, fundamentals, context);
+        : await this.explainWithModel(
+            userId,
+            symbol,
+            question,
+            fundamentals,
+            context,
+          );
     this.cache.set(cacheKey, response);
     return response;
   }
@@ -266,9 +309,15 @@ export class AiService {
         model: null,
         toolsUsed: ['searchKnowledge'],
         disclaimer: AI_DISCLAIMER,
+        verification: refusedVerification(),
       };
     } else {
-      response = await this.explainNewsWithModel(symbol, question, context);
+      response = await this.explainNewsWithModel(
+        userId,
+        symbol,
+        question,
+        context,
+      );
     }
     this.cache.set(cacheKey, response);
     return response;
@@ -311,6 +360,7 @@ export class AiService {
         model: null,
         toolsUsed: ['screenStocks'],
         disclaimer: AI_DISCLAIMER,
+        verification: unavailableVerification(),
       };
       this.cache.set(cacheKey, response);
       return response;
@@ -330,6 +380,10 @@ export class AiService {
         { role: 'user', content: message },
       ];
       const toolsUsed: string[] = [];
+      // The guardrail checks the answer against exactly what the tools
+      // returned in THIS request, so successful results are retained
+      // (failures are not evidence — the model must not cite them).
+      const toolResults = new Map<string, unknown[]>();
       for (let round = 0; round < this.config.maxToolRounds; round++) {
         const completion = await this.client.chat({
           model: this.config.primaryModel,
@@ -350,6 +404,11 @@ export class AiService {
         for (const call of completion.toolCalls) {
           if (!toolsUsed.includes(call.name)) toolsUsed.push(call.name);
           const result = await this.runTool(userId, call);
+          if (!isToolError(result)) {
+            const results = toolResults.get(call.name) ?? [];
+            results.push(result);
+            toolResults.set(call.name, results);
+          }
           messages.push({
             role: 'tool',
             content: truncate(JSON.stringify(result)),
@@ -357,9 +416,23 @@ export class AiService {
           });
         }
       }
-      const answer = await this.structuredAnswer(
+      const guardrailContext: GuardrailContext = {
+        requestId: randomUUID(),
+        userId,
+        feature: 'chat',
+        toolResults,
+        chunks: chunksFromToolResults(
+          toolResults.get('searchKnowledge') ?? [],
+        ),
+      };
+      const { answer, verification } = await this.guardedAnswer(
         messages,
         this.config.primaryModel,
+        guardrailContext,
+        async () => {
+          const { metrics } = await this.snapshotMetrics(userId);
+          return chatTemplate(metrics);
+        },
       );
       return {
         answer: answer.answer,
@@ -369,9 +442,14 @@ export class AiService {
         fallback: false,
         fallbackReason: null,
         metrics: null,
-        model: this.config.primaryModel,
+        // A template answer is built by code, not by the model.
+        model:
+          verification.status === 'template'
+            ? null
+            : this.config.primaryModel,
         toolsUsed,
         disclaimer: AI_DISCLAIMER,
+        verification,
       };
     } catch (error) {
       if (
@@ -411,6 +489,7 @@ export class AiService {
   }
 
   private async explainWithModel(
+    userId: string,
     symbol: string,
     question: string | undefined,
     fundamentals: unknown,
@@ -436,9 +515,19 @@ export class AiService {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userContent },
       ];
-      const answer = await this.structuredAnswer(
+      const chunks = chunksFromRetrieved(context.chunks);
+      const guardrailContext: GuardrailContext = {
+        requestId: randomUUID(),
+        userId,
+        feature: 'explain-stock',
+        toolResults: new Map([['getStockFundamentals', [fundamentals]]]),
+        chunks,
+      };
+      const { answer, verification } = await this.guardedAnswer(
         messages,
         this.config.reasoningModel,
+        guardrailContext,
+        async () => explainStockTemplate(symbol, fundamentals),
         REASONING_MAX_TOKENS,
       );
       return {
@@ -449,12 +538,16 @@ export class AiService {
         fallback: false,
         fallbackReason: null,
         metrics: null,
-        model: this.config.reasoningModel,
+        model:
+          verification.status === 'template'
+            ? null
+            : this.config.reasoningModel,
         toolsUsed:
           context.available && context.chunks.length > 0
             ? ['getStockFundamentals', 'searchKnowledge']
             : ['getStockFundamentals'],
         disclaimer: AI_DISCLAIMER,
+        verification,
       };
     } catch (error) {
       if (
@@ -474,6 +567,7 @@ export class AiService {
   }
 
   private async explainNewsWithModel(
+    userId: string,
     symbol: string,
     question: string | undefined,
     context: RetrievedContext,
@@ -490,9 +584,19 @@ export class AiService {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userContent },
       ];
-      const answer = await this.structuredAnswer(
+      const chunks = chunksFromRetrieved(context.chunks);
+      const guardrailContext: GuardrailContext = {
+        requestId: randomUUID(),
+        userId,
+        feature: 'explain-news',
+        toolResults: new Map(),
+        chunks,
+      };
+      const { answer, verification } = await this.guardedAnswer(
         messages,
         this.config.primaryModel,
+        guardrailContext,
+        async () => explainNewsTemplate(symbol, chunks),
       );
       return {
         answer: answer.answer,
@@ -502,9 +606,13 @@ export class AiService {
         fallback: false,
         fallbackReason: null,
         metrics: null,
-        model: this.config.primaryModel,
+        model:
+          verification.status === 'template'
+            ? null
+            : this.config.primaryModel,
         toolsUsed: ['searchKnowledge'],
         disclaimer: AI_DISCLAIMER,
+        verification,
       };
     } catch (error) {
       if (
@@ -539,6 +647,7 @@ export class AiService {
       model: null,
       toolsUsed: ['searchKnowledge'],
       disclaimer: AI_DISCLAIMER,
+      verification: unavailableVerification(),
     };
   }
 
@@ -607,9 +716,19 @@ export class AiService {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userContent },
       ];
-      const answer = await this.structuredAnswer(
+      const guardrailContext: GuardrailContext = {
+        requestId: randomUUID(),
+        userId,
+        feature: 'screen',
+        toolResults: new Map(),
+        chunks: [],
+        screen,
+      };
+      const { answer, verification } = await this.guardedAnswer(
         messages,
         this.config.primaryModel,
+        guardrailContext,
+        async () => screenTemplate(screen),
       );
       return {
         answer: answer.answer,
@@ -623,9 +742,13 @@ export class AiService {
           filters,
           note: translationNote,
         },
-        model: this.config.primaryModel,
+        model:
+          verification.status === 'template'
+            ? null
+            : this.config.primaryModel,
         toolsUsed: ['screenStocks'],
         disclaimer: AI_DISCLAIMER,
+        verification,
       };
     } catch (error) {
       if (
@@ -644,6 +767,7 @@ export class AiService {
           model: null,
           toolsUsed: ['screenStocks'],
           disclaimer: AI_DISCLAIMER,
+          verification: unavailableVerification(),
         };
       }
       throw error;
@@ -667,6 +791,7 @@ export class AiService {
       model: null,
       toolsUsed: ['screenStocks'],
       disclaimer: AI_DISCLAIMER,
+      verification: unavailableVerification(),
     };
   }
 
@@ -709,6 +834,78 @@ export class AiService {
     throw new AiUnverifiableError();
   }
 
+  /**
+   * The guarded answer (Phase 3): every model answer is verified
+   * against the evidence of THIS request before it reaches the user.
+   * Refusals skip verification (there is nothing to check). A failed
+   * answer gets exactly ONE retry with a correction prompt naming the
+   * failed claims and their correct values; if it still fails, the
+   * template answer — built only from verified numbers — is returned
+   * instead. No unverified claim ever reaches the user.
+   *
+   * Malformed JSON keeps the existing behaviour: structuredAnswer
+   * throws AiUnverifiableError and the caller falls back to raw
+   * metrics. The template applies only to valid JSON that fails
+   * verification.
+   */
+  private async guardedAnswer(
+    messages: ChatMessage[],
+    model: string,
+    context: GuardrailContext,
+    template: () => Promise<TemplateAnswer>,
+    maxTokens?: number,
+  ): Promise<{ answer: AiAnswer; verification: VerificationState }> {
+    const first = await this.structuredAnswer(messages, model, maxTokens);
+    if (first.refused) {
+      return { answer: first, verification: refusedVerification() };
+    }
+    const firstResult = await this.guardrail.verify(first, context, 1);
+    if (firstResult.passed) {
+      return {
+        answer: first,
+        verification: {
+          status: 'verified',
+          checksPassed: firstResult.checksPassed,
+          checksFailed: 0,
+        },
+      };
+    }
+    const retryMessages: ChatMessage[] = [
+      ...messages,
+      { role: 'assistant', content: JSON.stringify(first) },
+      { role: 'user', content: guardrailCorrectionPrompt(firstResult.failures) },
+    ];
+    const second = await this.structuredAnswer(retryMessages, model, maxTokens);
+    if (second.refused) {
+      return { answer: second, verification: refusedVerification() };
+    }
+    const secondResult = await this.guardrail.verify(second, context, 2);
+    if (secondResult.passed) {
+      return {
+        answer: second,
+        verification: {
+          status: 'verified',
+          checksPassed: secondResult.checksPassed,
+          checksFailed: 0,
+        },
+      };
+    }
+    const built = await template();
+    return {
+      answer: {
+        answer: built.answer,
+        claims: built.claims,
+        refused: false,
+        refusalReason: null,
+      },
+      verification: {
+        status: 'template',
+        checksPassed: secondResult.checksPassed,
+        checksFailed: secondResult.checksFailed,
+      },
+    };
+  }
+
   private async runTool(userId: string, call: ToolCall): Promise<unknown> {
     let args: unknown;
     try {
@@ -739,6 +936,7 @@ export class AiService {
       model: null,
       toolsUsed,
       disclaimer: AI_DISCLAIMER,
+      verification: unavailableVerification(),
     };
   }
 
@@ -758,6 +956,7 @@ export class AiService {
       model: null,
       toolsUsed: ['getStockFundamentals'],
       disclaimer: AI_DISCLAIMER,
+      verification: unavailableVerification(),
     };
   }
 
