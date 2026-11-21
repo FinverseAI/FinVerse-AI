@@ -1,0 +1,1 @@
+{"dependencies":{"@netlify/functions":"^6.1.1","serverless-http":"^3.2.0"},"name":"finverse-netlify-functions","private":true,"version":"0.0.1"}

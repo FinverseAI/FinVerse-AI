@@ -1,0 +1,7 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  # Keep Prisma out of the esbuild bundle: its query-engine binaries are
+  # native files that must ship alongside the function as node modules.
+  external_node_modules = ["@prisma/client", ".prisma"]
