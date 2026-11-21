@@ -1,0 +1,12 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  # Keep Prisma out of the esbuild bundle: its query-engine binaries are
+  # native files that must ship alongside the function as node modules.
+  # The @nestjs/* entries are lazy dynamic imports inside @nestjs/core for
+  # features this app never uses (microservices, websockets, validation
+  # pipes, class serialisation). They are not installed, so esbuild must
+  # leave them as runtime requires instead of failing the bundle; the
+  # code paths that would load them are never executed.
+  external_node_modules = ["@prisma/client", ".prisma", "@nestjs/microservices", "@nestjs/websockets", "class-validator", "class-transformer"]

@@ -4,9 +4,7 @@ FinVerse uses the existing Next.js Better Auth session, NestJS backend, Prisma, 
 
 ## Setup and migration
 
-Start PostgreSQL first. For the repository's Docker Compose setup, start Docker Desktop, then run `docker compose up -d postgres` from the repository root.
-
-Ensure `DATABASE_URL` in `apps/backend/.env` and `apps/web/.env` points to the same PostgreSQL database. Keep the existing Better Auth secret and Google OAuth settings in `apps/web/.env`.
+Set `DATABASE_URL` in `apps/backend/.env` and `apps/web/.env` to the pooled connection string from Neon. Set `DIRECT_URL` in `apps/backend/.env` to the direct connection string for the same branch and database. Keep the existing Better Auth secret and Google OAuth settings in `apps/web/.env`.
 
 Set these server-only URLs when using addresses other than the defaults:
 
@@ -35,7 +33,7 @@ Start both applications from the repository root:
 npm run dev
 ```
 
-The backend's `dev` script lets Turbo start NestJS alongside Next.js. PostgreSQL must already be running. If `/api/profile` returns `503`, check that the backend is listening on port 3001 and that `BACKEND_URL` points to it.
+The backend's `dev` script lets Turbo start NestJS alongside Next.js. If `/api/profile` returns `503`, check that the backend is listening on port 3001 and that `BACKEND_URL` points to it.
 
 Alternatively, run the applications in separate terminals from the repository root:
 

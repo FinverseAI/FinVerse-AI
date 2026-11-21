@@ -31,6 +31,7 @@
   ],
   "dependencies": {
     "@prisma/client": "^6.16.3",
-    "prisma": "^6.16.3"
+    "prisma": "^6.16.3",
+    "serverless-http": "^3.2.0"
   }
 }
