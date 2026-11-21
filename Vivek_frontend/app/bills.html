@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bills · FinVerse</title>
+  <meta name="description" content="Bills due this month — what's paid, what's coming up, and what needs your attention.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="bills" data-title="Bills">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Bills</h1>
+            </div>
+            <p class="lede">What's due, what's paid, and what needs your attention before the month ends.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-primary" type="button" data-open-modal="add-bill-modal">+ Add bill</button>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg></div>
+            <div><div class="stat-label">Due this month</div><div class="stat-value" id="stat-due">₹0</div><div class="stat-sub" id="stat-due-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 3 8.4 7 10 4-1.6 7-5.5 7-10V6z"/><path d="m9 12 2 2 4-4.5"/></svg></div>
+            <div><div class="stat-label">Paid so far</div><div class="stat-value" id="stat-paid">₹0</div><div class="stat-sub" id="stat-paid-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+            <div><div class="stat-label">Upcoming</div><div class="stat-value" id="stat-upcoming">0</div><div class="stat-sub" id="stat-upcoming-sub">—</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="upcoming-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="upcoming-heading">Upcoming bills</h2>
+                <p>Sorted by due date.</p>
+              </div>
+            </div>
+            <ul class="list-rows" id="upcoming-list"></ul>
+            <div class="empty-state" id="upcoming-empty" hidden>
+              <h3>All caught up</h3>
+              <p>No upcoming bills — everything is paid.</p>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="paid-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="paid-heading">Paid bills</h2>
+                <p>Settled this cycle.</p>
+              </div>
+            </div>
+            <ul class="list-rows" id="paid-list"></ul>
+            <div class="empty-state" id="paid-empty" hidden>
+              <h3>Nothing paid yet</h3>
+              <p>Mark a bill paid and it will show up here.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="callout">
+          <strong>Heads up:</strong> your credit-card bill of ₹8,450 is due on 25 November. Paying it in full keeps the interest clock at zero — the card is currently cleared every month.
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add bill modal -->
+  <div class="modal-backdrop" id="add-bill-modal" role="dialog" aria-modal="true" aria-labelledby="add-bill-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="add-bill-title">Add a bill</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="add-bill-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="bill-name">Bill name</label>
+            <input id="bill-name" name="name" type="text" placeholder="e.g. Water bill" required>
+          </div>
+          <div class="field">
+            <label for="bill-payee">Payee</label>
+            <input id="bill-payee" name="payee" type="text" placeholder="e.g. Jal Board" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="bill-amount">Amount (₹)</label>
+            <input id="bill-amount" name="amount" type="number" min="1" step="1" placeholder="e.g. 750" required>
+          </div>
+          <div class="field">
+            <label for="bill-due">Due date</label>
+            <input id="bill-due" name="due" type="date" value="2026-11-30" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add bill</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/bills.js"></script>
+</body>
+</html>

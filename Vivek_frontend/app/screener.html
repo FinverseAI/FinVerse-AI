@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Screener · FinVerse</title>
+  <meta name="description" content="Filter all 15 NSE stocks by price, P/E, RSI, sector, trend and market cap — or ask in plain words.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="screener" data-title="Smart Screener">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Smart Screener</h1>
+            </div>
+            <p class="lede">Narrow the 15-stock universe to the names that match your rules — results update as you type.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-outline" type="button" id="reset-filters">Reset filters</button>
+          </div>
+        </div>
+
+        <section class="card" aria-labelledby="nl-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="nl-heading">Ask in plain words</h2>
+              <p>Try “banking stocks with RSI below 50” or “IT stocks with PE below 30 and price above 1500”.</p>
+            </div>
+          </div>
+          <div class="chat-input-row">
+            <label class="sr-only" for="nl-input">Describe the stocks you want</label>
+            <input id="nl-input" type="text" placeholder="e.g. banking stocks with RSI below 50" autocomplete="off">
+            <button class="btn btn-primary" type="button" id="nl-apply">Apply</button>
+          </div>
+          <div class="callout" style="margin-top:1rem">
+            <strong>How this works:</strong> all filtering is deterministic — the numbers decide which stocks match.
+            The language model only translates your words into filter settings; it never picks stocks itself.
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="filters-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="filters-heading">Filters</h2>
+              <p>Leave any field blank to ignore it.</p>
+            </div>
+          </div>
+          <div class="form-row-4">
+            <div class="field">
+              <label for="f-min-price">Min price (₹)</label>
+              <input id="f-min-price" type="number" min="0" step="0.01" placeholder="Any">
+            </div>
+            <div class="field">
+              <label for="f-max-price">Max price (₹)</label>
+              <input id="f-max-price" type="number" min="0" step="0.01" placeholder="Any">
+            </div>
+            <div class="field">
+              <label for="f-min-pe">Min P/E</label>
+              <input id="f-min-pe" type="number" min="0" step="0.1" placeholder="Any">
+            </div>
+            <div class="field">
+              <label for="f-max-pe">Max P/E</label>
+              <input id="f-max-pe" type="number" min="0" step="0.1" placeholder="Any">
+            </div>
+          </div>
+          <div class="form-row-4">
+            <div class="field">
+              <label for="f-min-rsi">Min RSI</label>
+              <input id="f-min-rsi" type="number" min="0" max="100" step="0.1" placeholder="Any">
+            </div>
+            <div class="field">
+              <label for="f-max-rsi">Max RSI</label>
+              <input id="f-max-rsi" type="number" min="0" max="100" step="0.1" placeholder="Any">
+            </div>
+            <div class="field">
+              <label for="f-sector">Sector</label>
+              <select id="f-sector">
+                <option value="">All sectors</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-trend">SMA trend</label>
+              <select id="f-trend">
+                <option value="">All trends</option>
+                <option value="above-sma20">Above SMA-20</option>
+                <option value="below-sma20">Below SMA-20</option>
+                <option value="golden">Golden cross (SMA-20 &gt; SMA-50)</option>
+                <option value="death">Death cross (SMA-20 &lt; SMA-50)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row-4">
+            <div class="field" style="margin-bottom:0">
+              <label for="f-min-cap">Min market cap (₹ crore)</label>
+              <input id="f-min-cap" type="number" min="0" step="1000" placeholder="Any">
+            </div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="results-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="results-heading">Results</h2>
+              <p id="results-count">15 of 15 stocks match.</p>
+            </div>
+            <a class="card-link" href="market.html">See the full market table →</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="results-table">
+              <thead><tr>
+                <th scope="col">Symbol</th>
+                <th scope="col">Name</th>
+                <th scope="col" class="num">Price</th>
+                <th scope="col" class="num">Change %</th>
+                <th scope="col" class="num">P/E</th>
+                <th scope="col" class="num">RSI</th>
+                <th scope="col">Sector</th>
+                <th scope="col" class="num">Market cap</th>
+                <th scope="col">Trend</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/screener.js"></script>
+</body>
+</html>

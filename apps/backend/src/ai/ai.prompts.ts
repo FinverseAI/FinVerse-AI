@@ -130,3 +130,37 @@ export function correctionPrompt(invalidOutput: string): string {
     invalidOutput.slice(0, 1000),
   ].join('\n');
 }
+
+/**
+ * The Phase 3 guardrail retry: the model's answer was valid JSON but
+ * failed verification, so the retry names exactly which claims were
+ * wrong and the correct values. Capped at 8 failures so one bad
+ * answer cannot flood the prompt.
+ */
+export function guardrailCorrectionPrompt(
+  failures: Array<{
+    claimText: string;
+    detail: string;
+    expected: string | null;
+  }>,
+): string {
+  const lines = failures.slice(0, 8).map((failure) => {
+    const claim =
+      failure.claimText.length > 120
+        ? `${failure.claimText.slice(0, 120)}\u2026`
+        : failure.claimText;
+    const correction =
+      failure.expected !== null
+        ? ` The correct value is ${failure.expected}.`
+        : '';
+    return `- Claim "${claim}": ${failure.detail}${correction}`;
+  });
+  return [
+    'Your previous answer did not pass verification against the tool',
+    'results. The following claims were wrong:',
+    ...lines,
+    'Reply again with ONLY the JSON object in the required shape, using',
+    'the correct values above. Do not restate any claim you cannot',
+    'support from the tool results — if a claim cannot be fixed, drop it.',
+  ].join('\n');
+}

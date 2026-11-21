@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watchlist · FinVerse</title>
+  <meta name="description" content="Stocks you're watching, with your notes and price alerts — checked against today's prices.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="watchlist" data-title="Watchlist">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Your watchlist</h1>
+            </div>
+            <p class="lede">Stocks you're keeping an eye on, with your own notes and price alerts.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-primary" type="button" data-open-modal="add-watch-modal">+ Add to watchlist</button>
+          </div>
+        </div>
+
+        <section class="card" aria-labelledby="watch-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="watch-heading">Watched stocks</h2>
+              <p id="watch-count">5 stocks on your watchlist.</p>
+            </div>
+            <a class="card-link" href="market.html">Browse the market →</a>
+          </div>
+          <div id="watch-table-wrap">
+            <div class="table-wrap">
+              <table class="data" id="watch-table">
+                <thead><tr>
+                  <th scope="col">Symbol</th>
+                  <th scope="col" class="num">Price</th>
+                  <th scope="col" class="num">Change %</th>
+                  <th scope="col">Your note</th>
+                  <th scope="col">Alert</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="sr-only">Actions</span></th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="empty-state" id="watch-empty" style="display:none">
+            <h3>Your watchlist is empty</h3>
+            <p>Add stocks from the market to keep an eye on them here.</p>
+            <p style="margin-top:1rem"><a class="btn btn-primary" href="market.html">Browse the market</a></p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add to watchlist modal -->
+  <div class="modal-backdrop" id="add-watch-modal" role="dialog" aria-modal="true" aria-labelledby="add-watch-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="add-watch-title">Add to watchlist</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="add-watch-form">
+        <div class="field">
+          <label for="watch-symbol">Stock</label>
+          <select id="watch-symbol" name="symbol" required></select>
+          <p class="hint">Only stocks not already on your watchlist are listed.</p>
+        </div>
+        <div class="field">
+          <label for="watch-note">Note (optional)</label>
+          <input id="watch-note" name="note" type="text" placeholder="e.g. Add on dips below ₹1,600" maxlength="120">
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="watch-above">Alert above (₹, optional)</label>
+            <input id="watch-above" name="alertAbove" type="number" min="0.01" step="0.01" placeholder="e.g. 3800">
+          </div>
+          <div class="field">
+            <label for="watch-below">Alert below (₹, optional)</label>
+            <input id="watch-below" name="alertBelow" type="number" min="0.01" step="0.01" placeholder="e.g. 1600">
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add to watchlist</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/watchlist.js"></script>
+</body>
+</html>

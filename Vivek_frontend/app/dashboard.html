@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard · FinVerse</title>
+  <meta name="description" content="Your November overview: income, spending, bills and savings in one place.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="dashboard" data-title="Dashboard">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1 id="month-title">November overview</h1>
+            </div>
+            <p class="lede">Your month at a glance — income, spending, bills and savings, all from your own ledger.</p>
+          </div>
+          <div class="page-head-actions">
+            <label class="sr-only" for="month-select">Choose a month</label>
+            <select id="month-select" style="width:auto;min-width:180px">
+              <option value="2026-09">September 2026</option>
+              <option value="2026-10">October 2026</option>
+              <option value="2026-11" selected>November 2026</option>
+            </select>
+            <button class="btn btn-primary" type="button" data-open-modal="add-txn-modal">+ Add transaction</button>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Monthly income</div><div class="stat-value" id="stat-income">₹60,000</div><div class="stat-sub">Salary + freelance</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 9a7 7 0 0 0-13.3-1.5A3 3 0 0 0 4 12.5 3 3 0 0 0 6.5 15H18a2 2 0 0 0 2-2c0-.6-.3-1.2-.7-1.6.5-.6.7-1.4.7-2.4zM6 18v2M17 18v2"/></svg></div>
+            <div><div class="stat-label">Available</div><div class="stat-value" id="stat-available">₹18,400</div><div class="stat-sub" id="stat-available-sub">31% of income left</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Spent so far</div><div class="stat-value" id="stat-spent">₹41,600</div><div class="stat-sub" id="stat-spent-sub">vs ₹43,100 in October</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Saved this month</div><div class="stat-value" id="stat-saved">₹12,000</div><div class="stat-sub">SIP ₹10,000 + fund ₹2,000</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="spending-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="spending-heading">Spending breakdown</h2>
+                <p>Where the month's money went, by category.</p>
+              </div>
+              <a class="card-link" href="budget.html">Manage budget →</a>
+            </div>
+            <div class="grid grid-2" style="align-items:center">
+              <div class="chart-box-sm"><canvas id="donut-chart" aria-label="Donut chart of spending by category" role="img"></canvas></div>
+              <ul class="legend" id="donut-legend" style="font-size:.95rem"></ul>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="bills-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="bills-heading">Upcoming bills</h2>
+                <p>Next 30 days.</p>
+              </div>
+              <a class="card-link" href="bills.html">View all →</a>
+            </div>
+            <ul class="list-rows" id="bills-list"></ul>
+          </section>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="daily-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="daily-heading">Your spending this month</h2>
+                <p>Daily spending, in rupees.</p>
+              </div>
+              <a class="card-link" href="transactions.html">View details →</a>
+            </div>
+            <div class="chart-box"><canvas id="bars-chart" aria-label="Bar chart of daily spending" role="img"></canvas></div>
+          </section>
+
+          <div class="grid">
+            <section class="card" aria-labelledby="ai-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="ai-heading">Ask FinVerse AI</h2>
+                  <p>An explained answer, with evidence.</p>
+                </div>
+              </div>
+              <p style="margin:0 0 1rem;color:var(--ink-soft)">“Food spending is down 6% from October, but your rent now takes 35% of income — the biggest single line in your month.”</p>
+              <a class="btn btn-outline btn-sm" href="ai-chat.html">Ask a question →</a>
+            </section>
+            <section class="card" aria-labelledby="goals-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="goals-heading">Goals snapshot</h2>
+                </div>
+                <a class="card-link" href="goals.html">All goals →</a>
+              </div>
+              <div id="goals-snapshot" style="display:grid;gap:1rem"></div>
+            </section>
+          </div>
+        </div>
+
+        <section class="card" aria-labelledby="recent-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="recent-heading">Recent transactions</h2>
+              <p>Your latest activity.</p>
+            </div>
+            <a class="card-link" href="transactions.html">All transactions →</a>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="recent-table">
+              <thead><tr><th scope="col">Date</th><th scope="col">Merchant</th><th scope="col">Category</th><th scope="col" class="num">Amount</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add transaction modal -->
+  <div class="modal-backdrop" id="add-txn-modal" role="dialog" aria-modal="true" aria-labelledby="add-txn-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="add-txn-title">Add a transaction</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="add-txn-form">
+        <div class="field">
+          <label for="txn-merchant">Merchant / description</label>
+          <input id="txn-merchant" name="merchant" type="text" placeholder="e.g. BigBasket" required>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="txn-amount">Amount (₹)</label>
+            <input id="txn-amount" name="amount" type="number" min="1" step="1" placeholder="e.g. 1200" required>
+          </div>
+          <div class="field">
+            <label for="txn-category">Category</label>
+            <select id="txn-category" name="category"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="txn-date">Date</label>
+            <input id="txn-date" name="date" type="date" value="2026-11-21" required>
+          </div>
+          <div class="field">
+            <label for="txn-type">Type</label>
+            <select id="txn-type" name="type">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/dashboard.js"></script>
+</body>
+</html>

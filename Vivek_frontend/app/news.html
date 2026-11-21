@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News &amp; Sentiment · FinVerse</title>
+  <meta name="description" content="Market news with AI sentiment scores for the stocks you follow.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="news" data-title="News &amp; Sentiment">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>News &amp; sentiment</h1>
+            </div>
+            <p class="lede">The latest stories on your stocks, each scored for sentiment — so you see the mood, not just the headline.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div><div class="stat-label">Positive stories</div><div class="stat-value" id="stat-positive">—</div><div class="stat-sub">Sentiment above +0.3</div></div>
+          </div>
+          <div class="stat-card">
+            <div><div class="stat-label">Neutral stories</div><div class="stat-value" id="stat-neutral">—</div><div class="stat-sub">Sentiment near zero</div></div>
+          </div>
+          <div class="stat-card">
+            <div><div class="stat-label">Negative stories</div><div class="stat-value" id="stat-negative">—</div><div class="stat-sub">Sentiment below −0.3</div></div>
+          </div>
+          <div class="stat-card">
+            <div><div class="stat-label">Average sentiment</div><div class="stat-value" id="stat-avg">—</div><div class="stat-sub">Across all stories today</div></div>
+          </div>
+        </div>
+
+        <div class="toolbar">
+          <div class="pill-switch" id="sentiment-filter" role="group" aria-label="Filter by sentiment">
+            <button type="button" data-sentiment="all" class="active">All</button>
+            <button type="button" data-sentiment="positive">Positive</button>
+            <button type="button" data-sentiment="neutral">Neutral</button>
+            <button type="button" data-sentiment="negative">Negative</button>
+          </div>
+          <label class="sr-only" for="stock-filter">Filter by stock</label>
+          <select id="stock-filter"></select>
+        </div>
+
+        <div class="grid grid-2" id="news-list"></div>
+
+        <div class="empty-state" id="news-empty" hidden>
+          <h3>No stories match those filters</h3>
+          <p>Try a different sentiment or stock.</p>
+        </div>
+
+        <div class="callout" style="margin-top:1.25rem">
+          <strong>How sentiment is scored.</strong> Each score (−1 to +1) is computed from the headline and summary by the FinVerse AI model. A score near +1 means strongly positive language; near −1, strongly negative. Want the reasoning behind a score? <a href="ai-chat.html">Ask FinVerse AI</a> about the stock and it will explain it with evidence.
+        </div>
+        <div class="disclaimer">Decision support, not financial advice. Sentiment reflects the tone of news coverage, not a recommendation.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/news.js"></script>
+</body>
+</html>

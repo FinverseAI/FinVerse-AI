@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock · FinVerse</title>
+  <meta name="description" content="Price chart, technical indicators and a FinVerse AI explanation for one NSE stock.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="stock" data-title="Stock detail">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1 id="stock-name">Reliance Industries</h1>
+              <span class="chip" id="stock-sector">Energy</span>
+            </div>
+            <p class="lede"><a href="market.html">← Back to Market</a> · <span id="stock-symbol-line">NSE: RELIANCE</span></p>
+          </div>
+          <div class="page-head-actions">
+            <div class="pill-switch" id="stock-switch" role="group" aria-label="Quick switch stock">
+              <button type="button" data-symbol="RELIANCE" class="active">RELIANCE</button>
+              <button type="button" data-symbol="TCS">TCS</button>
+              <button type="button" data-symbol="INFY">INFY</button>
+              <button type="button" data-symbol="HDFCBANK">HDFCBANK</button>
+            </div>
+            <label class="sr-only" for="stock-select">Choose a stock</label>
+            <select id="stock-select" style="width:auto;min-width:190px"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Current price</div><div class="stat-value" id="stock-price">₹2,987.40</div><div class="stat-sub" id="stock-price-sub">NSE · 21 Nov 2026</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></div>
+            <div><div class="stat-label">Today's change</div><div class="stat-value"><span class="badge badge-up" id="stock-change-badge">+1.84%</span></div><div class="stat-sub" id="stock-trend-sub">Above SMA-20</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><path d="M4 18h16"/></svg></div>
+            <div style="flex:1;min-width:0"><div class="stat-label">52-week range</div>
+              <div class="stat-value" id="stock-range-text" style="font-size:1.05rem;margin:0.3rem 0 0.5rem">₹2,440.15 – ₹3,210.00</div>
+              <div class="progress"><i id="stock-range-bar" style="width:50%"></i></div>
+              <div class="progress-labels"><span id="stock-range-low">52w low</span><span id="stock-range-pos">Price sits mid-range</span><span id="stock-range-high">52w high</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="toolbar" style="margin-bottom:1.25rem">
+          <button class="btn btn-primary" type="button" id="add-watchlist-btn">+ Add to watchlist</button>
+          <a class="btn btn-outline" id="why-moved-link" href="why-moved.html?symbol=RELIANCE">Why did it move? →</a>
+          <a class="btn btn-outline" id="ask-ai-link" href="ai-chat.html?stock=RELIANCE">Ask AI about this stock →</a>
+        </div>
+
+        <section class="card" aria-labelledby="price-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="price-heading">Price history</h2>
+              <p id="price-sub">Closing prices, last 60 days.</p>
+            </div>
+            <div class="pill-switch" id="range-switch" role="group" aria-label="Chart range">
+              <button type="button" data-range="1M">1M</button>
+              <button type="button" data-range="3M" class="active">3M</button>
+            </div>
+          </div>
+          <div class="chart-box-lg"><canvas id="price-chart" aria-label="Line chart of the stock price history" role="img"></canvas></div>
+        </section>
+
+        <section class="card" aria-labelledby="indicators-heading" style="margin-bottom:1.25rem">
+          <div class="card-head">
+            <div>
+              <h2 id="indicators-heading">Key indicators</h2>
+              <p>Technical and fundamental snapshot from FinVerse market data.</p>
+            </div>
+          </div>
+          <div class="grid grid-4" id="indicators-grid"></div>
+        </section>
+
+        <section class="card" aria-labelledby="ai-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="ai-heading">FinVerse AI explains</h2>
+              <p>An explained read of this stock — built from its own numbers, with evidence.</p>
+            </div>
+          </div>
+          <p id="ai-explanation" style="margin:0 0 0.5rem;color:var(--ink-soft)"></p>
+          <ul class="citations" id="ai-citations"></ul>
+          <p class="guardrail-note">✓ Guardrail: this explanation uses only FinVerse market data — no outside news, tips or predictions.</p>
+          <p class="disclaimer">FinVerse AI explains, it does not advise. This is not investment advice; past performance does not guarantee future returns.</p>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/stock.js"></script>
+</body>
+</html>

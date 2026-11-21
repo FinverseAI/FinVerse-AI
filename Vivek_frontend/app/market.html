@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Market · FinVerse</title>
+  <meta name="description" content="Nifty 50, Sensex, market breadth and all 15 NSE stocks in the FinVerse universe — searchable, sortable, filterable.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="market" data-title="Market">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Market overview</h1>
+            </div>
+            <p class="lede">Indices, breadth and every stock in the FinVerse universe — live demo data, updated for today.</p>
+          </div>
+          <div class="page-head-actions">
+            <a class="btn btn-outline" href="screener.html">Open Smart Screener →</a>
+          </div>
+        </div>
+
+        <div class="grid grid-4" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Nifty 50</div><div class="stat-value">26,184.55</div><div class="stat-sub"><span class="up">▲ +0.82% today</span></div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></div>
+            <div><div class="stat-label">Sensex</div><div class="stat-value">85,940.30</div><div class="stat-sub"><span class="up">▲ +0.76% today</span></div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><path d="M4 18h16"/></svg></div>
+            <div><div class="stat-label">India VIX</div><div class="stat-value">12.8</div><div class="stat-sub">Low volatility — calm markets</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Market breadth</div><div class="stat-value">68% advancing</div><div class="stat-sub">Stocks above their 50-day average</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="nifty-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="nifty-heading">Nifty 50 — last 60 days</h2>
+                <p>Index trend, derived from FinVerse market data.</p>
+              </div>
+            </div>
+            <div class="chart-box-lg"><canvas id="nifty-chart" aria-label="Line chart of the Nifty 50 over the last 60 days" role="img"></canvas></div>
+          </section>
+
+          <div class="grid">
+            <section class="card" aria-labelledby="gainers-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="gainers-heading">Top gainers</h2>
+                  <p>Best performers today.</p>
+                </div>
+              </div>
+              <ul class="list-rows" id="gainers-list"></ul>
+            </section>
+            <section class="card" aria-labelledby="losers-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="losers-heading">Top losers</h2>
+                  <p>Weakest performers today.</p>
+                </div>
+              </div>
+              <ul class="list-rows" id="losers-list"></ul>
+            </section>
+          </div>
+        </div>
+
+        <section class="card" aria-labelledby="all-stocks-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="all-stocks-heading">All stocks</h2>
+              <p id="market-count">15 stocks in the FinVerse universe. Click a column header to sort.</p>
+            </div>
+          </div>
+          <div class="toolbar">
+            <div class="search-box">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <label class="sr-only" for="market-search">Search by symbol or name</label>
+              <input id="market-search" type="search" placeholder="Search symbol or name…" autocomplete="off">
+            </div>
+            <label class="sr-only" for="market-sector">Filter by sector</label>
+            <select id="market-sector">
+              <option value="">All sectors</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table class="data" id="market-table">
+              <thead><tr>
+                <th scope="col">Symbol</th>
+                <th scope="col">Name</th>
+                <th scope="col" class="num" data-sort="price" style="cursor:pointer">Price <span data-arrow="price"></span></th>
+                <th scope="col" class="num" data-sort="change" style="cursor:pointer">Change % <span data-arrow="change"></span></th>
+                <th scope="col" class="num" data-sort="pe" style="cursor:pointer">P/E <span data-arrow="pe"></span></th>
+                <th scope="col" class="num" data-sort="rsi" style="cursor:pointer">RSI <span data-arrow="rsi"></span></th>
+                <th scope="col">Sector</th>
+                <th scope="col">Trend</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/market.js"></script>
+</body>
+</html>

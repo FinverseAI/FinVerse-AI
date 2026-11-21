@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { RagIngestService } from '../rag/rag.ingest';
 import type { RagRetrievalService } from '../rag/rag.retrieval';
 import type { RagService } from '../rag/rag.service';
+import type { GuardrailService } from './ai.guardrail.service';
 import {
   LlmProviderError,
   type ChatCompletion,
@@ -55,10 +56,27 @@ function scriptedClient(responses: Array<ChatCompletion | Error>): {
   return { client, calls };
 }
 
+function passThroughGuardrail(): GuardrailService {
+  return {
+    verify: jest.fn().mockResolvedValue({
+      passed: true,
+      checksPassed: 1,
+      checksFailed: 0,
+      failures: [],
+      checks: [],
+    }),
+  } as unknown as GuardrailService;
+}
+
 function makeService(
   env: Record<string, string>,
   toolsExecute: jest.Mock,
   client: LlmClient,
+  // These fixtures predate the guardrail and are not guardrail-
+  // consistent (the cited tool is often not the one called), so the
+  // guardrail is a pass-through here by default; the real guardrail
+  // flow has its own spec (ai.guardrail-flow.spec.ts).
+  guardrail: GuardrailService = passThroughGuardrail(),
 ) {
   const config = { get: (key: string) => env[key] } as unknown as ConfigService;
   const tools = { execute: toolsExecute } as unknown as AiTools;
@@ -85,7 +103,15 @@ function makeService(
     newsForSymbol: jest.fn(),
     screen: jest.fn(),
   } as unknown as RagService;
-  return new AiService(config, tools, client, retrieval, ingest, rag);
+  return new AiService(
+    config,
+    tools,
+    client,
+    retrieval,
+    ingest,
+    rag,
+    guardrail,
+  );
 }
 
 const DEFAULT_ENV: Record<string, string> = {

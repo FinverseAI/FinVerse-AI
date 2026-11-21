@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions · FinVerse</title>
+  <meta name="description" content="Every rupee in and out — search, filter and export your full transaction ledger.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="transactions" data-title="Transactions">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Transactions</h1>
+            </div>
+            <p class="lede">Every rupee in and out — search, filter and export your full ledger.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-outline" type="button" id="export-csv-btn">Export CSV</button>
+            <button class="btn btn-primary" type="button" data-open-modal="add-txn-modal">+ Add transaction</button>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></div>
+            <div><div class="stat-label">Income (filtered)</div><div class="stat-value" id="sum-income">₹0</div><div class="stat-sub" id="sum-income-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></div>
+            <div><div class="stat-label">Expenses (filtered)</div><div class="stat-value" id="sum-expenses">₹0</div><div class="stat-sub" id="sum-expenses-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Net (filtered)</div><div class="stat-value" id="sum-net">₹0</div><div class="stat-sub" id="sum-net-sub">—</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="txn-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="txn-heading">All transactions</h2>
+                <p id="txn-count">Newest first.</p>
+              </div>
+            </div>
+            <div class="toolbar">
+              <div class="search-box">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <label class="sr-only" for="txn-search">Search transactions</label>
+                <input id="txn-search" type="search" placeholder="Search merchant or note…">
+              </div>
+              <label class="sr-only" for="txn-category">Filter by category</label>
+              <select id="txn-category">
+                <option value="">All categories</option>
+              </select>
+              <label class="sr-only" for="txn-type">Filter by type</label>
+              <select id="txn-type">
+                <option value="">All types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table class="data" id="txn-table">
+                <thead><tr><th scope="col">Date</th><th scope="col">Merchant</th><th scope="col">Category</th><th scope="col">Note</th><th scope="col" class="num">Amount</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="txn-empty" hidden>
+              <h3>No transactions match</h3>
+              <p>Try a different search or clear the filters.</p>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="plain-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="plain-heading">Add in plain words</h2>
+                <p>Type it like you'd say it.</p>
+              </div>
+              <span class="badge badge-concept">Concept</span>
+            </div>
+            <p style="margin:0 0 1rem;color:var(--ink-soft)">Natural-language entry is planned for the real app — this demo parses the amount and guesses the category from keywords.</p>
+            <div class="field">
+              <label for="plain-input">What did you spend?</label>
+              <input id="plain-input" type="text" placeholder="₹500 lunch with friends">
+            </div>
+            <button class="btn btn-primary btn-block" type="button" id="plain-add-btn">Add it</button>
+            <p style="margin:1rem 0 0;font-size:0.85rem;color:var(--muted)">Keywords it knows: lunch, food, swiggy, zomato → Food · uber, ola, metro, cab → Transport · movie, netflix → Entertainment · rent → Rent · shopping, amazon → Shopping · gym, pharmacy → Health · sip, fund → Savings.</p>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add transaction modal -->
+  <div class="modal-backdrop" id="add-txn-modal" role="dialog" aria-modal="true" aria-labelledby="add-txn-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="add-txn-title">Add a transaction</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="add-txn-form">
+        <div class="field">
+          <label for="txn-merchant">Merchant / description</label>
+          <input id="txn-merchant" name="merchant" type="text" placeholder="e.g. BigBasket" required>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="txn-amount">Amount (₹)</label>
+            <input id="txn-amount" name="amount" type="number" min="1" step="1" placeholder="e.g. 1200" required>
+          </div>
+          <div class="field">
+            <label for="modal-txn-category">Category</label>
+            <select id="modal-txn-category" name="category"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="txn-date">Date</label>
+            <input id="txn-date" name="date" type="date" value="2026-11-21" required>
+          </div>
+          <div class="field">
+            <label for="modal-txn-type">Type</label>
+            <select id="modal-txn-type" name="type">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/transactions.js"></script>
+</body>
+</html>

@@ -7,6 +7,8 @@ import { ProfileModule } from '../profile/profile.module';
 import { RagModule } from '../rag/rag.module';
 import { resolveAiConfig } from './ai.config';
 import { AiController } from './ai.controller';
+import { GuardrailCheckRepository } from './ai.guardrail.repository';
+import { GuardrailService } from './ai.guardrail.service';
 import { LLM_CLIENT, OpenRouterClient } from './ai.provider';
 import { AiService } from './ai.service';
 import { AiTools } from './ai.tools';
@@ -17,6 +19,8 @@ import { AiTools } from './ai.tools';
   providers: [
     AiService,
     AiTools,
+    GuardrailService,
+    GuardrailCheckRepository,
     SessionGuard,
     {
       provide: LLM_CLIENT,
