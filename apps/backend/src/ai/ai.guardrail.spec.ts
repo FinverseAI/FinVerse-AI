@@ -645,6 +645,66 @@ describe('verifyAnswer — corrupted outputs are caught (100%)', () => {
   });
 });
 
+describe('verifyAnswer — the answer text itself is checked', () => {
+  it('fails when the prose states a number no claim cites', () => {
+    const result = verifyAnswer(
+      {
+        answer: 'You spent ₹8,200 on food, leaving ₹1,400.',
+        claims: [
+          claim('You spent ₹8,200 on Food & Dining.', 'getCategorySpending', {
+            totalSpent: 8200,
+          }),
+        ],
+        refused: false,
+        refusalReason: null,
+      },
+      context(),
+    );
+    expect(result.passed).toBe(false);
+    expect(
+      result.failures.some(
+        (check) => check.checkType === 'text' && check.claimIndex === -1,
+      ),
+    ).toBe(true);
+  });
+
+  it('passes when the prose restates a number from the cited element', () => {
+    const result = verifyAnswer(
+      {
+        answer: 'Transport: ₹4,200 spent of ₹5,000 budgeted.',
+        claims: [
+          claim('Transport is at ₹4,200 spent.', 'getBudgetStatus', {
+            category: 'Transport',
+            spent: 4200,
+          }),
+        ],
+        refused: false,
+        refusalReason: null,
+      },
+      context(),
+    );
+    expect(result.passed).toBe(true);
+  });
+
+  it('passes when the prose restates a number from the cited article', () => {
+    const result = verifyAnswer(
+      {
+        answer: 'Profit rose 12% on strong retail sales.',
+        claims: [
+          claim('Reliance profit jumped.', 'searchKnowledge', {
+            title: 'Reliance profit jumps',
+            date: '2026-11-18',
+          }),
+        ],
+        refused: false,
+        refusalReason: null,
+      },
+      context(),
+    );
+    expect(result.passed).toBe(true);
+  });
+});
+
 describe('extractTextNumbers', () => {
   it('extracts rupee amounts with Indian grouping', () => {
     expect(extractTextNumbers('You spent ₹8,200.')).toEqual([

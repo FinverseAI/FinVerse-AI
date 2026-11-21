@@ -27,7 +27,11 @@ import type { AiAnswer, AiClaim } from './ai.validation';
  *   values or the element it is about — the narrative cannot
  *   contradict the cited values, and it cannot smuggle in a number
  *   from elsewhere in the tool result (a swapped number would match
- *   the wrong field if the whole result were searched).
+ *   the wrong field if the whole result were searched). The same
+ *   check runs on the ANSWER text itself, against the union of all
+ *   declared values, scoped elements, and cited articles — the user
+ *   reads the answer, not the claims, so an unclaimed number in the
+ *   prose is a failure even when every claim checks out.
  * - CITATION: for searchKnowledge claims, the cited title/date/symbol
  *   must match a chunk actually retrieved in this request.
  *
@@ -639,6 +643,7 @@ function checkTextNumber(
   claim: AiClaim,
   extracted: ExtractedNumber,
   numbers: number[],
+  where = 'the claim text',
 ): GuardrailCheckRow {
   const match = numbers.find((actual) =>
     textNumbersMatch(extracted.value, actual),
@@ -649,7 +654,7 @@ function checkTextNumber(
       claim,
       'text',
       true,
-      `The number ${extracted.raw} in the claim text matches the evidence (${match}).`,
+      `The number ${extracted.raw} in ${where} matches the evidence (${match}).`,
       match,
       extracted.value,
     );
@@ -659,7 +664,7 @@ function checkTextNumber(
     claim,
     'text',
     false,
-    `The number ${extracted.raw} in the claim text does not match any value in the cited evidence.`,
+    `The number ${extracted.raw} in ${where} does not match any value in the cited evidence.`,
     null,
     extracted.value,
   );
@@ -671,11 +676,17 @@ function checkTextNumber(
  * match a chunk actually retrieved, and any number in the claim must
  * appear in that chunk's content (the article is the number's source).
  */
+interface ClaimVerification {
+  rows: GuardrailCheckRow[];
+  /** Numbers the answer text may restate for this claim. */
+  numbers: number[];
+}
+
 function verifySearchKnowledgeClaim(
   claimIndex: number,
   claim: AiClaim,
   chunks: GuardrailChunk[],
-): GuardrailCheckRow[] {
+): ClaimVerification {
   const rows: GuardrailCheckRow[] = [];
   if (chunks.length === 0) {
     rows.push(
@@ -687,7 +698,7 @@ function verifySearchKnowledgeClaim(
         'The claim cites retrieved knowledge, but nothing was retrieved in this request.',
       ),
     );
-    return rows;
+    return { rows, numbers: [] };
   }
   const values = claim.source.values;
   const title = asString(values.title ?? values.article ?? values.headline);
@@ -818,14 +829,14 @@ function verifySearchKnowledgeClaim(
       checkTextNumber(claimIndex, claim, extracted, contentNumbers),
     );
   }
-  return rows;
+  return { rows, numbers: contentNumbers };
 }
 
 function verifyToolClaim(
   claimIndex: number,
   claim: AiClaim,
   flat: FlatData,
-): GuardrailCheckRow[] {
+): ClaimVerification {
   const rows: GuardrailCheckRow[] = [];
   const entries = Object.entries(claim.source.values);
   const scoped = findScopedElement(claim, flat);
@@ -841,28 +852,28 @@ function verifyToolClaim(
     // Booleans and nulls carry no verifiable substance; the numbers
     // and identifiers around them are what get checked.
   }
+  // The prose must agree with the claim's own declared values (or
+  // the element it is about) — NOT with "some number anywhere in
+  // the tool result". Matching against the whole result would let a
+  // swapped number pass: "spent ₹10,000" would match the budgeted
+  // figure even though the claim cites totalSpent 8200. The model is
+  // instructed to cite every value it states, so a number in the
+  // prose that is not in the values is an unsupported number, and
+  // the retry teaches the model to cite it.
+  const declaredNumbers = entries
+    .map(([, value]) => value)
+    .filter(
+      (value): value is number =>
+        typeof value === 'number' && Number.isFinite(value),
+    );
+  if (scoped) {
+    for (const values of scoped.fields.values()) {
+      declaredNumbers.push(...values);
+    }
+  }
   const textNumbers = extractTextNumbers(claim.text);
   if (textNumbers.length > 0) {
     verifiable = true;
-    // The prose must agree with the claim's own declared values (or
-    // the element it is about) — NOT with "some number anywhere in
-    // the tool result". Matching against the whole result would let a
-    // swapped number pass: "spent ₹10,000" would match the budgeted
-    // figure even though the claim cites totalSpent 8200. The model is
-    // instructed to cite every value it states, so a number in the
-    // prose that is not in the values is an unsupported number, and
-    // the retry teaches the model to cite it.
-    const declaredNumbers = entries
-      .map(([, value]) => value)
-      .filter(
-        (value): value is number =>
-          typeof value === 'number' && Number.isFinite(value),
-      );
-    if (scoped) {
-      for (const values of scoped.fields.values()) {
-        declaredNumbers.push(...values);
-      }
-    }
     for (const extracted of textNumbers) {
       rows.push(
         checkTextNumber(claimIndex, claim, extracted, declaredNumbers),
@@ -880,7 +891,7 @@ function verifyToolClaim(
       ),
     );
   }
-  return rows;
+  return { rows, numbers: declaredNumbers };
 }
 
 /**
@@ -922,6 +933,7 @@ export function verifyAnswer(
     };
   }
   const checks: GuardrailCheckRow[] = [];
+  const answerNumbers: number[] = [];
   answer.claims.forEach((claim, claimIndex) => {
     const tool = claim.source.tool;
     if (!(CITATION_TOOLS as readonly string[]).includes(tool)) {
@@ -951,6 +963,11 @@ export function verifyAnswer(
         );
         return;
       }
+      const verified = verifySearchKnowledgeClaim(
+        claimIndex,
+        claim,
+        context.chunks,
+      );
       checks.push(
         checkRow(
           claimIndex,
@@ -959,8 +976,9 @@ export function verifyAnswer(
           true,
           'Retrieved knowledge was used in this request.',
         ),
-        ...verifySearchKnowledgeClaim(claimIndex, claim, context.chunks),
+        ...verified.rows,
       );
+      answerNumbers.push(...verified.numbers);
       return;
     }
     if (tool === 'screenStocks') {
@@ -976,6 +994,11 @@ export function verifyAnswer(
         );
         return;
       }
+      const verified = verifyToolClaim(
+        claimIndex,
+        claim,
+        flattenScreen(context.screen),
+      );
       checks.push(
         checkRow(
           claimIndex,
@@ -984,12 +1007,9 @@ export function verifyAnswer(
           true,
           'The screener ran in this request.',
         ),
-        ...verifyToolClaim(
-          claimIndex,
-          claim,
-          flattenScreen(context.screen),
-        ),
+        ...verified.rows,
       );
+      answerNumbers.push(...verified.numbers);
       return;
     }
     const results = context.toolResults.get(tool);
@@ -1005,6 +1025,11 @@ export function verifyAnswer(
       );
       return;
     }
+    const verified = verifyToolClaim(
+      claimIndex,
+      claim,
+      flattenToolResults(results),
+    );
     checks.push(
       checkRow(
         claimIndex,
@@ -1013,9 +1038,22 @@ export function verifyAnswer(
         true,
         `'${tool}' ran in this request.`,
       ),
-      ...verifyToolClaim(claimIndex, claim, flattenToolResults(results)),
+      ...verified.rows,
     );
+    answerNumbers.push(...verified.numbers);
   });
+  // The answer text itself: every number in the prose the user reads
+  // must be restating something the claims cite (or something in the
+  // cited elements/articles). claimIndex -1 marks answer-level checks.
+  const answerClaim: AiClaim = {
+    text: answer.answer,
+    source: { tool: 'answer', values: {} },
+  };
+  for (const extracted of extractTextNumbers(answer.answer)) {
+    checks.push(
+      checkTextNumber(-1, answerClaim, extracted, answerNumbers, 'the answer'),
+    );
+  }
   const failures = checks.filter((check) => !check.passed);
   return {
     passed: failures.length === 0,
