@@ -199,6 +199,10 @@ describe('ai endpoints', () => {
         .post('/api/ai/explain-readiness')
         .send({})
         .expect(401);
+      await request(server)
+        .post('/api/ai/extract-expense')
+        .send({ text: 'coffee 250' })
+        .expect(401);
     });
 
     it('rejects cross-origin requests', async () => {
@@ -381,6 +385,120 @@ describe('ai endpoints', () => {
       ).expect(200);
       expect(explain.body.fallback).toBe(true);
       expect(explain.body.metrics.symbol).toBe('RELIANCE');
+    });
+  });
+
+  describe('extract-expense', () => {
+    let localApp: INestApplication;
+    let aiApp: INestApplication;
+    let garbageApp: INestApplication;
+
+    beforeAll(async () => {
+      ({ app: localApp } = await createApp({}, []));
+      ({ app: aiApp } = await createApp(configuredEnv, [
+        {
+          content: JSON.stringify({
+            amount: 1250,
+            category: 'Food & Dining',
+            date: '2026-11-22',
+            merchant: 'Swiggy',
+          }),
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        },
+      ]));
+      ({ app: garbageApp } = await createApp(configuredEnv, [
+        {
+          content: 'not json at all',
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        },
+      ]));
+    });
+
+    it('extracts an expense locally when no model is configured', async () => {
+      const response = await session(
+        request(localApp.getHttpServer())
+          .post('/api/ai/extract-expense')
+          .send({ text: 'coffee 250', today: '2026-11-23' }),
+      ).expect(200);
+      expect(response.body).toEqual({
+        amount: 250,
+        category: 'Food & Dining',
+        date: '2026-11-23',
+        merchant: 'coffee',
+        source: 'local',
+      });
+      expect(response.headers['cache-control']).toContain('no-store');
+    });
+
+    it('reads Indian amounts and relative dates locally', async () => {
+      const response = await session(
+        request(localApp.getHttpServer())
+          .post('/api/ai/extract-expense')
+          .send({ text: 'lunch Rs 1,250.50 yesterday', today: '2026-11-23' }),
+      ).expect(200);
+      expect(response.body).toEqual({
+        amount: 1250.5,
+        category: 'Food & Dining',
+        date: '2026-11-22',
+        merchant: 'lunch',
+        source: 'local',
+      });
+    });
+
+    it('uses the model extraction when configured', async () => {
+      const response = await session(
+        request(aiApp.getHttpServer())
+          .post('/api/ai/extract-expense')
+          .send({ text: 'swiggy order', today: '2026-11-23' }),
+      ).expect(200);
+      expect(response.body).toEqual({
+        amount: 1250,
+        category: 'Food & Dining',
+        date: '2026-11-22',
+        merchant: 'Swiggy',
+        source: 'ai',
+      });
+    });
+
+    it('falls back to the local extractor when the model reply is unusable', async () => {
+      const response = await session(
+        request(garbageApp.getHttpServer())
+          .post('/api/ai/extract-expense')
+          .send({ text: 'coffee 250', today: '2026-11-23' }),
+      ).expect(200);
+      expect(response.body.source).toBe('local');
+      expect(response.body.amount).toBe(250);
+    });
+
+    it('rejects text with no amount and invalid requests', async () => {
+      const server = localApp.getHttpServer();
+      const noAmount = await session(
+        request(server)
+          .post('/api/ai/extract-expense')
+          .send({ text: 'just a coffee', today: '2026-11-23' }),
+      ).expect(400);
+      expect(noAmount.body.message).toContain("Couldn't find an amount");
+      await session(
+        request(server).post('/api/ai/extract-expense').send({ text: '   ' }),
+      ).expect(400);
+      await session(
+        request(server)
+          .post('/api/ai/extract-expense')
+          .send({ text: 'coffee 250', today: '23 Nov 2026' }),
+      ).expect(400);
+    });
+
+    it('rejects cross-origin extraction requests', async () => {
+      await request(localApp.getHttpServer())
+        .post('/api/ai/extract-expense')
+        .set('Cookie', 'session=test')
+        .set('Origin', 'http://evil.example')
+        .send({ text: 'coffee 250' })
+        .expect(403);
     });
   });
 

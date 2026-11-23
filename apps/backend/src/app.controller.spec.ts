@@ -29,4 +29,10 @@ describe('AppController', () => {
       expect(new Date(result.timestamp).toISOString()).toBe(result.timestamp);
     });
   });
+
+  describe('favicon', () => {
+    it('returns no content (the 204 status comes from the @HttpCode decorator)', () => {
+      expect(appController.getFavicon()).toBeUndefined();
+    });
+  });
 });

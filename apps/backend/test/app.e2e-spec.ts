@@ -35,6 +35,10 @@ describe('AppController (e2e)', () => {
     expect(response.body.success).toBe(true);
   });
 
+  it('/favicon.ico (GET) returns no content instead of a 404', async () => {
+    await request(app.getHttpServer()).get('/favicon.ico').expect(204);
+  });
+
   it('rejects unauthenticated profile requests', async () => {
     await request(app.getHttpServer()).get('/api/profile').expect(401);
   });
