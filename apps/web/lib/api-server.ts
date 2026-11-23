@@ -2,6 +2,14 @@ import "server-only";
 import { backendApiUrl, webOrigin } from "./env";
 import { readRequestBody, RequestBodyError } from "./request-body";
 
+function sameOrigin(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 export async function forwardApiRequest(
   request: Request,
   path: string,
@@ -13,7 +21,17 @@ export async function forwardApiRequest(
   };
   const mutating = request.method !== "GET";
   const origin = webOrigin();
-  if (mutating && request.headers.get("origin") !== origin) {
+  // A deployment whose BETTER_AUTH_URL points at another host (for
+  // example a second hosting provider) would reject its own browser's
+  // requests. A request whose Origin matches the URL it was sent to is
+  // same-origin by definition, so accept that too — a foreign origin is
+  // still rejected, and a missing origin never matches.
+  const acceptedOrigins = new Set(
+    [origin, sameOrigin(request.url)].filter(
+      (value): value is string => typeof value === "string",
+    ),
+  );
+  if (mutating && !acceptedOrigins.has(request.headers.get("origin") ?? "")) {
     return Response.json(
       { message: "This request must originate from FinVerse." },
       { status: 403, headers },
@@ -54,6 +72,11 @@ export async function forwardApiRequest(
         },
         { status: 503, headers },
       );
+    }
+    // A null-body status (204, 304) cannot carry a body — re-wrapping one
+    // with response.text() throws and would surface as a bogus 503.
+    if (response.status === 204 || response.status === 304) {
+      return new Response(null, { status: response.status, headers });
     }
     return new Response(await response.text(), {
       status: response.status,
