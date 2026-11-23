@@ -52,9 +52,13 @@ export default function SummaryCards({
   ];
   return (
     <section
-      aria-label="Account overview"
+      aria-label="Account overview — monthly plan"
       className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
     >
+      <p className="text-xs leading-5 text-dash-muted md:col-span-2 xl:col-span-4">
+        Monthly plan — from your saved financial profile. What you actually
+        spent is shown separately in the recorded activity below.
+      </p>
       <article className="dash-panel summary-card savings-card flex flex-col">
         <h2 className="dash-eyebrow">Current savings</h2>
         <p className="mt-4 text-3xl leading-9 font-medium tracking-tight break-words">

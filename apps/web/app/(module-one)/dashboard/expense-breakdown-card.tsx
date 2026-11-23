@@ -38,12 +38,16 @@ export default function ExpenseBreakdownCard({
   );
   return (
     <article id="expenses" className="dash-panel flex flex-col p-4">
-      <PanelHeading icon="filter" title="Expense Breakdown">
+      <PanelHeading icon="filter" title="Planned Expense Breakdown">
         <p className="font-mono text-xs text-dash-muted">
           Monthly ·{" "}
           <span className="text-dash-text">{money(expenseTotal, 2)}</span>
         </p>
       </PanelHeading>
+      <p className="mt-2 text-xs leading-5 text-dash-muted">
+        Planned allocation from your budget percentages — what you actually
+        spent is in Spending analysis below.
+      </p>
       <div className="mt-3 space-y-3">
         {expenseTotal === 0 && (
           <p className="text-xs text-dash-muted">

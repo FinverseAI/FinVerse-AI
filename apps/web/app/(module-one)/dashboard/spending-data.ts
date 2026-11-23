@@ -143,7 +143,11 @@ function expenseCents(transactions: Transaction[], start: string, end: string) {
   );
 }
 
-export function spendingSummary(transactions: Transaction[], now: Date) {
+export function spendingSummary(
+  transactions: Transaction[],
+  now: Date,
+  bills: BillForForecast[] = [],
+) {
   const year = now.getFullYear(),
     month = now.getMonth(),
     day = now.getDate();
@@ -174,6 +178,18 @@ export function spendingSummary(transactions: Transaction[], now: Date) {
     previousStart,
     previousEnd,
   );
+  // Committed spending (team decision, 24 November 2026): unpaid
+  // bills due by month-end count in the forecast. The rate estimate
+  // only extrapolates what is already recorded, so a bill that has
+  // not been paid yet would otherwise be invisible until it lands.
+  // Once a bill is paid it leaves the committed total and its
+  // payment transaction joins the recorded rate instead, so it is
+  // never counted twice.
+  const monthEnd = dateKey(new Date(year, month + 1, 0));
+  const committed = committedBills(bills, monthEnd);
+  const rateProjection =
+    Math.round((monthCents / day) * new Date(year, month + 1, 0).getDate()) /
+    100;
   return {
     monthTotal: monthCents / 100,
     monthDifference: (monthCents - previousMonthCents) / 100,
@@ -181,9 +197,9 @@ export function spendingSummary(transactions: Transaction[], now: Date) {
     weekChange: previousWeekCents
       ? ((weekCents - previousWeekCents) / previousWeekCents) * 100
       : null,
-    projection:
-      Math.round((monthCents / day) * new Date(year, month + 1, 0).getDate()) /
-      100,
+    projection: Math.round((rateProjection + committed.total) * 100) / 100,
+    committedBills: committed.total,
+    committedBillCount: committed.count,
     categoryCount: new Set(
       transactions
         .filter(
@@ -193,6 +209,35 @@ export function spendingSummary(transactions: Transaction[], now: Date) {
         .map((item) => normalizeCategory(item.category)),
     ).size,
   };
+}
+
+/** The bill fields a forecast needs: due date, amount, and what is already paid. */
+export type BillForForecast = {
+  dueDate: string;
+  amount: number;
+  paidTotal?: number;
+};
+
+/**
+ * Committed spending: the unpaid remainders of bills due on or
+ * before `through` (an ISO date). Overdue bills count — the money is
+ * still owed — but bills due after `through` belong to a later
+ * period. Fully paid bills contribute nothing.
+ */
+export function committedBills(
+  bills: BillForForecast[],
+  through: string,
+): { total: number; count: number } {
+  let totalCents = 0;
+  let count = 0;
+  for (const bill of bills) {
+    if (!bill.dueDate || bill.dueDate > through) continue;
+    const remaining = Math.round((bill.amount - (bill.paidTotal ?? 0)) * 100);
+    if (remaining <= 0) continue;
+    totalCents += remaining;
+    count++;
+  }
+  return { total: totalCents / 100, count };
 }
 
 export function spendingBreakdown(

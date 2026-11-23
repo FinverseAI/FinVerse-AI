@@ -9,6 +9,7 @@ import {
   periodRange,
   spendingBreakdown,
   spendingSummary,
+  type BillForForecast,
 } from "./spending-data";
 
 const categoryTones: Record<string, Tone> = {
@@ -33,11 +34,14 @@ const categoryTones: Record<string, Tone> = {
 
 export default function SpendingAnalysis({
   transactions,
+  bills = [],
   loading,
   error,
   onRetry,
 }: {
   transactions: Transaction[];
+  /** Unpaid bills count as committed spending in the month-end projection. */
+  bills?: BillForForecast[];
   loading: boolean;
   error: string;
   onRetry: () => void;
@@ -60,8 +64,8 @@ export default function SpendingAnalysis({
     rangeDays < 0 ||
     rangeDays > 365;
   const summary = useMemo(
-    () => spendingSummary(transactions, now),
-    [transactions, now],
+    () => spendingSummary(transactions, now, bills),
+    [transactions, now, bills],
   );
   const breakdown = useMemo(
     () => spendingBreakdown(transactions, range.start, range.end),
@@ -103,7 +107,10 @@ export default function SpendingAnalysis({
     {
       label: "Projected month-end",
       value: money(summary.projection),
-      detail: "Estimate based on recorded daily spending",
+      detail:
+        summary.committedBills > 0
+          ? `Daily rate plus ${money(summary.committedBills)} in unpaid bills due by month-end`
+          : "Estimate based on recorded daily spending",
     },
   ];
 

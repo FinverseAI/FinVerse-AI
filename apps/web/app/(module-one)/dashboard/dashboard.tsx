@@ -300,6 +300,7 @@ export default function Dashboard({
           </section>
           <SpendingAnalysis
             transactions={transactions}
+            bills={bills.items}
             loading={activity.loading}
             error={activity.error}
             onRetry={activity.retry}
@@ -362,6 +363,7 @@ export default function Dashboard({
           query={query}
           onQuery={setQuery}
           profile={data.profile!}
+          bills={bills.items}
           onTransaction={addTransaction}
           editingTransaction={selectedTransaction}
           onEditTransaction={(transaction) =>

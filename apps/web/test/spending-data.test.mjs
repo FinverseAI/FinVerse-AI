@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   budgetsWithSpending,
+  committedBills,
   dateKey,
   monthlyBalanceHistory,
   periodRange,
@@ -173,6 +174,48 @@ test("month comparisons clamp to shorter prior months and cross year boundaries"
     spendingSummary([expense("2025-12-01", -20)], new Date(2026, 0, 1))
       .previousMonthTotal,
     20,
+  );
+});
+
+test("unpaid bills due by month-end count as committed spending in the forecast", () => {
+  const now = new Date(2026, 10, 13);
+  const transactions = [
+    expense("2026-11-09", -100),
+    expense("2026-11-13", -30),
+  ];
+  const bills = [
+    // Due this month, unpaid: counts in full.
+    { dueDate: "2026-11-20", amount: 999 },
+    // Due this month, partially paid: only the remainder counts.
+    { dueDate: "2026-11-25", amount: 500, paidTotal: 200 },
+    // Overdue and unpaid: still owed, still counts.
+    { dueDate: "2026-10-28", amount: 100 },
+    // Fully paid: contributes nothing.
+    { dueDate: "2026-11-05", amount: 50, paidTotal: 50 },
+    // Due next month: belongs to next month's forecast.
+    { dueDate: "2026-12-01", amount: 10000 },
+  ];
+  const result = spendingSummary(transactions, now, bills);
+  assert.equal(result.committedBills, 1399);
+  assert.equal(result.committedBillCount, 3);
+  // Rate estimate for 130 over 13 days of a 30-day month is 300;
+  // committed bills add 1399.
+  assert.equal(result.projection, 1699);
+  // Without bills the projection is the rate estimate alone.
+  assert.equal(spendingSummary(transactions, now).projection, 300);
+  assert.equal(spendingSummary(transactions, now).committedBills, 0);
+});
+
+test("committed bills ignore missing due dates and overpayments", () => {
+  assert.deepEqual(
+    committedBills(
+      [
+        { dueDate: "", amount: 100 },
+        { dueDate: "2026-11-20", amount: 100, paidTotal: 150 },
+      ],
+      "2026-11-30",
+    ),
+    { total: 0, count: 0 },
   );
 });
 

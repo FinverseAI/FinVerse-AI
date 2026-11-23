@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { activityError } from "./use-activity";
-import { dateKey } from "./spending-data";
+import {
+  committedBills,
+  dateKey,
+  monthlyCashFlow,
+  periodRange,
+  type BillForForecast,
+} from "./spending-data";
 import {
   transactionCategories,
   money,
@@ -48,6 +54,8 @@ type DialogProps = {
   query: string;
   onQuery: (query: string) => void;
   profile: FinancialProfile;
+  /** Bills feed the report's unpaid-bills line; optional so the dialog stays usable without them. */
+  bills?: BillForForecast[];
   onTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   editingTransaction: Transaction | null;
   onEditTransaction: (transaction: Transaction) => void;
@@ -72,6 +80,7 @@ export function DashboardDialog({
   query,
   onQuery,
   profile,
+  bills = [],
   onTransaction,
   editingTransaction,
   onEditTransaction,
@@ -82,6 +91,15 @@ export function DashboardDialog({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
   const totals = profileTotals(profile);
+  // Plan vs actual (team decision, 24 November 2026): the plan comes
+  // from the saved profile, the actuals from recorded transactions,
+  // and the report shows them side by side, never mixed.
+  const reportNow = new Date();
+  const actual = monthlyCashFlow(transactions, dateKey(reportNow).slice(0, 7));
+  const committed = committedBills(
+    bills,
+    periodRange("monthly", reportNow).end,
+  );
   return (
     <Modal
       title={titles[kind]}
@@ -199,7 +217,7 @@ export function DashboardDialog({
       {kind === "report" && (
         <div className="space-y-4">
           <p className="text-xs text-dash-muted">
-            Current financial profile / Monthly plan
+            Monthly plan — from your saved financial profile
           </p>
           <div className="grid grid-cols-2 gap-3">
             <MiniStat
@@ -220,6 +238,34 @@ export function DashboardDialog({
           <p className="text-xs text-dash-muted">
             Surplus = total monthly income minus fixed expenses minus variable
             expenses minus savings target.
+          </p>
+          <p className="text-xs text-dash-muted">
+            Actual this month — from your recorded transactions
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <MiniStat label="Recorded income" value={money(actual.income, 2)} />
+            <MiniStat
+              label="Recorded expenses"
+              value={money(actual.expenses, 2)}
+            />
+            <MiniStat label="Net recorded flow" value={money(actual.net, 2)} />
+            <MiniStat
+              label="Unpaid bills due by month-end"
+              value={money(committed.total, 2)}
+            />
+          </div>
+          <p className="text-xs text-dash-muted">
+            The plan and the actuals are separate figures: the plan is what you
+            set out to spend, the actuals are what your recorded transactions
+            show
+            {actual.count === 0
+              ? ". No transactions recorded this month yet"
+              : ` across ${actual.count} transaction${actual.count === 1 ? "" : "s"} this month`}
+            . Unpaid bills count as committed spending in forecasts
+            {committed.count > 0
+              ? ` — ${committed.count} unpaid bill${committed.count === 1 ? "" : "s"} due by month-end`
+              : ""}
+            .
           </p>
         </div>
       )}

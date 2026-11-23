@@ -64,7 +64,7 @@ A new user is sent through four setup screens: **name, monthly income and payday
 | Bills | Add a bill with amount, due date, auto-pay flag and monthly recurrence; list, search, edit and remove saved bills; record payments and view each bill's payment history. Auto-pay bills due today or overdue are recorded as paid when the dashboard loads, and paying a monthly bill generates its next occurrence. |
 | Notifications | See in-app reminders for bills that are overdue, due today, or due within the next week, with a count on the bell icon. |
 | Spending analysis | View expense totals, category shares and bars for weekly, monthly or custom date ranges. |
-| Comparisons | Compare elapsed days with the previous month or week and see a simple month-end spending estimate. |
+| Comparisons | Compare elapsed days with the previous month or week and see a month-end spending estimate — the recorded daily rate plus unpaid bills due by month-end as committed spending. |
 | Reports and exports | View the account report as an on-screen summary of the saved plan; export transactions as CSV, PDF, or Excel. |
 
 Transactions and bills have loading, empty and error states. The interface waits for a successful save before adding a new record to its displayed list. These details help users distinguish an empty account from a failed connection. [S6, S7]
@@ -109,7 +109,6 @@ The first edition of this guide listed six boundaries. Five are now closed by im
 | Boundary | What remains incomplete |
 | --- | --- |
 | Reports | The account report is an on-screen summary of the saved plan; it is not exportable as a document. Transaction exports are separate (§02). |
-| Money definitions | Whether unpaid bills should affect forecasts and totals, and how a monthly plan should reconcile with actual spending, are still open questions (§13). |
 
 These remaining boundaries are reasons to call Module 1 a working foundation rather than a finished finance product. They also give the team a concrete list of integration work. [S5-S7]
 
@@ -719,7 +718,7 @@ The module document recommends building a strong core before advanced research f
 
 | Suggested stage | Concrete outcome to explain in the next edition |
 | --- | --- |
-| 1. Complete the finance loop | **Done in part:** budget changes persist and category choices are aligned. Still open: how actual activity should affect the financial plan and summary cards (profile cards still show the saved plan). |
+| 1. Complete the finance loop | **Done:** budget changes persist, category choices are aligned, and the plan-vs-actual rule is decided: actual activity does not rewrite the plan — the two are shown side by side and labelled (§13). |
 | 2. Verify the full journey | Demonstrate sign-in, setup, saved changes after reload, user separation and clear recovery from failed requests with the real services. |
 | 3. Finish core records and reports | **Done:** record maintenance (transaction and bill editing, payment history), in-app reminders, and CSV/PDF/Excel exports are built. Bills do create transactions when paid (decision below). Still open: exporting the account report itself. |
 | 4. Introduce bounded AI entry | **Done:** text-to-expense extraction with a confirm-before-save review flow, plus voice and receipt entry, are built (§06). |
@@ -745,10 +744,11 @@ The four remaining open questions from the integration plan were decided on 24 N
 | --- | --- |
 | Profile consistency | The budget split is the single source of truth. Whenever a split exists — sent with the save or already stored — the server recomputes fixed expenses, variable expenses and the savings target from monthly income × split, so the totals can never silently diverge from the allocation. A save that omits the split inherits the stored one; a save that sends a new split replaces it. |
 | Auto-pay and recurring bills | Auto-pay now executes: when the dashboard loads, every auto-pay bill due today or overdue with an unpaid remainder is recorded as paid (payment + matching expense transaction), and paying a monthly bill generates its next occurrence (same amount, due date one month on, clamped to the last day of the month). Monthly is the only recurrence; bills default to one-off. This records the payment in FinVerse — it does not move real money or pay the provider. Limitation: the run happens when the dashboard loads, not on a background schedule, so a bill is recorded on the first visit on or after its due date. |
+| Money definitions | (a) Unpaid bills count as committed spending in forecasts: the month-end projection is the recorded daily spending rate plus the unpaid remainders of bills due on or before month-end (overdue bills count; bills due next month do not). Once a bill is paid it leaves the committed total and its payment transaction joins the recorded rate, so it is never counted twice. (b) Plan vs actual: the plan (saved profile) and the actuals (recorded transactions) are shown side by side and labelled, never silently mixed — actual activity does not rewrite the plan. The summary cards, the planned expense breakdown and the account report all label which figures are plan and which are actual. |
 
 ## Questions the reviewed material does not settle
 
-**Money definitions:** "Current savings" is a manually maintained snapshot from the financial profile, not a balance derived from transactions (team decision, 23 November 2026). How a monthly plan should reconcile with actual spending, and whether unpaid bills should affect forecasts and totals or only reminders, are still open.
+**Money definitions:** "Current savings" is a manually maintained snapshot from the financial profile, not a balance derived from transactions (team decision, 23 November 2026). The two remaining questions were decided on 24 November 2026 (see the decisions table above): unpaid bills count as committed spending in forecasts, and the plan and the actuals are shown side by side, labelled, never mixed.
 
 **Investment data:** Yahoo Finance is the provider (free, no key); quotes are cached 15 minutes, history 24 hours, and stale prices are marked, never invented (§04A). Corporate actions are not yet adjusted for; the refresh rate and usage terms of any second provider are undecided.
 
