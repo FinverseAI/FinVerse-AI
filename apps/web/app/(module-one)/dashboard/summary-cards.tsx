@@ -61,7 +61,8 @@ export default function SummaryCards({
           {money(totals.savings, 2)}
         </p>
         <p className="mt-3 text-xs leading-5 text-dash-muted">
-          From your financial profile. Savings history is not available yet.
+          A snapshot you entered in your financial profile — update it there
+          whenever it changes.
         </p>
         <button
           className="dash-small-button mt-auto self-end border-dash-accent/40 bg-dash-accent/10 text-dash-accent"
