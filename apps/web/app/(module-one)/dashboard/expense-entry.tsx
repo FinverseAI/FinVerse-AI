@@ -13,12 +13,16 @@ import {
   getSpeechRecognitionConstructor,
   startListening,
 } from "../../../lib/expense-entry";
+import { readReceiptText } from "../../../lib/receipt-ocr";
 
 /**
- * Add an expense in plain words: type (or, later, speak or photograph)
- * an expense, review what was understood, then save it like any other
- * transaction. The confirm step is the guardrail — nothing the model
- * or the local matcher extracts reaches the database unreviewed.
+ * Add an expense in plain words: type it, speak it, or photograph a
+ * receipt. The text is understood (by the model, or by a local
+ * matcher when the model is unavailable), the user reviews what was
+ * understood, then saves it like any other transaction. The confirm
+ * step is the guardrail — nothing extracted reaches the database
+ * unreviewed. Receipt photos never leave the device: the text is read
+ * in the browser.
  */
 export default function ExpenseEntry({
   onTransaction,
@@ -35,7 +39,9 @@ export default function ExpenseEntry({
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [listening, setListening] = useState(false);
+  const [readingReceipt, setReadingReceipt] = useState(false);
   const stopListeningRef = useRef<(() => void) | null>(null);
+  const receiptInputRef = useRef<HTMLInputElement | null>(null);
 
   // A listening session never outlives the panel.
   useEffect(
@@ -90,9 +96,9 @@ export default function ExpenseEntry({
     }
   }
 
-  async function extract(input: string) {
+  async function extract(input: string): Promise<boolean> {
     const trimmed = input.trim();
-    if (!trimmed || extracting) return;
+    if (!trimmed || extracting) return false;
     setError("");
     setNotice("");
     setExtracting(true);
@@ -108,10 +114,45 @@ export default function ExpenseEntry({
       }
       setExtraction(data);
       setSourceText(trimmed);
+      return true;
     } catch (caught: unknown) {
       setError(aiErrorMessage(caught));
+      return false;
     } finally {
       setExtracting(false);
+    }
+  }
+
+  async function readReceipt(file: File | undefined) {
+    if (!file || readingReceipt) return;
+    if (!file.type.startsWith("image/")) {
+      setError("That file isn't an image. Choose a photo of the receipt.");
+      return;
+    }
+    setError("");
+    setNotice("");
+    setReadingReceipt(true);
+    try {
+      const ocrText = await readReceiptText(file);
+      if (!ocrText.trim()) {
+        setError(
+          "Couldn't read any text from that photo — try a clearer, well-lit photo of the receipt.",
+        );
+        return;
+      }
+      // The extraction endpoint caps text at 2,000 characters; receipts
+      // longer than that are trimmed to the first 2,000.
+      const understood = await extract(ocrText.slice(0, 2000));
+      if (!understood) {
+        // Show what was read so the user can fix it by hand.
+        setText(ocrText.replace(/\s+/g, " ").trim().slice(0, 500));
+      }
+    } catch {
+      setError(
+        "Couldn't read that receipt — the text recognition couldn't load. Check your connection and try again.",
+      );
+    } finally {
+      setReadingReceipt(false);
     }
   }
 
@@ -162,26 +203,58 @@ export default function ExpenseEntry({
                   : "Speak the expense (Chrome, Edge, Safari)"
               }
               onClick={toggleListening}
-              disabled={disabled || extracting}
+              disabled={disabled || extracting || readingReceipt}
             >
               <Icon name="mic" className="size-4" />
+            </button>
+            <input
+              ref={receiptInputRef}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              aria-label="Choose a receipt photo"
+              disabled={disabled || extracting || readingReceipt}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                // Reset so picking the same photo twice still fires.
+                event.target.value = "";
+                void readReceipt(file);
+              }}
+            />
+            <button
+              type="button"
+              className="dash-icon-button shrink-0"
+              aria-label="Photograph a receipt"
+              title="Photograph a receipt — the photo never leaves your device"
+              onClick={() => receiptInputRef.current?.click()}
+              disabled={disabled || extracting || readingReceipt}
+            >
+              <Icon name="image" className="size-4" />
             </button>
             <button
               type="submit"
               className="dash-small-button shrink-0"
-              disabled={disabled || extracting || !text.trim()}
+              disabled={
+                disabled || extracting || readingReceipt || !text.trim()
+              }
             >
               {extracting ? "Reading…" : "Add expense"}
             </button>
           </div>
           <p className="mt-2 text-xs text-dash-muted">
-            Type or speak the expense as you would say it. Voice is transcribed
-            in your browser — FinVerse does not store any audio. You review
-            everything before it is saved.
+            Type, speak, or photograph a receipt. Voice is transcribed in your
+            browser and receipt photos never leave your device — FinVerse does
+            not store any audio or photos. You review everything before it is
+            saved.
           </p>
         </form>
         <div className="mt-3" aria-live="polite">
           {extracting && <ReasoningIndicator />}
+          {readingReceipt && !extracting && (
+            <p role="status" className="text-sm text-dash-muted">
+              Reading the receipt… this takes a few seconds the first time.
+            </p>
+          )}
           {listening && !extracting && (
             <p role="status" className="text-sm text-dash-muted">
               Listening… speak now, then tap the microphone to stop.

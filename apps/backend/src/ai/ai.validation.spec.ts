@@ -225,7 +225,7 @@ describe('ai validation', () => {
         ExtractExpenseRequestSchema.safeParse({ text: '   ' }).success,
       ).toBe(false);
       expect(
-        ExtractExpenseRequestSchema.safeParse({ text: 'x'.repeat(501) })
+        ExtractExpenseRequestSchema.safeParse({ text: 'x'.repeat(2001) })
           .success,
       ).toBe(false);
       expect(

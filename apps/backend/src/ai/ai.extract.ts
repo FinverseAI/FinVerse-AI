@@ -250,6 +250,19 @@ function findDate(text: string, today: string): string {
 
 /** A short name for the expense: the text with amounts, dates, and filler words removed. */
 function findMerchant(text: string): string | null {
+  // Receipts and other multi-line text: the first line is usually the
+  // store name, so it becomes the merchant instead of the whole text.
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '');
+  const source = lines.length > 1 ? lines[0]! : text;
+  const cleaned = cleanMerchant(source);
+  if (cleaned) return cleaned;
+  return lines.length > 1 ? cleanMerchant(text) : null;
+}
+
+function cleanMerchant(text: string): string | null {
   const cleaned = text
     .replace(ISO_DATE, ' ')
     .replace(SLASH_DATE, ' ')

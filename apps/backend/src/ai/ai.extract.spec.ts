@@ -71,6 +71,20 @@ describe('extractExpenseLocally', () => {
     );
   });
 
+  it('reads a receipt-style multi-line OCR text', () => {
+    expect(
+      extractExpenseLocally(
+        'COFFEE HOUSE\nIndiranagar, Bengaluru\nLatte 180.00\nCappuccino 220.00\nTOTAL 400.00\nThank you, visit again',
+        TODAY,
+      ),
+    ).toEqual({
+      amount: 400,
+      category: 'Food & Dining',
+      date: TODAY,
+      merchant: 'COFFEE HOUSE',
+    });
+  });
+
   it('strips a leading filler verb from the merchant name', () => {
     expect(extractExpenseLocally('paid rent 15000', TODAY)?.merchant).toBe(
       'rent',

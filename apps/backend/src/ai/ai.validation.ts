@@ -32,10 +32,11 @@ export const ScreenQueryRequestSchema = z.object({
 /**
  * Expense entry: the text to extract from, plus the client's today so
  * "today" and "yesterday" resolve in the user's timezone instead of
- * the server's UTC day.
+ * the server's UTC day. The text cap is 2,000 characters: typed
+ * expenses are short, but receipt OCR text is long.
  */
 export const ExtractExpenseRequestSchema = z.object({
-  text: z.string().trim().min(1).max(500),
+  text: z.string().trim().min(1).max(2000),
   today: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
