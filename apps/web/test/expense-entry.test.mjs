@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   extractionToTransaction,
+  getSpeechRecognitionConstructor,
   speechRecognitionSupported,
+  startListening,
 } from "../lib/expense-entry.ts";
 
 test("an extraction becomes a negative expense transaction", () => {
@@ -54,4 +56,66 @@ test("speech support detects both constructor names", () => {
     true,
   );
   assert.equal(speechRecognitionSupported({}), false);
+  assert.equal(
+    getSpeechRecognitionConstructor({ webkitSpeechRecognition: "ctor" }),
+    "ctor",
+  );
+  assert.equal(getSpeechRecognitionConstructor({}), null);
+});
+
+class FakeRecognition {
+  static instances = [];
+
+  constructor() {
+    FakeRecognition.instances.push(this);
+    this.started = false;
+    this.stopped = false;
+    this.onresult = null;
+    this.onerror = null;
+    this.onend = null;
+  }
+
+  start() {
+    this.started = true;
+  }
+
+  stop() {
+    this.stopped = true;
+  }
+
+  emitResult(transcript) {
+    this.onresult({ results: [[{ transcript }]] });
+  }
+
+  emitError(error) {
+    this.onerror({ error });
+  }
+
+  emitEnd() {
+    this.onend();
+  }
+}
+
+test("listening delivers the transcript and stops on request", () => {
+  FakeRecognition.instances = [];
+  const transcripts = [];
+  const errors = [];
+  let ended = 0;
+  const stop = startListening(FakeRecognition, {
+    onTranscript: (text) => transcripts.push(text),
+    onError: (error) => errors.push(error),
+    onEnd: () => ended++,
+  });
+  const recognition = FakeRecognition.instances[0];
+  assert.equal(recognition.started, true);
+  assert.equal(recognition.lang, "en-IN");
+  recognition.emitResult("  coffee 250  ");
+  recognition.emitResult("   ");
+  assert.deepEqual(transcripts, ["coffee 250"]);
+  recognition.emitError("not-allowed");
+  assert.deepEqual(errors, ["not-allowed"]);
+  recognition.emitEnd();
+  assert.equal(ended, 1);
+  stop();
+  assert.equal(recognition.stopped, true);
 });

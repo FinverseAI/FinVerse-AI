@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dateKey } from "./spending-data";
 import { money, type Transaction } from "./data";
-import { PanelHeading } from "./ui";
+import { Icon, PanelHeading } from "./ui";
 import { Modal } from "./modal";
 import { TransactionForm } from "./dashboard-dialog";
 import { aiErrorMessage, aiRequest, ReasoningIndicator } from "./ai-chat";
 import { isExpenseExtraction, type ExpenseExtraction } from "../../../lib/ai";
-import { extractionToTransaction } from "../../../lib/expense-entry";
+import {
+  extractionToTransaction,
+  getSpeechRecognitionConstructor,
+  startListening,
+} from "../../../lib/expense-entry";
 
 /**
  * Add an expense in plain words: type (or, later, speak or photograph)
@@ -30,6 +34,61 @@ export default function ExpenseEntry({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
+  const [listening, setListening] = useState(false);
+  const stopListeningRef = useRef<(() => void) | null>(null);
+
+  // A listening session never outlives the panel.
+  useEffect(
+    () => () => {
+      stopListeningRef.current?.();
+    },
+    [],
+  );
+
+  function toggleListening() {
+    if (listening) {
+      stopListeningRef.current?.();
+      stopListeningRef.current = null;
+      setListening(false);
+      return;
+    }
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition) {
+      setError(
+        "Voice entry isn't available in this browser — type the expense instead. Chrome, Edge, and Safari support voice entry.",
+      );
+      return;
+    }
+    setError("");
+    setNotice("");
+    setListening(true);
+    try {
+      stopListeningRef.current = startListening(Recognition, {
+        onTranscript: (transcript) => {
+          setText(transcript);
+        },
+        onError: (code) => {
+          if (code === "not-allowed") {
+            setError(
+              "Microphone access was denied. Allow microphone access in your browser to use voice entry.",
+            );
+          } else if (code !== "aborted") {
+            setError(
+              "Couldn't hear that clearly — please try again or type the expense.",
+            );
+          }
+        },
+        onEnd: () => {
+          stopListeningRef.current = null;
+          setListening(false);
+        },
+      });
+    } catch {
+      stopListeningRef.current = null;
+      setListening(false);
+      setError("Voice entry couldn't start — please try again.");
+    }
+  }
 
   async function extract(input: string) {
     const trimmed = input.trim();
@@ -94,6 +153,20 @@ export default function ExpenseEntry({
               disabled={disabled || extracting}
             />
             <button
+              type="button"
+              className={`dash-icon-button shrink-0 ${listening ? "!text-dash-red" : ""}`}
+              aria-label={listening ? "Stop listening" : "Speak the expense"}
+              title={
+                listening
+                  ? "Stop listening"
+                  : "Speak the expense (Chrome, Edge, Safari)"
+              }
+              onClick={toggleListening}
+              disabled={disabled || extracting}
+            >
+              <Icon name="mic" className="size-4" />
+            </button>
+            <button
               type="submit"
               className="dash-small-button shrink-0"
               disabled={disabled || extracting || !text.trim()}
@@ -102,12 +175,18 @@ export default function ExpenseEntry({
             </button>
           </div>
           <p className="mt-2 text-xs text-dash-muted">
-            Type the expense as you would say it. You review everything before
-            it is saved.
+            Type or speak the expense as you would say it. Voice is transcribed
+            in your browser — FinVerse does not store any audio. You review
+            everything before it is saved.
           </p>
         </form>
         <div className="mt-3" aria-live="polite">
           {extracting && <ReasoningIndicator />}
+          {listening && !extracting && (
+            <p role="status" className="text-sm text-dash-muted">
+              Listening… speak now, then tap the microphone to stop.
+            </p>
+          )}
           {error && (
             <p role="alert" className="text-sm text-red-500">
               {error}
