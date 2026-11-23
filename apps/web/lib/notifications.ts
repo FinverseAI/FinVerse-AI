@@ -51,7 +51,7 @@ export function billNotifications(
         daysUntilDue <= DUE_SOON_DAYS &&
         bill.dueDate !== "",
     )
-    .map(({ bill, amountDue, daysUntilDue }) => ({
+    .map(({ bill, amountDue, daysUntilDue }): BillNotification => ({
       billId: bill.id,
       billName: bill.name,
       kind:
