@@ -507,6 +507,7 @@ describe('account-scoped dashboard activity', () => {
       id: 'payment-1',
       amount: 1850.5,
       paidDate: '2026-11-27',
+      nextBill: null,
     });
     expect(prisma.userBillPayment.create).toHaveBeenCalledWith({
       data: {
@@ -534,12 +535,28 @@ describe('account-scoped dashboard activity', () => {
       ...storedBill,
       recurrence: 'monthly',
     });
-    await request(app.getHttpServer())
+    prisma.userBill.create.mockResolvedValue({
+      ...storedBill,
+      id: 'bill-next',
+      due_date: new Date('2026-12-28T00:00:00Z'),
+      recurrence: 'monthly',
+    });
+    const result = await request(app.getHttpServer())
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .send({ amount: 1850.5, paidDate: '2026-11-27' })
       .expect(201);
+    expect(result.body.nextBill).toEqual({
+      id: 'bill-next',
+      name: 'Rent',
+      amount: 1850.5,
+      dueDate: '2026-12-28',
+      autoPay: true,
+      recurrence: 'monthly',
+      paidTotal: 0,
+      payments: [],
+    });
     // Payment, transaction and next occurrence: one transaction.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);

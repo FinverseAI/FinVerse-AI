@@ -57,6 +57,8 @@ export type Activity<T extends { id: string }> = {
   retry: () => void;
   add: (input: Omit<T, "id">) => Promise<void>;
   update: (id: string, input: Omit<T, "id">) => Promise<void>;
+  /** Adds an already-saved item to the list without a request (for example a next bill the server created alongside a payment). */
+  append: (item: T) => void;
   patch: (id: string, updater: (item: T) => T) => void;
   remove: (id: string) => Promise<void>;
 };
@@ -124,6 +126,9 @@ export function useActivity<T extends { id: string }>(
       current.map((item) => (item.id === id ? updater(item) : item)),
     );
   }
+  function append(item: T) {
+    setItems((current) => [item, ...current]);
+  }
   async function remove(id: string) {
     try {
       await activityRequest(`${path}/${encodeURIComponent(id)}`, {
@@ -136,5 +141,5 @@ export function useActivity<T extends { id: string }>(
     }
     setItems((current) => current.filter((item) => item.id !== id));
   }
-  return { items, loading, error, retry, add, update, patch, remove };
+  return { items, loading, error, retry, add, update, append, patch, remove };
 }

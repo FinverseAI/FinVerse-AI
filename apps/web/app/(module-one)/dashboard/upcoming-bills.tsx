@@ -20,6 +20,8 @@ export type Bill = {
   amount: number;
   dueDate: string;
   autoPay: boolean;
+  /** "monthly" repeats: paying it creates the next occurrence. Null is a one-off bill. */
+  recurrence: "monthly" | null;
   paidTotal?: number;
   payments?: BillPayment[];
 };
@@ -75,6 +77,7 @@ function BillRow({
             year: "numeric",
           })}
           {bill.autoPay && dueSoon ? " · Auto-pay" : ""}
+          {bill.recurrence === "monthly" ? " · Monthly" : ""}
         </p>
         {paidTotal > 0 && (
           <button
@@ -163,6 +166,7 @@ function BillForm({
             amount: Number(form.get("amount")),
             dueDate: String(form.get("dueDate")),
             autoPay: form.get("autoPay") === "on",
+            recurrence: form.get("recurrence") === "monthly" ? "monthly" : null,
           });
           onClose();
         } catch (error) {
@@ -214,6 +218,19 @@ function BillForm({
           />
         </label>
       </div>
+      <label>
+        Repeats
+        <select
+          className="dash-input"
+          name="recurrence"
+          defaultValue={initial?.recurrence ?? ""}
+        >
+          <option value="">One-off — does not repeat</option>
+          <option value="monthly">
+            Monthly — paying it creates next month&apos;s bill
+          </option>
+        </select>
+      </label>
       <label className="surface-inset !flex-row items-center gap-3 border p-4">
         <input
           className="size-4 accent-dash-accent"
@@ -224,8 +241,9 @@ function BillForm({
         <span className="text-xs">Already set up with auto-pay</span>
       </label>
       <p className="text-xs leading-6 text-dash-muted">
-        Track a payment you have scheduled with your provider. Adding a bill
-        here does not make a payment.
+        Auto-pay bills are recorded as paid in FinVerse on their due date when
+        you open the dashboard. That records the payment here — it does not pay
+        your provider; your bank or provider&apos;s auto-pay does that.
       </p>
       {saveError && (
         <p role="alert" className="text-xs leading-6 text-dash-red">
@@ -437,13 +455,17 @@ function PaymentHistory({
 export default function UpcomingBills({
   activity,
   onPaymentRecorded,
+  autoPayNotice,
 }: {
   /** The bills fetch, owned by the dashboard so it can also feed the notification centre. */
   activity: Activity<Bill>;
   /** Called after a payment lands: the payment also creates an expense transaction, so the transactions list needs a refresh. */
   onPaymentRecorded?: () => void;
+  /** What the auto-pay run on this load recorded, if anything (set by the dashboard). */
+  autoPayNotice?: string;
 }) {
-  const { items, loading, error, retry, add, update, patch, remove } = activity;
+  const { items, loading, error, retry, add, update, append, patch, remove } =
+    activity;
   const [dialog, setDialog] = useState<
     "all" | "add" | "edit" | "remove" | "pay" | "history" | null
   >(null);
@@ -498,10 +520,12 @@ export default function UpcomingBills({
     billId: string,
     input: { amount: number; paidDate: string },
   ) {
-    const saved = await activityRequest<BillPayment>(
-      `/api/bills/${encodeURIComponent(billId)}/payments`,
-      { method: "POST", body: JSON.stringify(input) },
-    );
+    const saved = await activityRequest<
+      BillPayment & { nextBill: Bill | null }
+    >(`/api/bills/${encodeURIComponent(billId)}/payments`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
     patch(billId, (bill) => {
       const payments = [saved, ...(bill.payments ?? [])];
       const paidTotal =
@@ -511,6 +535,9 @@ export default function UpcomingBills({
         ) / 100;
       return { ...bill, payments, paidTotal };
     });
+    // A monthly bill's next occurrence rides back with the payment;
+    // add it to the list without a refetch.
+    if (saved.nextBill) append(saved.nextBill);
     setNotice("Payment recorded.");
     // The payment also created a matching expense transaction.
     onPaymentRecorded?.();
@@ -562,6 +589,11 @@ export default function UpcomingBills({
             </button>
           </div>
         </PanelHeading>
+        {autoPayNotice && (
+          <p role="status" className="mt-3 text-xs leading-6 text-dash-muted">
+            {autoPayNotice}
+          </p>
+        )}
         {loading ? (
           <p role="status" className="m-auto text-xs text-dash-muted">
             Loading bills…

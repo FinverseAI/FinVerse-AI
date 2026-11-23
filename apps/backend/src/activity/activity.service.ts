@@ -138,7 +138,12 @@ export class ActivityService {
     const created = await this.prisma.$transaction((tx) =>
       this.recordPayment(tx, userId, bill, payment.amount, payment.paid_date),
     );
-    return paymentResponse(created.payment);
+    // The generated next occurrence (if any) rides back with the
+    // payment, so the interface can show it without a refetch.
+    return {
+      ...paymentResponse(created.payment),
+      nextBill: created.nextBill ? billResponse(created.nextBill) : null,
+    };
   }
 
   /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { authClient } from "../../../auth/client";
@@ -20,7 +20,7 @@ import SpendingAnalysis from "./spending-analysis";
 import ReadinessCard from "./readiness-card";
 import AiChat from "./ai-chat";
 import ExpenseEntry from "./expense-entry";
-import { useActivity } from "./use-activity";
+import { useActivity, activityRequest } from "./use-activity";
 import { budgetsWithSpending, dateKey } from "./spending-data";
 import {
   billNotifications,
@@ -78,6 +78,43 @@ export default function Dashboard({
   );
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
+  const [autoPayNotice, setAutoPayNotice] = useState("");
+  const autoPayRan = useRef(false);
+  // Stable callbacks, destructured so the auto-pay effect can list
+  // them as dependencies without re-running when the dashboard
+  // re-renders (the activity objects themselves are new each render).
+  const retryTransactions = activity.retry;
+  const retryBills = bills.retry;
+
+  // Auto-pay runs once per dashboard load: due auto-pay bills are
+  // recorded as paid (payment + matching expense transaction). It is
+  // best-effort — a failed run must never break the dashboard, and
+  // the bills stay visible with their due labels either way. The run
+  // records payments in FinVerse; it does not pay the provider.
+  useEffect(() => {
+    if (autoPayRan.current) return;
+    autoPayRan.current = true;
+    activityRequest<{ paid: { billId: string; name: string }[] }>(
+      "/api/bills/auto-pay",
+      {
+        method: "POST",
+        body: JSON.stringify({ today: dateKey(new Date()) }),
+      },
+    )
+      .then(({ paid }) => {
+        if (!paid.length) return;
+        setAutoPayNotice(
+          `Auto-pay recorded ${paid.length === 1 ? "a payment" : `${paid.length} payments`} just now: ${paid.map((item) => item.name).join(", ")}.`,
+        );
+        retryBills();
+        retryTransactions();
+      })
+      .catch(() => {
+        // Swallowed on purpose: see the comment above.
+      });
+    // Both retry callbacks are stable, so this runs once; the ref
+    // guard makes the run once-only even if they ever change.
+  }, [retryBills, retryTransactions]);
 
   async function addTransaction(transaction: Omit<Transaction, "id">) {
     await activity.add(transaction);
@@ -258,6 +295,7 @@ export default function Dashboard({
             <UpcomingBills
               activity={bills}
               onPaymentRecorded={activity.retry}
+              autoPayNotice={autoPayNotice}
             />
           </section>
           <SpendingAnalysis
