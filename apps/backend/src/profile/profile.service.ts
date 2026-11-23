@@ -58,7 +58,28 @@ export class ProfileService {
   }
 
   async save(userId: string, body: unknown, onboarding: boolean) {
-    const { profile, goals, displayName } = validateProfile(body);
+    // The budget split is the single source of truth for the derived
+    // amounts (fixed expenses, variable expenses, savings target):
+    // whenever a split exists, validation recomputes those amounts
+    // from income × split, so the totals can never silently diverge
+    // from the allocation. A save that omits the split inherits the
+    // stored one, so an older editor (or any API client) cannot
+    // overwrite the amounts while leaving a stale split behind.
+    const incoming =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {};
+    let effectiveBody: unknown = body;
+    if (incoming.budget_split === undefined) {
+      const stored = await this.prisma.userFinancialProfile.findUnique({
+        where: { user_id: userId },
+        select: { budget_split: true },
+      });
+      if (stored?.budget_split) {
+        effectiveBody = { ...incoming, budget_split: stored.budget_split };
+      }
+    }
+    const { profile, goals, displayName } = validateProfile(effectiveBody);
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;

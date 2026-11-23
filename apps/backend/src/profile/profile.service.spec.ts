@@ -131,6 +131,66 @@ describe('ProfileService', () => {
     );
   });
 
+  it('recomputes the derived amounts from the stored split when a save omits it', async () => {
+    const split = {
+      food: 10,
+      groceries: 10,
+      transport: 5,
+      shopping: 5,
+      bills: 10,
+      rent: 30,
+      health: 5,
+      entertainment: 5,
+      travel: 5,
+      education: 5,
+      investments: 5,
+      others: 5,
+    };
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+      budget_split: split,
+    });
+    // The amounts below deliberately disagree with the split: fixed
+    // 20000 / variable 10000 / target 10000 on a 60000 income, while
+    // the split implies fixed 24000 (rent 30% + bills 10%), target
+    // 3000 (investments 5%) and variable 33000 (the rest).
+    await service.save('owner', input, false);
+    const update = (tx.userFinancialProfile.upsert as jest.Mock).mock
+      .calls[0][0].update;
+    expect(update.budget_split).toEqual(split);
+    expect(update.fixed_expenses.toFixed(2)).toBe('24000.00');
+    expect(update.variable_expenses.toFixed(2)).toBe('33000.00');
+    expect(update.monthly_savings_target.toFixed(2)).toBe('3000.00');
+  });
+
+  it('lets a new split in the request win over the stored one', async () => {
+    const stored = {
+      food: 10,
+      groceries: 10,
+      transport: 5,
+      shopping: 5,
+      bills: 10,
+      rent: 30,
+      health: 5,
+      entertainment: 5,
+      travel: 5,
+      education: 5,
+      investments: 5,
+      others: 5,
+    };
+    const replacement = { ...stored, rent: 20, food: 20 };
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+      budget_split: stored,
+    });
+    await service.save('owner', { ...input, budget_split: replacement }, false);
+    const update = (tx.userFinancialProfile.upsert as jest.Mock).mock
+      .calls[0][0].update;
+    expect(update.budget_split).toEqual(replacement);
+    // rent 20% + bills 10% of 60000.
+    expect(update.fixed_expenses.toFixed(2)).toBe('18000.00');
+  });
+
   it('requires onboarding before updates', async () => {
     await expect(service.save('owner', input, false)).rejects.toBeInstanceOf(
       NotFoundException,

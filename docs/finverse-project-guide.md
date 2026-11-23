@@ -98,6 +98,7 @@ The first edition of this guide listed six boundaries. Five are now closed by im
 | Boundary | What changed |
 | --- | --- |
 | Budget edits | The Manage budgets dialog now saves the new allocation to the profile (PUT), so edits survive a reload. |
+| Profile consistency | The budget split is the single source of truth: whenever a split exists (in the request or already stored), the server recomputes fixed expenses, variable expenses and the savings target from income × split, so totals and allocation views cannot diverge. The profile form also keeps those three fields read-only while a split exists. |
 | Category matching | Transaction entry now offers the same 12 categories as setup, plus Income. Older records keep their labels; legacy labels (Housing, Transportation, Utilities, Other) are mapped to the canonical ones on display and on save. |
 | Record maintenance | Transaction edit and delete are implemented, with a confirm step before removal. Bills support editing, payment recording and a per-bill payment history. |
 | Bills and reminders | In-app reminders exist: overdue bills and bills due within the next week appear in the notification centre, with a count on the bell. No email is sent. |
@@ -107,7 +108,6 @@ The first edition of this guide listed six boundaries. Five are now closed by im
 
 | Boundary | What remains incomplete |
 | --- | --- |
-| Profile consistency | The full editor can change expense totals while preserving an older budget split. Profile totals and allocation-based views can therefore diverge. |
 | Bills and payments | Auto-pay is stored information; payment execution, recurring bill generation and automatic payment of a bill were not found. Recording a payment is a manual record, and it creates the matching expense transaction (§13). |
 | Reports | The account report is an on-screen summary of the saved plan; it is not exportable as a document. Transaction exports are separate (§02). |
 | Money definitions | Whether unpaid bills should affect forecasts and totals, and how a monthly plan should reconcile with actual spending, are still open questions (§13). |
@@ -737,6 +737,14 @@ Four open questions from the integration plan were decided by the team on 23 Nov
 | Reminders | In-app only. Due-soon and overdue bills appear in the notification centre; no email is sent and no email service is used. |
 | Bills and transactions | Paying a bill creates a matching expense transaction (same amount, the bill's name and paid date, category "Bills & Utilities"), written in the same database transaction as the payment — either both land or neither does. Removing a payment record later does not remove the transaction it created, and the interface says so. |
 | Current savings | Stays a user-entered snapshot from the financial profile; it is not derived from transactions. The dashboard labels it as a snapshot the user updates. |
+
+## Team decisions made 24 November 2026
+
+The four remaining open questions from the integration plan were decided on 24 November 2026 and are implemented in the code as described:
+
+| Decision | Chosen option |
+| --- | --- |
+| Profile consistency | The budget split is the single source of truth. Whenever a split exists — sent with the save or already stored — the server recomputes fixed expenses, variable expenses and the savings target from monthly income × split, so the totals can never silently diverge from the allocation. A save that omits the split inherits the stored one; a save that sends a new split replaces it. |
 
 ## Questions the reviewed material does not settle
 
