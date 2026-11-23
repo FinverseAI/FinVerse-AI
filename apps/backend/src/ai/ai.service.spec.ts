@@ -440,4 +440,135 @@ describe('AiService', () => {
       ).rejects.toThrow(HttpException);
     });
   });
+
+  describe('extractExpense', () => {
+    const EXTRACTION_JSON = JSON.stringify({
+      amount: 250,
+      category: 'Food & Dining',
+      date: '2026-11-23',
+      merchant: 'coffee',
+    });
+
+    it('extracts through the model and reports the ai source', async () => {
+      const { client, calls } = scriptedClient([
+        contentCompletion(EXTRACTION_JSON),
+      ]);
+      const service = makeService(DEFAULT_ENV, jest.fn(), client);
+      const result = await service.extractExpense(USER_ID, {
+        text: 'coffee 250',
+        today: '2026-11-23',
+      });
+      expect(result).toEqual({
+        amount: 250,
+        category: 'Food & Dining',
+        date: '2026-11-23',
+        merchant: 'coffee',
+        source: 'ai',
+      });
+      expect(calls).toHaveLength(1);
+      expect(calls[0]?.responseFormatJson).toBe(true);
+    });
+
+    it('normalizes the model category and defaults a null date to today', async () => {
+      const { client } = scriptedClient([
+        contentCompletion(
+          JSON.stringify({
+            amount: 15000,
+            category: 'Housing',
+            date: null,
+            merchant: 'rent',
+          }),
+        ),
+      ]);
+      const service = makeService(DEFAULT_ENV, jest.fn(), client);
+      const result = await service.extractExpense(USER_ID, {
+        text: 'rent 15000',
+        today: '2026-11-23',
+      });
+      expect(result.category).toBe('Rent');
+      expect(result.date).toBe('2026-11-23');
+      expect(result.source).toBe('ai');
+    });
+
+    it('falls back to the local extractor when the model reply is unusable', async () => {
+      const { client } = scriptedClient([contentCompletion('not json')]);
+      const service = makeService(DEFAULT_ENV, jest.fn(), client);
+      const result = await service.extractExpense(USER_ID, {
+        text: 'coffee 250',
+        today: '2026-11-23',
+      });
+      expect(result.source).toBe('local');
+      expect(result.amount).toBe(250);
+      expect(result.category).toBe('Food & Dining');
+    });
+
+    it('falls back to the local extractor on provider errors', async () => {
+      const { client } = scriptedClient([
+        new LlmProviderError('The AI provider could not be reached.'),
+      ]);
+      const service = makeService(DEFAULT_ENV, jest.fn(), client);
+      const result = await service.extractExpense(USER_ID, {
+        text: 'cab 450',
+        today: '2026-11-23',
+      });
+      expect(result.source).toBe('local');
+      expect(result.category).toBe('Transport');
+    });
+
+    it('works without a key through the local extractor', async () => {
+      const { client, calls } = scriptedClient([]);
+      const service = makeService({}, jest.fn(), client);
+      const result = await service.extractExpense('user-no-key', {
+        text: 'coffee 250',
+        today: '2026-11-23',
+      });
+      expect(result.source).toBe('local');
+      expect(result.amount).toBe(250);
+      expect(calls).toHaveLength(0);
+    });
+
+    it('says plainly when no amount can be found anywhere', async () => {
+      const { client } = scriptedClient([]);
+      const service = makeService({}, jest.fn(), client);
+      await expect(
+        service.extractExpense('user-no-amount', {
+          text: 'coffee',
+          today: '2026-11-23',
+        }),
+      ).rejects.toThrow("Couldn't find an amount in that text");
+    });
+
+    it('rate-limits per user', async () => {
+      const { client } = scriptedClient([]);
+      const service = makeService(
+        { LLM_RATE_LIMIT_PER_MINUTE: '1' },
+        jest.fn(),
+        client,
+      );
+      await service.extractExpense('user-limited', {
+        text: 'coffee 250',
+        today: '2026-11-23',
+      });
+      const error = await service
+        .extractExpense('user-limited', {
+          text: 'coffee 250',
+          today: '2026-11-23',
+        })
+        .then(
+          () => null,
+          (caught: unknown) => caught,
+        );
+      expect(error).toBeInstanceOf(HttpException);
+      expect((error as HttpException).getStatus()).toBe(429);
+    });
+
+    it('rejects invalid requests before touching the model', async () => {
+      const { client, calls } = scriptedClient([]);
+      const service = makeService(DEFAULT_ENV, jest.fn(), client);
+      await expect(
+        service.extractExpense(USER_ID, { text: '  ' }),
+      ).rejects.toThrow(HttpException);
+      expect(calls).toHaveLength(0);
+    });
+  });
 });

@@ -221,7 +221,8 @@ export function DashboardDialog({
   );
 }
 
-function TransactionForm({
+/** Shared by the expense-entry confirm dialog, which pre-fills it from an extraction. */
+export function TransactionForm({
   initial,
   submitLabel,
   disabled = false,

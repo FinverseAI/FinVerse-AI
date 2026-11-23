@@ -19,6 +19,7 @@ import UpcomingBills from "./upcoming-bills";
 import SpendingAnalysis from "./spending-analysis";
 import ReadinessCard from "./readiness-card";
 import AiChat from "./ai-chat";
+import ExpenseEntry from "./expense-entry";
 import { useActivity } from "./use-activity";
 import { budgetsWithSpending, dateKey } from "./spending-data";
 import { Modal } from "./modal";
@@ -216,6 +217,10 @@ export default function Dashboard({
                 ),
               }))
             }
+          />
+          <ExpenseEntry
+            onTransaction={addTransaction}
+            disabled={activity.loading || !!activity.error}
           />
           <section
             aria-label="Transactions and bills"

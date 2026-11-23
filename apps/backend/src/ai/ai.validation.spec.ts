@@ -3,6 +3,7 @@ import {
   ChatRequestSchema,
   ExpenseExtractionSchema,
   ExplainStockRequestSchema,
+  ExtractExpenseRequestSchema,
   GetBudgetStatusArgsSchema,
   GetCategorySpendingArgsSchema,
   GetTransactionsArgsSchema,
@@ -201,6 +202,36 @@ describe('ai validation', () => {
           category: 'Food',
           date: '19/11/2026',
           merchant: null,
+        }).success,
+      ).toBe(false);
+    });
+  });
+
+  describe('ExtractExpenseRequestSchema', () => {
+    it('accepts text with an optional client today', () => {
+      expect(
+        ExtractExpenseRequestSchema.parse({
+          text: '  coffee 250  ',
+          today: '2026-11-23',
+        }),
+      ).toEqual({ text: 'coffee 250', today: '2026-11-23' });
+      expect(ExtractExpenseRequestSchema.parse({ text: 'coffee 250' })).toEqual(
+        { text: 'coffee 250' },
+      );
+    });
+
+    it('rejects empty or over-long text and malformed dates', () => {
+      expect(
+        ExtractExpenseRequestSchema.safeParse({ text: '   ' }).success,
+      ).toBe(false);
+      expect(
+        ExtractExpenseRequestSchema.safeParse({ text: 'x'.repeat(501) })
+          .success,
+      ).toBe(false);
+      expect(
+        ExtractExpenseRequestSchema.safeParse({
+          text: 'coffee 250',
+          today: '23/11/2026',
         }).success,
       ).toBe(false);
     });

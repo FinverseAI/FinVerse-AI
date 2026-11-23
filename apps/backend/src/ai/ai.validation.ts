@@ -29,6 +29,19 @@ export const ScreenQueryRequestSchema = z.object({
   query: z.string().trim().min(1).max(500),
 });
 
+/**
+ * Expense entry: the text to extract from, plus the client's today so
+ * "today" and "yesterday" resolve in the user's timezone instead of
+ * the server's UTC day.
+ */
+export const ExtractExpenseRequestSchema = z.object({
+  text: z.string().trim().min(1).max(500),
+  today: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
 export const SearchKnowledgeArgsSchema = z.object({
   query: z.string().trim().min(1).max(500),
   symbol: z.string().trim().min(1).max(20).optional(),
@@ -172,6 +185,7 @@ export type ExplainReadinessRequest = z.infer<
   typeof ExplainReadinessRequestSchema
 >;
 export type ScreenQueryRequest = z.infer<typeof ScreenQueryRequestSchema>;
+export type ExtractExpenseRequest = z.infer<typeof ExtractExpenseRequestSchema>;
 export type AiAnswer = z.infer<typeof AiAnswerSchema>;
 export type AiClaim = z.infer<typeof AiClaimSchema>;
 

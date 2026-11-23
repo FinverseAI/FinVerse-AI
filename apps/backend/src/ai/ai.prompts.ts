@@ -179,6 +179,31 @@ export function buildReadinessExplanationMessages(
   ];
 }
 
+/**
+ * The exact messages the expense-entry feature sends: a JSON-only
+ * extraction prompt plus the user's text. The category list is the
+ * canonical twelve (the service normalizes anything else to Others),
+ * and today is stated so "yesterday" resolves correctly.
+ */
+export function buildExtractionMessages(
+  text: string,
+  today: string,
+): ChatMessage[] {
+  const system = [
+    'Extract one expense from the message below. Reply with a JSON object only, no other text:',
+    '{"amount": <number>, "category": "<one of the categories>", "date": "<YYYY-MM-DD or null>", "merchant": "<short name or null>"}',
+    '- amount: the money spent, a positive number. If several amounts appear, use the largest.',
+    '- category: exactly one of: Food & Dining, Groceries, Transport, Shopping, Bills & Utilities, Rent, Health, Entertainment, Travel, Education, Investments, Others. Pick the closest; use Others when unsure.',
+    `- date: the date the expense happened, or null for today. Today is ${today}. "yesterday" means the day before today.`,
+    '- merchant: a short name for the place or thing, for example "coffee". Null when there is none.',
+    'If the message has no amount at all, reply {"amount": 0, "category": "Others", "date": null, "merchant": null}.',
+  ].join('\n');
+  return [
+    { role: 'system', content: system },
+    { role: 'user', content: text },
+  ];
+}
+
 export function correctionPrompt(invalidOutput: string): string {
   return [
     'Your previous reply was not a valid JSON object in the required',

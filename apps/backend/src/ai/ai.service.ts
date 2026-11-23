@@ -25,6 +25,7 @@ import { RagService } from '../rag/rag.service';
 import { ScreenFiltersSchema } from '../rag/rag.validation';
 import { AiResponseCache } from './ai.cache';
 import { resolveAiConfig, type AiConfig } from './ai.config';
+import { extractExpenseLocally, resolveExpenseCategory } from './ai.extract';
 import {
   buildReadinessGuardrailContext,
   chunksFromRetrieved,
@@ -58,6 +59,7 @@ import {
   STOCK_EXPLANATION_INTRO,
   STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
+  buildExtractionMessages,
   buildReadinessExplanationMessages,
   correctionPrompt,
   guardrailCorrectionPrompt,
@@ -74,11 +76,14 @@ import {
   ExplainNewsRequestSchema,
   ExplainReadinessRequestSchema,
   ExplainStockRequestSchema,
+  ExpenseExtractionSchema,
+  ExtractExpenseRequestSchema,
   ScreenQueryRequestSchema,
   firstIssueMessage,
   parseStructuredJson,
   type AiAnswer,
   type AiClaim,
+  type ExpenseExtraction,
 } from './ai.validation';
 
 /**
@@ -111,6 +116,11 @@ export interface AiChatResponse {
 
 /** The model answered twice without producing a valid structured answer. */
 export class AiUnverifiableError extends Error {}
+
+/** An extracted expense, plus which path produced it (the UI labels it). */
+export interface ExpenseExtractionResult extends ExpenseExtraction {
+  source: 'ai' | 'local';
+}
 
 /** Tool results are capped so one large result cannot flood the prompt. */
 const MAX_TOOL_RESULT_CHARS = 6000;
@@ -442,6 +452,74 @@ export class AiService {
     const response = await this.screenByQueryWithModel(userId, query);
     this.cache.set(cacheKey, response);
     return response;
+  }
+
+  /**
+   * Expense entry: extract one expense from free text. The model path
+   * runs when a key is configured; anything else — no key, provider
+   * error, unparseable reply — falls back to the deterministic local
+   * extractor, so entry works with or without the model. The response
+   * says which path produced it, and nothing is saved here: the user
+   * reviews the extraction in a confirm dialog before it becomes a
+   * transaction.
+   */
+  async extractExpense(
+    userId: string,
+    input: unknown,
+  ): Promise<ExpenseExtractionResult> {
+    const parsed = ExtractExpenseRequestSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new BadRequestException(firstIssueMessage(parsed.error));
+    }
+    if (!this.limiter.allow(userId)) {
+      throw new HttpException(
+        'You are asking too quickly. Please wait a moment and try again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const { text } = parsed.data;
+    const today = parsed.data.today ?? new Date().toISOString().slice(0, 10);
+    if (this.config.apiKey !== undefined) {
+      try {
+        const extraction = await this.extractWithModel(text, today);
+        if (extraction) return { ...extraction, source: 'ai' };
+      } catch (error) {
+        if (!(error instanceof LlmProviderError)) throw error;
+        // Provider failure falls through to the local extractor.
+      }
+    }
+    const local = extractExpenseLocally(text, today);
+    if (!local) {
+      throw new BadRequestException(
+        "Couldn't find an amount in that text. Try something like 'coffee 250'.",
+      );
+    }
+    return { ...local, source: 'local' };
+  }
+
+  /** One JSON-mode model call; null when the reply cannot be used. */
+  private async extractWithModel(
+    text: string,
+    today: string,
+  ): Promise<ExpenseExtraction | null> {
+    const completion = await this.client.chat({
+      model: this.config.primaryModel,
+      messages: buildExtractionMessages(text, today),
+      responseFormatJson: true,
+      maxTokens: 512,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const parsed = parseStructuredJson(
+      completion.content,
+      ExpenseExtractionSchema,
+    );
+    if (!parsed.ok) return null;
+    return {
+      amount: parsed.value.amount,
+      category: resolveExpenseCategory(parsed.value.category),
+      date: parsed.value.date ?? today,
+      merchant: parsed.value.merchant,
+    };
   }
 
   private async chatWithModel(

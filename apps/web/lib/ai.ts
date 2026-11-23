@@ -46,6 +46,19 @@ export interface AiStatus {
   reasoningModel: string;
 }
 
+/**
+ * One extracted expense, from the /api/ai/extract-expense endpoint.
+ * `source` says which path produced it: the model, or the deterministic
+ * local extractor that runs when the model is unavailable.
+ */
+export interface ExpenseExtraction {
+  amount: number;
+  category: string;
+  date: string | null;
+  merchant: string | null;
+  source: "ai" | "local";
+}
+
 /** Human-readable labels for the tools a claim can cite. */
 const TOOL_LABELS: Record<string, string> = {
   getPortfolioSummary: "Portfolio",
@@ -110,6 +123,24 @@ export function formatClaimValues(values: Record<string, unknown>): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function isExpenseExtraction(
+  value: unknown,
+): value is ExpenseExtraction {
+  if (!isRecord(value)) return false;
+  if (
+    typeof value.amount !== "number" ||
+    !Number.isFinite(value.amount) ||
+    value.amount <= 0
+  )
+    return false;
+  if (typeof value.category !== "string" || !value.category) return false;
+  if (typeof value.date !== "string" && value.date !== null) return false;
+  if (typeof value.merchant !== "string" && value.merchant !== null)
+    return false;
+  if (value.source !== "ai" && value.source !== "local") return false;
+  return true;
 }
 
 export function isAiChatResponse(value: unknown): value is AiChatResponse {

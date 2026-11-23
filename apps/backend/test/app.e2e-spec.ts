@@ -43,6 +43,13 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer()).get('/api/readiness').expect(401);
   });
 
+  it('rejects unauthenticated expense-extraction requests', async () => {
+    await request(app.getHttpServer())
+      .post('/api/ai/extract-expense')
+      .send({ text: 'coffee 250' })
+      .expect(401);
+  });
+
   afterAll(async () => {
     await app.close();
   });

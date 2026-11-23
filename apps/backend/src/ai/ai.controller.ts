@@ -60,4 +60,11 @@ export class AiController {
   screen(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
     return this.ai.screenByQuery(request.userId, body);
   }
+
+  @Post('extract-expense')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  extractExpense(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.ai.extractExpense(request.userId, body);
+  }
 }
