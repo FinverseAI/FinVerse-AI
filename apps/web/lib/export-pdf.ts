@@ -121,3 +121,95 @@ export async function transactionsToPdf(
   }
   return new Uint8Array(doc.output("arraybuffer"));
 }
+
+/**
+ * The account report as a PDF document: the monthly plan (from the
+ * saved profile) beside the actuals for the current month (from
+ * recorded transactions), plus unpaid bills as committed spending.
+ * The plan and the actuals are separate sections, never mixed.
+ */
+export type AccountReport = {
+  generatedOn: string;
+  monthLabel: string;
+  plan: {
+    savings: number;
+    income: number;
+    expenses: number;
+    target: number;
+    surplus: number;
+  };
+  actual: {
+    income: number;
+    expenses: number;
+    net: number;
+    count: number;
+  };
+  committedBills: { total: number; count: number };
+};
+
+export async function accountReportToPdf(
+  report: AccountReport,
+): Promise<Uint8Array> {
+  const loaded = await import("jspdf");
+  const JsPdf = loaded.jsPDF ?? loaded.default;
+  const doc = new JsPdf({ unit: "pt", format: "a4" });
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(TITLE_SIZE);
+  doc.text("FinVerse — Account Report", MARGIN, 56);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(BODY_SIZE);
+  doc.setTextColor(100);
+  doc.text(`Generated ${report.generatedOn}`, MARGIN, 74);
+  doc.setTextColor(0);
+
+  let y = 104;
+  function section(title: string, rows: [string, string][]) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text(title, MARGIN, y);
+    doc.setDrawColor(200);
+    doc.line(MARGIN, y + 6, MARGIN + CONTENT_WIDTH, y + 6);
+    y += ROW_HEIGHT + 4;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(BODY_SIZE);
+    for (const [label, value] of rows) {
+      doc.text(label, MARGIN, y);
+      doc.text(value, MARGIN + CONTENT_WIDTH, y, { align: "right" });
+      y += ROW_HEIGHT;
+    }
+    y += 10;
+  }
+
+  section("Monthly plan — from your saved financial profile", [
+    ["Current savings (snapshot)", formatAmount(report.plan.savings)],
+    ["Monthly income", formatAmount(report.plan.income)],
+    ["Monthly expenses", formatAmount(report.plan.expenses)],
+    ["Savings target", formatAmount(report.plan.target)],
+    ["Monthly surplus", formatAmount(report.plan.surplus)],
+  ]);
+  section(`Actual — ${report.monthLabel}, from recorded transactions`, [
+    ["Recorded income", formatAmount(report.actual.income)],
+    ["Recorded expenses", formatAmount(report.actual.expenses)],
+    ["Net recorded flow", formatAmount(report.actual.net)],
+    [
+      "Unpaid bills due by month-end",
+      `${formatAmount(report.committedBills.total)} (${report.committedBills.count} bill${report.committedBills.count === 1 ? "" : "s"})`,
+    ],
+  ]);
+  doc.setFontSize(BODY_SIZE);
+  doc.setTextColor(100);
+  doc.text(
+    `Based on ${report.actual.count} recorded transaction${report.actual.count === 1 ? "" : "s"} this month. ` +
+      "The plan and the actuals are separate figures: the plan is what you set " +
+      "out to spend, the actuals are what your records show.",
+    MARGIN,
+    y,
+    { maxWidth: CONTENT_WIDTH },
+  );
+
+  doc.setFontSize(9);
+  doc.text("Page 1 of 1", MARGIN, FOOTER_Y);
+  doc.text("FinVerse AI", PAGE_WIDTH - MARGIN, FOOTER_Y, { align: "right" });
+  return new Uint8Array(doc.output("arraybuffer"));
+}

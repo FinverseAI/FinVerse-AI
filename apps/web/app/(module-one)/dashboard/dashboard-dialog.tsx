@@ -16,7 +16,7 @@ import {
   type Transaction,
 } from "./data";
 import { transactionsToCsv } from "../../../lib/export-csv";
-import { transactionsToPdf } from "../../../lib/export-pdf";
+import { accountReportToPdf, transactionsToPdf } from "../../../lib/export-pdf";
 import { transactionsToXlsx } from "../../../lib/export-xlsx";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import type { BillNotification } from "../../../lib/notifications";
@@ -40,6 +40,16 @@ const titles: Record<DialogKind, string> = {
   report: "Account report",
   notifications: "Notifications",
 };
+function download(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
 type DialogProps = {
   kind: DialogKind;
   onClose: () => void;
@@ -90,6 +100,8 @@ export function DashboardDialog({
 }: DialogProps) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [reportExporting, setReportExporting] = useState(false);
+  const [reportExportError, setReportExportError] = useState("");
   const totals = profileTotals(profile);
   // Plan vs actual (team decision, 24 November 2026): the plan comes
   // from the saved profile, the actuals from recorded transactions,
@@ -100,6 +112,31 @@ export function DashboardDialog({
     bills,
     periodRange("monthly", reportNow).end,
   );
+  async function exportReportPdf() {
+    if (reportExporting) return;
+    setReportExporting(true);
+    setReportExportError("");
+    try {
+      const bytes = await accountReportToPdf({
+        generatedOn: dateKey(reportNow),
+        monthLabel: reportNow.toLocaleDateString("en-IN", {
+          month: "long",
+          year: "numeric",
+        }),
+        plan: totals,
+        actual,
+        committedBills: committed,
+      });
+      download(
+        new Blob([bytes as BlobPart], { type: "application/pdf" }),
+        `finverse-account-report-${dateKey(reportNow)}.pdf`,
+      );
+    } catch {
+      setReportExportError("The PDF export failed. Please try again.");
+    } finally {
+      setReportExporting(false);
+    }
+  }
   return (
     <Modal
       title={titles[kind]}
@@ -267,6 +304,19 @@ export function DashboardDialog({
               : ""}
             .
           </p>
+          <button
+            type="button"
+            onClick={exportReportPdf}
+            disabled={reportExporting}
+            className="rounded-full border border-dash-border px-4 py-2 text-sm text-dash-text transition-colors hover:border-dash-accent disabled:opacity-50"
+          >
+            {reportExporting ? "Exporting…" : "Export PDF"}
+          </button>
+          {reportExportError && (
+            <p role="alert" className="text-sm text-dash-red">
+              {reportExportError}
+            </p>
+          )}
         </div>
       )}
       {kind === "notifications" && notificationsLoading && (
@@ -513,16 +563,6 @@ function TransactionTable({
     );
   const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
   const [exportError, setExportError] = useState("");
-  function download(blob: Blob, filename: string) {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
   function exportCsv() {
     download(
       new Blob([transactionsToCsv(filtered)], {

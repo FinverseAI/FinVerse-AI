@@ -4,13 +4,13 @@
 
 A living guide to what exists, how it works, and what comes next.
 
-**B.Tech major project | Edition 1.3 | 23 November 2026**
+**B.Tech major project | Edition 1.4 | 24 November 2026**
 
 Personal finance + stock market and investment intelligence
 
 Prepared for teachers, friends, recruiters and new teammates. Based on the current project files and the supplied project planning documents.
 
-> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). The remaining Module 1 integration work is also built: plain-words, voice and receipt expense entry, bill payments that record their expense transaction, in-app bill reminders, PDF and Excel exports, and monthly balance history (§02, §03, §06). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative, and expense extraction falls back to a local matcher.
+> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). The remaining Module 1 integration work is also built: plain-words, voice and receipt expense entry, bill payments that record their expense transaction, in-app bill reminders, PDF and Excel exports, and monthly balance history (§02, §03, §06). The four open product questions from that integration are now decided and built (24 November 2026): the budget split is the single source of truth for derived amounts, auto-pay executes on dashboard load and monthly bills generate their next occurrence, unpaid bills count as committed spending in forecasts with plan and actual shown side by side, and the account report exports as a PDF (§02, §03, §13). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative, and expense extraction falls back to a local matcher.
 
 This is a description of the reviewed working copy, including changes not yet committed to Git. It is not a claim that every feature has passed a live demonstration or is deployed publicly.
 
@@ -102,13 +102,11 @@ The first edition of this guide listed six boundaries. Five are now closed by im
 | Category matching | Transaction entry now offers the same 12 categories as setup, plus Income. Older records keep their labels; legacy labels (Housing, Transportation, Utilities, Other) are mapped to the canonical ones on display and on save. |
 | Record maintenance | Transaction edit and delete are implemented, with a confirm step before removal. Bills support editing, payment recording and a per-bill payment history. |
 | Bills and reminders | In-app reminders exist: overdue bills and bills due within the next week appear in the notification centre, with a count on the bell. No email is sent. Auto-pay bills due today or overdue are recorded as paid automatically when the dashboard loads (payment + matching expense transaction); paying a monthly bill generates its next occurrence. |
-| Reports and AI | Transactions export as CSV, PDF, and Excel. Conversational expense entry (plain words, voice, receipt) and AI chat are implemented (§06, §08B). |
+| Reports and AI | Transactions export as CSV, PDF, and Excel. The account report exports as a PDF (monthly plan beside the current month's actuals and unpaid bills). Conversational expense entry (plain words, voice, receipt) and AI chat are implemented (§06, §08B). |
 
 ## What remains incomplete
 
-| Boundary | What remains incomplete |
-| --- | --- |
-| Reports | The account report is an on-screen summary of the saved plan; it is not exportable as a document. Transaction exports are separate (§02). |
+The four boundaries this section listed after the 23 November review are all resolved as of 24 November 2026: the budget split is the single source of truth for derived amounts (Profile consistency), auto-pay executes and monthly bills recur (Bills and reminders), the money definitions are decided (forecasts count unpaid bills; plan and actual are labelled side by side), and the account report exports as a PDF. What is still genuinely open is listed in §13 (live model key, production migrations, the three concept features, the final formal report).
 
 These remaining boundaries are reasons to call Module 1 a working foundation rather than a finished finance product. They also give the team a concrete list of integration work. [S5-S7]
 
@@ -664,7 +662,7 @@ The earlier backend checks use mocked dependencies for several cases; passing th
 
 ## Which snapshot does this describe?
 
-The reviewed repository was based on Git commit **`629c037`** (the savings-snapshot label), which includes the Module 1 integration work of 23 November 2026: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, the notification centre, and the UI audit fixes — ten commits on top of the Phase 6 documentation (`8f3293c`), plus the Edition 1.3 guide changes in this edition.
+The reviewed repository was based on Git commit **`629c037`** (the savings-snapshot label), which includes the Module 1 integration work of 23 November 2026: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, the notification centre, and the UI audit fixes — ten commits on top of the Phase 6 documentation (`8f3293c`), plus the Edition 1.3 guide changes in this edition. Edition 1.4 (24 November 2026) adds the four remaining integration items: the budget split as the single source of truth, auto-pay execution with monthly recurrence, the money definitions (committed spending in forecasts, plan vs actual side by side), and the account-report PDF export.
 
 Older notes contain earlier behavior. In particular, DASHBOARD_SOURCE.md embeds a mock dashboard; ONBOARDING.md predates parts of the current onboarding and saved activity flow. Those notes remain useful history, but current source determines this edition's feature claims. [S10]
 
@@ -720,7 +718,7 @@ The module document recommends building a strong core before advanced research f
 | --- | --- |
 | 1. Complete the finance loop | **Done:** budget changes persist, category choices are aligned, and the plan-vs-actual rule is decided: actual activity does not rewrite the plan — the two are shown side by side and labelled (§13). |
 | 2. Verify the full journey | Demonstrate sign-in, setup, saved changes after reload, user separation and clear recovery from failed requests with the real services. |
-| 3. Finish core records and reports | **Done:** record maintenance (transaction and bill editing, payment history), in-app reminders, and CSV/PDF/Excel exports are built. Bills do create transactions when paid (decision below). Still open: exporting the account report itself. |
+| 3. Finish core records and reports | **Done:** record maintenance (transaction and bill editing, payment history), in-app reminders, and CSV/PDF/Excel exports are built. Bills do create transactions when paid (decision below). The account report itself exports as a PDF (24 November 2026). |
 | 4. Introduce bounded AI entry | **Done:** text-to-expense extraction with a confirm-before-save review flow, plus voice and receipt entry, are built (§06). |
 | 5. Build the market foundation | **Done (§04A).** Next: alerts, a second price source, corporate-action adjustments. |
 | 6. Add researched intelligence | **Done (§08B–§08D, §12A).** Next: configure the API key, run the live evaluation, collect human ratings. |
