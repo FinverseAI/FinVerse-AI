@@ -4,13 +4,13 @@
 
 A living guide to what exists, how it works, and what comes next.
 
-**B.Tech major project | Edition 1.2 | 23 November 2026**
+**B.Tech major project | Edition 1.3 | 23 November 2026**
 
 Personal finance + stock market and investment intelligence
 
 Prepared for teachers, friends, recruiters and new teammates. Based on the current project files and the supplied project planning documents.
 
-> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative.
+> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). The remaining Module 1 integration work is also built: plain-words, voice and receipt expense entry, bill payments that record their expense transaction, in-app bill reminders, PDF and Excel exports, and monthly balance history (§02, §03, §06). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative, and expense extraction falls back to a local matcher.
 
 This is a description of the reviewed working copy, including changes not yet committed to Git. It is not a claim that every feature has passed a live demonstration or is deployed publicly.
 
@@ -57,12 +57,15 @@ A new user is sent through four setup screens: **name, monthly income and payday
 | --- | --- |
 | Financial profile | Save and later edit income, planned expenses, current savings, monthly savings target, debt information and investing preferences. |
 | Overview cards | See current savings, monthly income, savings target and calculated monthly surplus from the saved profile. |
-| Budgets | Start with the saved onboarding allocation; compare matching recorded expenses with category limits. |
-| Goals | Save a name, target amount, deadline and priority; manage the goal list through the financial-profile editor. |
-| Transactions | Add an income or expense with a description, amount, category and date; browse and search the saved records. |
-| Bills | Add a bill with amount, due date and auto-pay label; list, search and remove saved bills. |
+| Budgets | Start with the saved onboarding allocation; compare matching recorded expenses with category limits; change the allocation in the Manage budgets dialog, which saves to the profile. |
+| Goals | Save a name, target amount, deadline and priority; manage the goal list through the financial-profile editor; add savings towards a goal and view the contribution history. |
+| Transactions | Add an income or expense with a description, amount, category and date; browse, search, edit and remove the saved records. |
+| Expense entry | Add an expense in plain words, by speaking it, or by photographing a receipt; review what was understood before saving (§06). |
+| Bills | Add a bill with amount, due date and auto-pay label; list, search, edit and remove saved bills; record payments and view each bill's payment history. |
+| Notifications | See in-app reminders for bills that are overdue, due today, or due within the next week, with a count on the bell icon. |
 | Spending analysis | View expense totals, category shares and bars for weekly, monthly or custom date ranges. |
 | Comparisons | Compare elapsed days with the previous month or week and see a simple month-end spending estimate. |
+| Reports and exports | View the account report as an on-screen summary of the saved plan; export transactions as CSV, PDF, or Excel. |
 
 Transactions and bills have loading, empty and error states. The interface waits for a successful save before adding a new record to its displayed list. These details help users distinguish an empty account from a failed connection. [S6, S7]
 
@@ -78,7 +81,9 @@ Amounts are presented in Indian rupees with Indian digit grouping. The values co
 
 The top summary cards and Expense Breakdown use the saved financial profile and budget allocation. Recent Transactions and Spending Analysis use recorded transactions. Adding a food expense changes the transaction-based analysis and matching budget spending, but it does not automatically rewrite the profile's income, planned expenses or current savings. [S7]
 
-The Balance Breakdown panel has month controls, but it currently displays a no-history message and the current plan. It does not reconstruct historical bank balances. Savings goals have targets and deadlines, but the interface explicitly says progress is not tracked yet.
+The Balance Breakdown panel has month controls and reconstructs a monthly history from the user's own recorded transactions: for each month it shows income, expenses, the month's net change, and a running balance carried forward from the first recorded month. The panel says plainly that this is computed from entered transactions, starting at zero — it is not a bank balance, and months before the first transaction are not shown. [S7]
+
+Savings goals have targets and deadlines, and progress is tracked: adding savings towards a goal updates its saved amount and progress bar, and each goal keeps a contribution history that can be reviewed and corrected. [S7]
 
 ## Setup contains defaults, not a full assessment
 
@@ -86,16 +91,28 @@ The first-time setup asks only a small number of questions. It sets employment t
 
 Setup counts Rent plus Bills & Utilities as fixed expenses. It uses the Investments allocation as the monthly savings target and treats the rest as variable expenses. Because the entire income is allocated, the initial calculated surplus is zero. This is how the setup is currently translated into the profile, not evidence that the user has no real spare money.
 
+## Boundaries fixed since the first edition
+
+The first edition of this guide listed six boundaries. Five are now closed by implemented code; the table below records what changed and when.
+
+| Boundary | What changed |
+| --- | --- |
+| Budget edits | The Manage budgets dialog now saves the new allocation to the profile (PUT), so edits survive a reload. |
+| Category matching | Transaction entry now offers the same 12 categories as setup, plus Income. Older records keep their labels; legacy labels (Housing, Transportation, Utilities, Other) are mapped to the canonical ones on display and on save. |
+| Record maintenance | Transaction edit and delete are implemented, with a confirm step before removal. Bills support editing, payment recording and a per-bill payment history. |
+| Bills and reminders | In-app reminders exist: overdue bills and bills due within the next week appear in the notification centre, with a count on the bell. No email is sent. |
+| Reports and AI | Transactions export as CSV, PDF, and Excel. Conversational expense entry (plain words, voice, receipt) and AI chat are implemented (§06, §08B). |
+
+## What remains incomplete
+
 | Boundary | What remains incomplete |
 | --- | --- |
-| Budget edits | The onboarding split is stored, but the separate Manage budgets dialog changes limits only in the current page state. Those edits reset on reload. |
-| Category matching | Setup offers 12 budget categories; transaction entry accepts 8 categories. Some labels are mapped, but categories such as Groceries and Health have no direct transaction option. |
 | Profile consistency | The full editor can change expense totals while preserving an older budget split. Profile totals and allocation-based views can therefore diverge. |
-| Record maintenance | Transaction add/list is implemented; transaction edit/delete was not found. Bills support add/list/delete, but not editing or payment history. |
-| Bills and reminders | Due-soon and overdue labels exist. Auto-pay is stored information; payment execution, recurring generation and reminder delivery were not found. |
-| Reports and AI | The report is an on-screen summary. PDF/CSV/Excel exports, conversational entry, voice, receipt reading and AI chat are planned. |
+| Bills and payments | Auto-pay is stored information; payment execution, recurring bill generation and automatic payment of a bill were not found. Recording a payment is a manual record, and it creates the matching expense transaction (§13). |
+| Reports | The account report is an on-screen summary of the saved plan; it is not exportable as a document. Transaction exports are separate (§02). |
+| Money definitions | Whether unpaid bills should affect forecasts and totals, and how a monthly plan should reconcile with actual spending, are still open questions (§13). |
 
-These boundaries are reasons to call Module 1 a working foundation rather than a finished finance product. They also give the team a concrete list of integration work. [S5-S7]
+These remaining boundaries are reasons to call Module 1 a working foundation rather than a finished finance product. They also give the team a concrete list of integration work. [S5-S7]
 
 ---
 
@@ -214,7 +231,7 @@ Imagine an authenticated user who has completed setup and spent **INR 500 on foo
 
 | Step | What happens |
 | --- | --- |
-| 1. Enter | The user opens Add transaction and enters Food purchase, Expense, 500, Food & Dining and the date. The current route is a form, not a chat box. |
+| 1. Enter | The user opens Add transaction and enters Food purchase, Expense, 500, Food & Dining and the date. A plain-words route exists as well — see below. |
 | 2. Send | The browser converts an expense to a negative amount, -500, and sends the structured fields to /api/transactions. Structured means separately labelled fields. |
 | 3. Forward | The Next.js server checks that the write comes from the expected website and forwards it, with the session cookie, to NestJS. A cookie is a small browser-held value used here to identify the session. |
 | 4. Check identity | NestJS asks Better Auth to confirm the session and obtains the user ID from that verified response. The submitted form does not choose the owner. |
@@ -227,9 +244,9 @@ If this were the only expense in the selected period, its total would be INR 500
 
 If saving fails, an error is displayed instead of claiming the record was saved. The source has no duplicate-prevention key for transaction creation: retrying after an uncertain network result could require reconciliation. This differs from the explicit repeated-onboarding protection.
 
-## The planned route: "I spent 500 on food"
+## The plain-words route: "I spent 500 on food"
 
-The documents propose letting AI extract the amount, category, date and merchant from ordinary text. Voice would first be transcribed; a receipt would first be read. Those extraction services and their connection to the saving route have not been built. The current implementation cannot interpret this sentence as an expense command. [S1, S2]
+The documents propose letting AI extract the amount, category, date and merchant from ordinary text — and that route is now built. The user types the sentence, speaks it, or photographs a receipt. Voice is transcribed in the browser; a receipt is read in the browser, and the photo never leaves the device. The text is then understood in one of two ways: by the reasoning model when the API key is configured, or by a local matcher on the server when it is not. Either way the extracted amount, category, date and merchant are shown in a review dialog, and nothing is saved until the user confirms it. Saving then follows exactly the same route as the form above, from step 2 onwards. [S1, S2, S6, S11]
 
 ---
 
@@ -496,7 +513,7 @@ A healthy saver (from the evaluation scenarios, §12A): ₹80,000/month income, 
 
 ## Status and next step
 
-Implemented, with the formula pinned by tests and the evaluation harness (§12A). Next: surface the score on the dashboard (the endpoint exists; the dashboard card is planned) and calibrate the thresholds against real user feedback once the feature is used.
+Implemented, with the formula pinned by tests and the evaluation harness (§12A). The dashboard card is built. Next: calibrate the thresholds against real user feedback once the feature is used.
 
 ---
 
@@ -521,6 +538,10 @@ Versions below are declarations in the project files, not claims about the lates
 | PostgreSQL | Docker image 17 | Stores account and personal-finance records in linked tables. |
 | pgvector | Postgres extension | Stores 768-number embeddings in the `rag_documents` table for retrieval; accessed through raw SQL, not the typed Prisma client. |
 | yahoo-finance2 | ^4.0.6 | Fetches quotes, history, profiles and news from Yahoo Finance; free, no API key. |
+| jsPDF | ^4.2.1 | Builds the PDF transaction export in the browser; no server round-trip. |
+| SheetJS (xlsx) | ^0.18.5 | Builds the Excel transaction export in the browser; no server round-trip. |
+| Tesseract.js | ^7.0.0 | Reads printed text from receipt photos in the browser; the photo never leaves the device. |
+| Web Speech API | Built-in (browser) | Transcribes spoken expense entries in the browser; no audio is stored. |
 | Zod | ^4.6.7 | Validates model outputs and request data against schemas (the structured-answer checker). |
 | Node.js | Engine requirement >=24 | Runs the JavaScript-based web and backend tools and services. |
 | Browser Fetch API | Built-in | Sends requests between the browser and server; server Fetch is also used for forwarding and session checks. |
@@ -576,8 +597,8 @@ The older architecture blueprint lists the following candidates. They explain th
 | Llama-3-8B-Instruct or Mistral-7B-Instruct | Candidate open models for interpreting requests and generating explanations. |
 | LangGraph | Coordinates the steps and specialist components handling a request. |
 | Pydantic | Checks that extracted fields and model outputs follow expected data rules. |
-| Whisper Base or Tiny | Converts spoken expense entries into text. |
-| EasyOCR or Tesseract | Reads printed text from receipts and other images; OCR means optical character recognition. |
+| Whisper Base or Tiny | Converts spoken expense entries into text. **Not used:** voice entry uses the browser's built-in Web Speech API instead (§09). |
+| EasyOCR or Tesseract | Reads printed text from receipts and other images; OCR means optical character recognition. **Tesseract is now implemented** as Tesseract.js, running in the browser (§09). |
 | NumPy | Handles numerical arrays and mathematical calculations. |
 | SciPy / scipy.optimize | Supports simulations and constrained numerical optimization. |
 | pandas | Organizes and processes tables of financial data. |
@@ -612,7 +633,7 @@ Several of the blueprint's open questions now have answers — mostly different 
 | News | Finnhub API or RSS | Yahoo Finance news, via the same provider. |
 | Numerical engine | NumPy / SciPy / QuantLib / pandas | Pure TypeScript (indicators, portfolio math, optimization). |
 
-Still open: voice input (Whisper), receipt OCR, a background-job system, and a second price source. [S11]
+Still open: a background-job system and a second price source. Voice input and receipt OCR are implemented (§06, §09). [S11]
 
 ---
 
@@ -622,10 +643,10 @@ Still open: voice input (Whisper), receipt OCR, a background-job system, and a s
 
 | State | What the evidence supports |
 | --- | --- |
-| Implemented in source | Landing and Google-auth flows; profile-based route protection; onboarding; profile and goal saving/editing; transaction add/list/search; bill add/list/delete; spending analysis; user-scoped backend checks; database schemas and migrations. **Since Edition 1.1:** market module (quotes, history, indicators, holdings, watchlists, portfolio math, optimization); AI layer (chat, stock/news/readiness explanations, screener, RAG retrieval); guardrail verification engine; Investment Readiness score; evaluation harness. |
-| Partial / integration work | Persistent budget management; alignment of budget and transaction categories; connection of transactions to all summary cards; historical balance views; fuller record editing and reporting. Readiness dashboard card (endpoint exists, card not built). |
+| Implemented in source | Landing and Google-auth flows; profile-based route protection; onboarding; profile and goal saving/editing; transaction add/list/search/edit/delete; bill add/list/edit/delete with payment recording and payment history; spending analysis; user-scoped backend checks; database schemas and migrations. **Since Edition 1.1:** market module (quotes, history, indicators, holdings, watchlists, portfolio math, optimization); AI layer (chat, stock/news/readiness explanations, screener, RAG retrieval); guardrail verification engine; Investment Readiness score and dashboard card; evaluation harness. **Since Edition 1.2:** persistent budget management; 12-category alignment with legacy mapping; plain-words, voice and receipt expense entry with a confirm-before-save review; bill payments that create their matching expense transaction; in-app bill reminders; CSV, PDF and Excel transaction exports; monthly balance history reconstructed from transactions. |
+| Partial / integration work | Connection of transactions to all summary cards (profile cards still show the saved plan, not recorded activity); profile consistency between expense totals and the budget split; export of the account report as a document. |
 | Configured, not connected | Redis is in Compose, with no consuming application integration found. The OpenRouter API key is not configured, so live model calls are not yet possible (§12A). |
-| Planned | Conversational expense entry (extraction schema exists; save/review UI not built), voice, receipts, alerts, exports, scenario stress tests. |
+| Planned | Scenario stress tests; recurring bill generation; payment execution. |
 | Later scope | Tax/compliance in the module roadmap; small-business finance in the older blueprint. |
 
 "In progress" here means partially implemented or present as local working-copy changes. No issue tracker, assigned owner or delivery schedule was supplied to establish who is currently working on each item.
@@ -634,18 +655,18 @@ Still open: voice input (Whisper), receipt OCR, a background-job system, and a s
 
 | Check | Result on 23 November 2026 |
 | --- | --- |
-| Backend tests | 612 of 612 passed (48 suites), covering the finance core, market module, AI layer, guardrails, readiness and the evaluation harness. |
-| Web tests | 68 of 68 passed (spending calculations and related checks). |
-| End-to-end tests | 4 of 4 passed. |
+| Backend tests | 648 of 648 passed (48 suites), covering the finance core, market module, AI layer, guardrails, readiness and the evaluation harness. |
+| Web tests | 92 of 92 passed (spending calculations, exports, expense extraction, receipt reading, notifications and related checks). |
+| End-to-end tests | 5 of 5 passed. |
 | Type checks and lint | Backend `tsc`, Oxlint, Prettier, web `tsc` and ESLint all clean. |
 | Evaluation harness (no API key) | Baseline grounding 100.0% (19/19 answers, 1,355/1,355 checks); corrupted-output fixture caught on every answer (0/19 passed) — see §12A. |
 | Live user journey and deployed service | The public site (Netlify, `https://finverseaii.netlify.app`) was checked on 23 November 2026: homepage, health, auth-guard and origin-check responses all behaved as expected. Google login and end-to-end persistence against a live account were not tested. |
 
-The earlier backend checks use mocked dependencies for several cases; passing them is not proof that the real database and sign-in provider are connected. A database-persistence test script exists, but was not run. Full production builds were not rerun for this documentation task. [S9, S12]
+The earlier backend checks use mocked dependencies for several cases; passing them is not proof that the real database and sign-in provider are connected. A database-persistence test script exists, but was not run. [S9, S12]
 
 ## Which snapshot does this describe?
 
-The reviewed repository was based on Git commit **`a940eee`** (Phase 5, evaluation), plus the Phase 6 documentation changes in this edition. Application code was inspected without modifying it to prepare this guide, except where the guide itself records a change (the README fix, §16).
+The reviewed repository was based on Git commit **`629c037`** (the savings-snapshot label), which includes the Module 1 integration work of 23 November 2026: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, the notification centre, and the UI audit fixes — ten commits on top of the Phase 6 documentation (`8f3293c`), plus the Edition 1.3 guide changes in this edition.
 
 Older notes contain earlier behavior. In particular, DASHBOARD_SOURCE.md embeds a mock dashboard; ONBOARDING.md predates parts of the current onboarding and saved activity flow. Those notes remain useful history, but current source determines this edition's feature claims. [S10]
 
@@ -699,22 +720,33 @@ The module document recommends building a strong core before advanced research f
 
 | Suggested stage | Concrete outcome to explain in the next edition |
 | --- | --- |
-| 1. Complete the finance loop | Make budget changes persist, align category choices and decide how actual activity should affect the financial plan and summary cards. |
+| 1. Complete the finance loop | **Done in part:** budget changes persist and category choices are aligned. Still open: how actual activity should affect the financial plan and summary cards (profile cards still show the saved plan). |
 | 2. Verify the full journey | Demonstrate sign-in, setup, saved changes after reload, user separation and clear recovery from failed requests with the real services. |
-| 3. Finish core records and reports | Add the planned record maintenance, reminders and exports; define whether bills create transactions. (Goal contributions are now implemented.) |
-| 4. Introduce bounded AI entry | Build text-to-expense extraction with field checks and a defined review/save flow, then add voice and receipt entry. (The extraction schema exists; the UI does not.) |
+| 3. Finish core records and reports | **Done:** record maintenance (transaction and bill editing, payment history), in-app reminders, and CSV/PDF/Excel exports are built. Bills do create transactions when paid (decision below). Still open: exporting the account report itself. |
+| 4. Introduce bounded AI entry | **Done:** text-to-expense extraction with a confirm-before-save review flow, plus voice and receipt entry, are built (§06). |
 | 5. Build the market foundation | **Done (§04A).** Next: alerts, a second price source, corporate-action adjustments. |
 | 6. Add researched intelligence | **Done (§08B–§08D, §12A).** Next: configure the API key, run the live evaluation, collect human ratings. |
 
+## Team decisions made 23 November 2026
+
+Four open questions from the integration plan were decided by the team on 23 November 2026 and are implemented in the code as described:
+
+| Decision | Chosen option |
+| --- | --- |
+| Receipt storage | No upload at all. Receipts are read in the browser (Tesseract.js); the photo never leaves the user's device, nothing is stored server-side, and no retention policy is needed. |
+| Reminders | In-app only. Due-soon and overdue bills appear in the notification centre; no email is sent and no email service is used. |
+| Bills and transactions | Paying a bill creates a matching expense transaction (same amount, the bill's name and paid date, category "Bills & Utilities"), written in the same database transaction as the payment — either both land or neither does. Removing a payment record later does not remove the transaction it created, and the interface says so. |
+| Current savings | Stays a user-entered snapshot from the financial profile; it is not derived from transactions. The dashboard labels it as a snapshot the user updates. |
+
 ## Questions the reviewed material does not settle
 
-**Money definitions:** Is "current savings" a manually maintained snapshot or a balance derived from transactions? How should a monthly plan reconcile with actual spending? Should unpaid bills affect forecasts, totals or only reminders?
+**Money definitions:** "Current savings" is a manually maintained snapshot from the financial profile, not a balance derived from transactions (team decision, 23 November 2026). How a monthly plan should reconcile with actual spending, and whether unpaid bills should affect forecasts and totals or only reminders, are still open.
 
 **Investment data:** Yahoo Finance is the provider (free, no key); quotes are cached 15 minutes, history 24 hours, and stale prices are marked, never invented (§04A). Corporate actions are not yet adjusted for; the refresh rate and usage terms of any second provider are undecided.
 
-**AI behavior:** Hosted models via OpenRouter (Qwen 2.5 72B primary, DeepSeek R1 reasoning); the model timeout is 30 seconds, and unsupported questions get a refusal, not a guess (§08B). Whether the user confirms an extracted transaction before saving is still undecided — the extraction entry flow is not built.
+**AI behavior:** Hosted models via OpenRouter (Qwen 2.5 72B primary, DeepSeek R1 reasoning); the model timeout is 30 seconds, and unsupported questions get a refusal, not a guess (§08B). An extracted transaction is always confirmed by the user in a review dialog before saving (§06).
 
-**Storage and operations:** Uploaded receipts and voice recordings have no storage yet. Production hosting is Netlify (`https://finverseaii.netlify.app`, backend as a Netlify Function); backups and monitoring arrangements are not established. Vector records live in PostgreSQL (pgvector) and connect to users via `user_id`, scoped at retrieval (§07, §08B).
+**Storage and operations:** Receipt photos and voice are never uploaded: receipts are read in the browser and voice is transcribed in the browser, so there is no receipt or audio storage at all (team decision, 23 November 2026). Reminders are in-app only — no email is sent. Production hosting is Netlify (`https://finverseaii.netlify.app`, backend as a Netlify Function); backups and monitoring arrangements are not established. Vector records live in PostgreSQL (pgvector) and connect to users via `user_id`, scoped at retrieval (§07, §08B).
 
 **Research claims:** The Readiness score is defined (§08D) and tested; the evaluation harness (§12A) measures grounding, self-consistency, explanation quality, latency and cost for the readiness explainer. Extraction correctness and evidence quality for chat/RAG are not yet benchmarked, and live model results await the API key.
 
@@ -767,8 +799,8 @@ This guide is grounded in the following material. Paths are relative to the finv
 | S3 | Root, web and backend package.json; turbo.json; docker-compose.yml; shared configuration; backend main.ts and app.module.ts. Application structure, versions, local services and ports. |
 | S4 | apps/web/auth/server.ts, client.ts, auth-form.tsx and profile-guard.ts; web auth route; apps/backend/src/auth/session.guard.ts. Sign-in structure, access checks and session verification. |
 | S5 | apps/web/app/(module-one)/onboarding/; apps/web/lib/profile.ts, onboarding.ts and profile-server.ts; web onboarding/profile routes; apps/backend/src/profile/. Setup, defaults, editable fields, validation and saves. |
-| S6 | apps/backend/src/activity/; apps/web/lib/activity-server.ts; apps/web/app/api/transactions/ and api/bills/; dashboard/use-activity.ts. Transaction and bill request paths and account ownership. |
-| S7 | apps/web/app/(module-one)/dashboard/: dashboard.tsx, summary and breakdown cards, planning-cards.tsx, ui.tsx, recent-transactions.tsx, upcoming-bills.tsx, spending-analysis.tsx and spending-data.ts. Screen behavior, limits and calculations. |
+| S6 | apps/backend/src/activity/; apps/web/lib/activity-server.ts; apps/web/app/api/transactions/, api/bills/ and api/ai/extract-expense/; dashboard/use-activity.ts. Transaction and bill request paths, account ownership, and the expense-extraction endpoint. |
+| S7 | apps/web/app/(module-one)/dashboard/: dashboard.tsx, summary and breakdown cards, planning-cards.tsx, ui.tsx, recent-transactions.tsx, upcoming-bills.tsx, spending-analysis.tsx, spending-data.ts, expense-entry.tsx and dashboard-dialog.tsx; apps/web/lib/notifications.ts, receipt-ocr.ts, export-pdf.ts and export-xlsx.ts. Screen behavior, limits and calculations. |
 | S8 | apps/backend/prisma/schema.prisma and migrations, including the market-module, RAG-documents and guardrail-checks additions; src/prisma/. Actual data models and connection lifecycle. |
 | S9 | Backend auth/profile/activity test files; apps/web/test/spending-data.test.mjs; backend/test/activity-persistence.cjs; test results from this review. Verification coverage and limits. |
 | S10 | README.md, ONBOARDING.md and DASHBOARD_SOURCE.md. Supporting project notes, checked against newer source where they differ. |
@@ -811,10 +843,11 @@ The editable source for this guide is **docs/finverse-project-guide.md**. The co
 | 1.0 | 15 November 2026 | Initial guide to the finance foundation, storage, stack and planned modules. |
 | 1.1 | 15 November 2026 | Rechecked core source; added contents, a data relationship diagram and worked calculation examples; rebuilt and visually reviewed the PDF. |
 | 1.2 | 23 November 2026 | Added chapters 04A (market module), 08B (AI layer), 08C (guardrails), 08D (Readiness), 12A (evaluation); updated status tables, technology list, progress record and open questions; corrected the README's AI claim; rebuilt the PDF. |
+| 1.3 | 23 November 2026 | Refreshed §02, §03, §06, §12 and §13 for the Module 1 integration work: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, in-app reminders; recorded the four team decisions of 23 November 2026. |
 
 ## Where future chapters belong
 
-Add chapters for persistent budgets and reconciled balances, AI expense entry, voice and receipts, alerts and exports as those capabilities are implemented. Market-data ingestion, stock research, portfolio calculations and AI evaluation now have chapters (04A, 08B–08D, 12A). These are candidate chapter topics derived from the roadmap; they are not completion claims.
+Add chapters for reconciled balances as those capabilities are implemented. Persistent budgets, AI expense entry, voice and receipts, alerts and exports are now built and are covered in §02, §03 and §06 rather than in their own chapters. Market-data ingestion, stock research, portfolio calculations and AI evaluation now have chapters (04A, 08B–08D, 12A). These are candidate chapter topics derived from the roadmap; they are not completion claims.
 
 When something changes, update its explanation, source key and evidence date together. Keep this edition's progress record in the history so the team can see how the project developed.
 
