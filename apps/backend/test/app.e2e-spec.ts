@@ -39,6 +39,10 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer()).get('/api/profile').expect(401);
   });
 
+  it('rejects unauthenticated readiness requests', async () => {
+    await request(app.getHttpServer()).get('/api/readiness').expect(401);
+  });
+
   afterAll(async () => {
     await app.close();
   });

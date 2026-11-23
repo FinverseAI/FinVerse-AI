@@ -10,6 +10,10 @@ import { ConfigService } from '@nestjs/config';
 import { normalizeSymbol } from '../market/market.validation';
 import { RagIngestService } from '../rag/rag.ingest';
 import {
+  isReadinessAssessment,
+  type ReadinessAssessment,
+} from '../readiness/readiness.formula';
+import {
   formatRetrievedContext,
   formatScreenResults,
 } from '../rag/rag.prompts';
@@ -32,6 +36,7 @@ import {
   chatTemplate,
   explainNewsTemplate,
   explainStockTemplate,
+  readinessTemplate,
   screenTemplate,
   type TemplateAnswer,
 } from './ai.guardrail-templates';
@@ -45,6 +50,7 @@ import {
 import {
   AI_DISCLAIMER,
   NEWS_EXPLANATION_INTRO,
+  READINESS_EXPLANATION_INTRO,
   NO_RETRIEVED_CONTEXT_NOTE,
   SCREENER_SUMMARY_INTRO,
   SCREENER_TRANSLATION_INTRO,
@@ -64,6 +70,7 @@ import {
   AiAnswerSchema,
   ChatRequestSchema,
   ExplainNewsRequestSchema,
+  ExplainReadinessRequestSchema,
   ExplainStockRequestSchema,
   ScreenQueryRequestSchema,
   firstIssueMessage,
@@ -319,6 +326,71 @@ export class AiService {
         context,
       );
     }
+    this.cache.set(cacheKey, response);
+    return response;
+  }
+
+  /**
+   * A reasoning-model explanation of the user's investment readiness
+   * score. The score itself is deterministic — the model only explains
+   * WHY it is what it is, from the computed assessment, through the
+   * guardrail. An unavailable assessment is an honest refusal WITHOUT
+   * a model call (there is nothing to explain from); a missing API key
+   * falls back to the raw score without the narrative.
+   */
+  async explainReadiness(
+    userId: string,
+    input: unknown,
+  ): Promise<AiChatResponse> {
+    const parsed = ExplainReadinessRequestSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new BadRequestException(firstIssueMessage(parsed.error));
+    }
+    const question = parsed.data.question;
+    const cacheKey = `explain-readiness:${userId}:${(question ?? '').toLowerCase()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+    if (!this.limiter.allow(userId)) {
+      throw new HttpException(
+        'You are asking too quickly. Please wait a moment and try again.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    const assessment = await this.tools.execute(
+      userId,
+      'getReadinessScore',
+      {},
+    );
+    if (!isReadinessAssessment(assessment)) {
+      const reason =
+        typeof assessment === 'object' &&
+        assessment !== null &&
+        typeof (assessment as { reason?: unknown }).reason === 'string'
+          ? (assessment as { reason: string }).reason
+          : 'Your investment readiness score is not available yet.';
+      const response: AiChatResponse = {
+        answer: `${reason} Once your data is complete, the explanation will walk through each factor.`,
+        claims: [],
+        refused: true,
+        refusalReason: reason,
+        fallback: false,
+        fallbackReason: null,
+        metrics: null,
+        model: null,
+        toolsUsed: ['getReadinessScore'],
+        disclaimer: AI_DISCLAIMER,
+        verification: refusedVerification(),
+      };
+      this.cache.set(cacheKey, response);
+      return response;
+    }
+    const response =
+      this.config.apiKey === undefined
+        ? this.readinessFallback(
+            assessment,
+            'AI explanations are not configured yet. Here is your score without the narrative.',
+          )
+        : await this.explainReadinessWithModel(userId, question, assessment);
     this.cache.set(cacheKey, response);
     return response;
   }
@@ -622,6 +694,90 @@ export class AiService {
       }
       throw error;
     }
+  }
+
+  private async explainReadinessWithModel(
+    userId: string,
+    question: string | undefined,
+    assessment: ReadinessAssessment,
+  ): Promise<AiChatResponse> {
+    try {
+      const userContent = [
+        READINESS_EXPLANATION_INTRO,
+        question ? `The user asks: ${question}` : '',
+        'Your computed readiness assessment:',
+        truncate(JSON.stringify(assessment), MAX_EXPLAIN_DATA_CHARS),
+      ]
+        .filter((line) => line !== '')
+        .join('\n');
+      const messages: ChatMessage[] = [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: userContent },
+      ];
+      const guardrailContext: GuardrailContext = {
+        requestId: randomUUID(),
+        userId,
+        feature: 'explain-readiness',
+        toolResults: new Map([['getReadinessScore', [assessment]]]),
+        chunks: [],
+      };
+      const { answer, verification } = await this.guardedAnswer(
+        messages,
+        this.config.reasoningModel,
+        guardrailContext,
+        async () => readinessTemplate(assessment),
+        REASONING_MAX_TOKENS,
+      );
+      return {
+        answer: answer.answer,
+        claims: answer.claims,
+        refused: answer.refused,
+        refusalReason: answer.refusalReason ?? null,
+        fallback: false,
+        fallbackReason: null,
+        metrics: null,
+        model:
+          verification.status === 'template'
+            ? null
+            : this.config.reasoningModel,
+        toolsUsed: ['getReadinessScore'],
+        disclaimer: AI_DISCLAIMER,
+        verification,
+      };
+    } catch (error) {
+      if (
+        error instanceof LlmProviderError ||
+        error instanceof AiUnverifiableError
+      ) {
+        return this.readinessFallback(
+          assessment,
+          error instanceof AiUnverifiableError
+            ? 'The AI answer could not be verified. Here is your score without the narrative.'
+            : 'The AI service is unavailable right now. Here is your score without the narrative.',
+        );
+      }
+      throw error;
+    }
+  }
+
+  /** The raw score, shown when the narrative is unavailable. */
+  private readinessFallback(
+    assessment: ReadinessAssessment,
+    reason: string,
+  ): AiChatResponse {
+    return {
+      answer: null,
+      claims: [],
+      refused: false,
+      refusalReason: null,
+      fallback: true,
+      fallbackReason: reason,
+      metrics: { assessment },
+      model: null,
+      toolsUsed: ['getReadinessScore'],
+      disclaimer: AI_DISCLAIMER,
+      verification: unavailableVerification(),
+    };
   }
 
   /** The raw news list + sentiment, shown when the narrative is unavailable. */

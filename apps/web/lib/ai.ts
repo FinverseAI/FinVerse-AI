@@ -55,6 +55,7 @@ const TOOL_LABELS: Record<string, string> = {
   getStockFundamentals: "Stock fundamentals",
   getCategorySpending: "Category spending",
   getGoalProgress: "Goals",
+  getReadinessScore: "Readiness score",
   searchKnowledge: "News & knowledge",
   screenStocks: "Stock screener",
 };

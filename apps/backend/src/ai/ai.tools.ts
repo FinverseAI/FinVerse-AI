@@ -5,6 +5,7 @@ import { MarketService } from '../market/market.service';
 import { PortfolioService } from '../market/portfolio.service';
 import { normalizeSymbol } from '../market/market.validation';
 import { RagRetrievalService } from '../rag/rag.retrieval';
+import { ReadinessService } from '../readiness/readiness.service';
 import { SCREEN_FILTERS_JSON_SCHEMA } from '../rag/rag.validation';
 import type { ToolDefinition } from './ai.provider';
 import { macd, rsi, sma } from './indicators';
@@ -147,6 +148,15 @@ export const AI_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     type: 'function',
     function: {
+      name: 'getReadinessScore',
+      description:
+        'The user\u2019s investment readiness score (0\u2013100) with its five factors — emergency fund, debt-to-income, monthly surplus, portfolio concentration, portfolio volatility — each with its measured number, its points, and what would move the score. The score is computed by code from the profile and the portfolio, never by the model: quote it exactly as returned, never recompute it. Use it for questions about whether the user is ready to invest and what to improve first.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'searchKnowledge',
       description:
         'Search the indexed knowledge for relevant context: recent news about a stock, company profile text, and the user\u2019s own transaction history. Use it when the question is about news, a stock\u2019s recent events, or past spending. Returns the matching chunks with their source title and date — cite those in the answer. An empty result means no relevant context was found: say so instead of answering from memory.',
@@ -269,6 +279,7 @@ export class AiTools {
     private readonly market: MarketService,
     private readonly portfolio: PortfolioService,
     private readonly retrieval: RagRetrievalService,
+    private readonly readiness: ReadinessService,
   ) {}
 
   /** Run one tool call from the model. Throws on unknown tools and bad args. */
@@ -300,6 +311,8 @@ export class AiTools {
         return this.categorySpending(userId, args);
       case 'getGoalProgress':
         return this.goalProgress(userId);
+      case 'getReadinessScore':
+        return this.readiness.assess(userId);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

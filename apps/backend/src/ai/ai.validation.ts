@@ -21,6 +21,10 @@ export const ExplainNewsRequestSchema = z.object({
   question: z.string().trim().max(500).optional(),
 });
 
+export const ExplainReadinessRequestSchema = z.object({
+  question: z.string().trim().max(500).optional(),
+});
+
 export const ScreenQueryRequestSchema = z.object({
   query: z.string().trim().min(1).max(500),
 });
@@ -164,6 +168,9 @@ export const AiAnswerSchema = z
 export type ChatRequest = z.infer<typeof ChatRequestSchema>;
 export type ExplainStockRequest = z.infer<typeof ExplainStockRequestSchema>;
 export type ExplainNewsRequest = z.infer<typeof ExplainNewsRequestSchema>;
+export type ExplainReadinessRequest = z.infer<
+  typeof ExplainReadinessRequestSchema
+>;
 export type ScreenQueryRequest = z.infer<typeof ScreenQueryRequestSchema>;
 export type AiAnswer = z.infer<typeof AiAnswerSchema>;
 export type AiClaim = z.infer<typeof AiClaimSchema>;

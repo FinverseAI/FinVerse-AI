@@ -44,6 +44,16 @@ export class AiController {
     return this.ai.explainNews(request.userId, body);
   }
 
+  @Post('explain-readiness')
+  @HttpCode(200)
+  @Header('Cache-Control', 'private, no-store')
+  explainReadiness(
+    @Req() request: AuthenticatedRequest,
+    @Body() body: unknown,
+  ) {
+    return this.ai.explainReadiness(request.userId, body);
+  }
+
   @Post('screen')
   @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')

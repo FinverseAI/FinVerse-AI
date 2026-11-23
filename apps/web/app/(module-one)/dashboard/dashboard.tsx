@@ -17,6 +17,7 @@ import PlanningCards from "./planning-cards";
 import RecentTransactions from "./recent-transactions";
 import UpcomingBills from "./upcoming-bills";
 import SpendingAnalysis from "./spending-analysis";
+import ReadinessCard from "./readiness-card";
 import AiChat from "./ai-chat";
 import { useActivity } from "./use-activity";
 import { budgetsWithSpending, dateKey } from "./spending-data";
@@ -245,6 +246,7 @@ export default function Dashboard({
             error={activity.error}
             onRetry={activity.retry}
           />
+          <ReadinessCard />
           <AiChat />
         </main>
       </div>

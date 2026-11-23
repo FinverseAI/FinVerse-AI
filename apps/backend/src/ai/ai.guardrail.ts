@@ -48,7 +48,7 @@ import type { AiAnswer, AiClaim } from './ai.validation';
  */
 
 export type GuardrailFeature =
-  'chat' | 'explain-stock' | 'explain-news' | 'screen';
+  'chat' | 'explain-stock' | 'explain-news' | 'screen' | 'explain-readiness';
 
 export type GuardrailCheckType = 'source' | 'value' | 'text' | 'citation';
 
@@ -66,6 +66,7 @@ export const CITATION_TOOLS = [
   'getStockFundamentals',
   'getCategorySpending',
   'getGoalProgress',
+  'getReadinessScore',
   'searchKnowledge',
   'screenStocks',
 ] as const;
