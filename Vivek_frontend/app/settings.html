@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings · FinVerse</title>
+  <meta name="description" content="Your FinVerse profile, preferences, notifications and data.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="settings" data-title="Settings">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Settings</h1>
+            </div>
+            <p class="lede">Your profile, preferences, notifications and data — all in one place.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="profile-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="profile-heading">Profile</h2>
+                <p>How FinVerse knows you.</p>
+              </div>
+              <button class="btn btn-outline btn-sm" type="button" id="profile-edit-btn">Edit</button>
+            </div>
+            <div class="field">
+              <label for="profile-name">Name</label>
+              <input id="profile-name" type="text" value="Vivek Bartwal" readonly>
+            </div>
+            <div class="field">
+              <label for="profile-email">Email</label>
+              <input id="profile-email" type="email" value="vivekbartwal76@gmail.com" readonly>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="profile-team">University / team</label>
+              <input id="profile-team" type="text" value="Graphic Era Hill University · Team CSE27-079" readonly>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="prefs-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="prefs-heading">Preferences</h2>
+                <p>How the app behaves for you.</p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="pref-month-start">Month starts on</label>
+              <select id="pref-month-start">
+                <option value="1" selected>1st of the month</option>
+                <option value="5">5th of the month</option>
+                <option value="15">15th of the month</option>
+              </select>
+              <p class="hint">Budgets and reports reset on this day each month.</p>
+            </div>
+            <div class="field">
+              <label for="pref-currency">Currency</label>
+              <select id="pref-currency" disabled>
+                <option value="INR" selected>₹ Indian Rupee (INR)</option>
+              </select>
+              <p class="hint">FinVerse is built for Indian money — the currency is fixed to INR.</p>
+            </div>
+            <div class="field" style="margin-bottom:0">
+              <label for="pref-landing">Default landing page</label>
+              <select id="pref-landing">
+                <option value="dashboard.html" selected>Dashboard</option>
+                <option value="transactions.html">Transactions</option>
+                <option value="budget.html">Budget</option>
+                <option value="market.html">Market</option>
+              </select>
+            </div>
+          </section>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="notif-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="notif-heading">Notifications</h2>
+                <p>What FinVerse reminds you about.</p>
+              </div>
+            </div>
+            <div style="display:grid;gap:0.9rem">
+              <label class="check-row"><input type="checkbox" id="notif-bills" checked> Bill reminders <span style="color:var(--muted);font-weight:400">— 3 days before a bill is due</span></label>
+              <label class="check-row"><input type="checkbox" id="notif-goals" checked> Goal milestones <span style="color:var(--muted);font-weight:400">— when a goal crosses 25%, 50%, 75% or 100%</span></label>
+              <label class="check-row"><input type="checkbox" id="notif-market"> Market alerts <span style="color:var(--muted);font-weight:400">— when a watchlist price target is hit</span></label>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="ai-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="ai-heading">AI assistant</h2>
+                <p>The models behind Ask FinVerse AI.</p>
+              </div>
+            </div>
+            <dl class="kv">
+              <dt>Primary model</dt><dd>Qwen2.5</dd>
+              <dt>Reasoning model</dt><dd>DeepSeek-R1</dd>
+            </dl>
+            <p style="margin:1rem 0 0;color:var(--ink-soft)">The assistant only explains data FinVerse has already computed — it never invents numbers. Every answer cites the ledger, the portfolio or the market data it came from.</p>
+            <a class="btn btn-outline btn-sm" href="ai-chat.html" style="margin-top:1rem">Ask FinVerse AI →</a>
+          </section>
+        </div>
+
+        <div class="grid grid-2" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="account-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="account-heading">Connected account</h2>
+                <p>How you sign in.</p>
+              </div>
+            </div>
+            <ul class="list-rows">
+              <li>
+                <span class="row-icon" aria-hidden="true">G</span>
+                <div class="row-main">
+                  <div class="row-title">Google</div>
+                  <div class="row-sub">vivekbartwal76@gmail.com</div>
+                </div>
+                <span class="badge badge-up">Connected</span>
+              </li>
+            </ul>
+            <p style="margin:1rem 0 0;color:var(--muted);font-size:0.9rem">Sign-in is handled by Google. FinVerse never sees your Google password.</p>
+          </section>
+
+          <section class="card" aria-labelledby="data-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="data-heading">Data</h2>
+                <p>Your demo data, under your control.</p>
+              </div>
+            </div>
+            <p style="margin:0 0 1rem;color:var(--ink-soft)">This sample UI runs entirely on demo data stored in your browser — nothing leaves this page.</p>
+            <div style="display:flex;gap:0.6rem;flex-wrap:wrap">
+              <button class="btn btn-outline" type="button" id="export-data-btn">Export my demo data</button>
+              <button class="btn btn-ghost" type="button" id="reset-data-btn">Reset demo data</button>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/settings.js"></script>
+</body>
+</html>

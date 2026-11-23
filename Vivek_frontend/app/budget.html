@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget · FinVerse</title>
+  <meta name="description" content="Your November budget by category — what you planned, what you spent, what's left.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="budget" data-title="Budget">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>November budget</h1>
+            </div>
+            <p class="lede">What you planned, what you spent, and what's left in each category.</p>
+          </div>
+          <div class="page-head-actions">
+            <a class="btn btn-outline" href="transactions.html">View transactions →</a>
+          </div>
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h13v4H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1"/><circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Total monthly budget</div><div class="stat-value" id="stat-budget">₹0</div><div class="stat-sub">Across 7 categories</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+            <div><div class="stat-label">Total spent</div><div class="stat-value" id="stat-spent">₹0</div><div class="stat-sub" id="stat-spent-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Remaining</div><div class="stat-value" id="stat-remaining">₹0</div><div class="stat-sub" id="stat-remaining-sub">—</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-3" id="budget-cards" style="margin-bottom:1.25rem"></div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="chart-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="chart-heading">Budget vs spent</h2>
+                <p>Green is what you planned, gold is what you spent.</p>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="budget-chart" aria-label="Bar chart comparing budget and spending per category" role="img"></canvas></div>
+          </section>
+
+          <div class="grid">
+            <div class="callout">
+              <strong>Rent is 35% of your income.</strong> At ₹21,000 against ₹60,000 salary, rent is your biggest single line — and the hardest to cut. The lever that moves the needle is Food: it has ₹1,400 of headroom left this month, and trimming one delivery a week would free roughly ₹2,000.
+            </div>
+            <section class="card" aria-labelledby="tip-heading">
+              <div class="card-head">
+                <div>
+                  <h2 id="tip-heading">Where the month stands</h2>
+                </div>
+              </div>
+              <dl class="kv" id="budget-kv"></dl>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Edit budget modal -->
+  <div class="modal-backdrop" id="edit-budget-modal" role="dialog" aria-modal="true" aria-labelledby="edit-budget-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="edit-budget-title">Edit budget</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="edit-budget-form">
+        <input type="hidden" id="edit-budget-category" name="category">
+        <div class="field">
+          <label for="edit-budget-amount">Monthly budget (₹)</label>
+          <input id="edit-budget-amount" name="amount" type="number" min="0" step="100" required>
+          <p class="hint" id="edit-budget-hint"></p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Save budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/budget.js"></script>
+</body>
+</html>

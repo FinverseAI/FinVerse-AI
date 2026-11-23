@@ -7,6 +7,7 @@ import { RagIngestService } from '../rag/rag.ingest';
 import { RagRetrievalService } from '../rag/rag.retrieval';
 import { RagService } from '../rag/rag.service';
 import { AiController } from './ai.controller';
+import { GuardrailService } from './ai.guardrail.service';
 import { LLM_CLIENT, type ChatCompletion, type LlmClient } from './ai.provider';
 import { AiService } from './ai.service';
 import { AiTools } from './ai.tools';
@@ -38,6 +39,10 @@ describe('ai endpoints', () => {
       retrievalResult?: unknown;
       newsResult?: unknown;
       screenResult?: unknown;
+      // The scripted answers predate the guardrail and are not
+      // guardrail-consistent, so the guardrail passes by default; one
+      // test below overrides it to fail and asserts the template shape.
+      guardrailResult?: unknown;
     } = {},
   ) {
     const toolsExecute = jest.fn().mockResolvedValue(toolsResult);
@@ -91,6 +96,20 @@ describe('ai endpoints', () => {
           },
         },
         { provide: RagService, useValue: { newsForSymbol, screen } },
+        {
+          provide: GuardrailService,
+          useValue: {
+            verify: jest.fn().mockResolvedValue(
+              ragOverrides.guardrailResult ?? {
+                passed: true,
+                checksPassed: 1,
+                checksFailed: 0,
+                failures: [],
+                checks: [],
+              },
+            ),
+          },
+        },
         {
           provide: ConfigService,
           useValue: {
@@ -201,6 +220,80 @@ describe('ai endpoints', () => {
           .post('/api/ai/chat')
           .send({ message: '  ' }),
       ).expect(400);
+    });
+
+    it('returns a template answer when the guardrail fails twice', async () => {
+      // The snapshot tool result doubles as all three snapshot
+      // sections, so the template has budget, goals, and portfolio
+      // figures to build from.
+      const snapshot = {
+        available: true,
+        month: '2026-11',
+        totalSpent: 16200,
+        totalBudgeted: 18000,
+        totalRemaining: 1800,
+        categories: [],
+        goals: [
+          {
+            name: 'Emergency fund',
+            target: 100000,
+            saved: 50000,
+            progressPercent: 50,
+          },
+        ],
+        totalTarget: 100000,
+        totalSaved: 50000,
+        holdings: [{ symbol: 'RELIANCE.NS' }],
+        totals: {
+          totalValue: 26000,
+          totalInvested: 24000,
+          totalGainLoss: 2000,
+          totalGainLossPercent: 8.33,
+        },
+      };
+      const { app: failingApp } = await createApp(
+        configuredEnv,
+        [
+          { content: 'thinking', toolCalls: [], model: 'test-model' },
+          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+        ],
+        snapshot,
+        {
+          guardrailResult: {
+            passed: false,
+            checksPassed: 0,
+            checksFailed: 1,
+            failures: [
+              {
+                claimIndex: 0,
+                claimText: 'You spent ₹8,200 on Food & Dining.',
+                sourceTool: 'getCategorySpending',
+                checkType: 'source',
+                passed: false,
+                detail: 'The tool was not called in this request.',
+                expected: null,
+                actual: null,
+              },
+            ],
+            checks: [],
+          },
+        },
+      );
+      const response = await session(
+        request(failingApp.getHttpServer())
+          .post('/api/ai/chat')
+          .send({ message: 'Why did I overspend?' }),
+      ).expect(200);
+      // The unverified model text never reaches the user.
+      expect(response.body.answer).not.toContain('dining out');
+      expect(response.body.answer).toContain(
+        '₹16,200 spent of ₹18,000 budgeted',
+      );
+      expect(response.body.verification.status).toBe('template');
+      expect(response.body.verification.checksFailed).toBe(1);
+      expect(response.body.model).toBeNull();
+      expect(response.body.fallback).toBe(false);
     });
 
     it('explains a stock with the reasoning model', async () => {

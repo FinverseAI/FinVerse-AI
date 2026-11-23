@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports · FinVerse</title>
+  <meta name="description" content="Monthly money reports — income, spending, savings rate and the month's biggest moves.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="reports" data-title="Reports">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Monthly reports</h1>
+              <span class="badge badge-concept">Concept preview</span>
+            </div>
+            <p class="lede">A written month in review — income, spending, savings rate and the biggest moves.</p>
+          </div>
+          <div class="page-head-actions">
+            <label class="sr-only" for="month-select">Choose a month</label>
+            <select id="month-select" style="width:auto;min-width:180px">
+              <option value="2026-09">September 2026</option>
+              <option value="2026-10">October 2026</option>
+              <option value="2026-11" selected>November 2026</option>
+            </select>
+            <button class="btn btn-primary" type="button" id="download-summary-btn">Download summary</button>
+          </div>
+        </div>
+
+        <div class="callout callout-gold" style="margin-bottom:1.25rem">
+          <strong>Concept preview.</strong> This page shows the planned vision from the project synopsis — a monthly report the real app will generate from your ledger. It is not built yet in the real app; the numbers below come from the same demo data as the rest of this sample UI.
+        </div>
+
+        <div class="grid grid-3" style="margin-bottom:1.25rem">
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></div>
+            <div><div class="stat-label">Income</div><div class="stat-value" id="stat-income">₹0</div><div class="stat-sub" id="stat-income-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></div>
+            <div><div class="stat-label">Spent</div><div class="stat-value" id="stat-spent">₹0</div><div class="stat-sub" id="stat-spent-sub">—</div></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></svg></div>
+            <div><div class="stat-label">Savings rate</div><div class="stat-value" id="stat-rate">0%</div><div class="stat-sub" id="stat-rate-sub">—</div></div>
+          </div>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="chart-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="chart-heading">Income vs expense</h2>
+                <p id="chart-sub">—</p>
+              </div>
+            </div>
+            <div class="chart-box"><canvas id="report-chart" aria-label="Bar chart of income versus spending for the selected month" role="img"></canvas></div>
+          </section>
+
+          <section class="card" aria-labelledby="top-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="top-heading">Top 3 categories</h2>
+                <p>Where the money went.</p>
+              </div>
+            </div>
+            <ul class="legend" id="top-categories" style="font-size:.95rem"></ul>
+          </section>
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="biggest-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="biggest-heading">Biggest transactions</h2>
+                <p id="biggest-sub">—</p>
+              </div>
+              <a class="card-link" href="transactions.html">All transactions →</a>
+            </div>
+            <div class="table-wrap">
+              <table class="data" id="biggest-table">
+                <thead><tr><th scope="col">Date</th><th scope="col">Merchant</th><th scope="col">Category</th><th scope="col" class="num">Amount</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="empty-state" id="biggest-empty" hidden>
+              <h3>No ledger entries for this month</h3>
+              <p>The demo ledger starts in late October — September has monthly totals only.</p>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="summary-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="summary-heading">The month in words</h2>
+                <p id="summary-month">—</p>
+              </div>
+            </div>
+            <p id="summary-text" style="margin:0;color:var(--ink-soft)"></p>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/reports.js"></script>
+</body>
+</html>

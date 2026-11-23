@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goals · FinVerse</title>
+  <meta name="description" content="Your savings goals — how far along each one is and what it still needs each month.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="goals" data-title="Goals">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Goals</h1>
+            </div>
+            <p class="lede">Every goal, how far along it is, and what it still needs each month.</p>
+          </div>
+          <div class="page-head-actions">
+            <button class="btn btn-primary" type="button" data-open-modal="new-goal-modal">+ New goal</button>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-bottom:1.25rem">
+          <strong>Emergency fund first.</strong> Six months of expenses (₹1,80,000) is the top priority — it covers 4.2 months today. Fund it before topping up the Japan trip or the laptop, so a surprise bill never touches your investments.
+        </div>
+
+        <div class="grid grid-2" id="goal-cards" style="margin-bottom:1.25rem"></div>
+
+        <section class="card" aria-labelledby="goals-summary-heading">
+          <div class="card-head">
+            <div>
+              <h2 id="goals-summary-heading">Across all goals</h2>
+              <p>Totals update as you contribute.</p>
+            </div>
+            <a class="card-link" href="reports.html">Monthly reports →</a>
+          </div>
+          <dl class="kv" id="goals-kv"></dl>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <!-- Add contribution modal -->
+  <div class="modal-backdrop" id="contribute-modal" role="dialog" aria-modal="true" aria-labelledby="contribute-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="contribute-title">Add a contribution</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="contribute-form">
+        <input type="hidden" id="contribute-goal-id" name="goalId">
+        <div class="field">
+          <label for="contribute-amount">Amount (₹)</label>
+          <input id="contribute-amount" name="amount" type="number" min="1" step="1" placeholder="e.g. 5000" required>
+          <p class="hint" id="contribute-hint"></p>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Add contribution</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- New goal modal -->
+  <div class="modal-backdrop" id="new-goal-modal" role="dialog" aria-modal="true" aria-labelledby="new-goal-title">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="new-goal-title">New goal</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">×</button>
+      </div>
+      <form id="new-goal-form">
+        <div class="field">
+          <label for="goal-name">Goal name</label>
+          <input id="goal-name" name="name" type="text" placeholder="e.g. New phone" required>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="goal-target">Target amount (₹)</label>
+            <input id="goal-target" name="target" type="number" min="1" step="1" placeholder="e.g. 80000" required>
+          </div>
+          <div class="field">
+            <label for="goal-deadline">Deadline month</label>
+            <input id="goal-deadline" name="deadline" type="month" value="2027-06" required>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-close-modal>Cancel</button>
+          <button class="btn btn-primary" type="submit">Create goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/goals.js"></script>
+</body>
+</html>

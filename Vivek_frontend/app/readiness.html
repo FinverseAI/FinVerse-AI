@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Investment Readiness · FinVerse</title>
+  <meta name="description" content="Are your finances ready for investing? A scored check across six factors. Concept preview.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/main.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='14' width='4.5' height='8' rx='1' fill='%230b3b2c'/%3E%3Crect x='9.5' y='9' width='4.5' height='13' rx='1' fill='%230b3b2c'/%3E%3Crect x='17' y='3' width='4.5' height='19' rx='1' fill='%230b3b2c'/%3E%3C/svg%3E">
+</head>
+<body data-page="readiness" data-title="Investment Readiness">
+  <div class="app-shell">
+    <div id="sidebar-root"></div>
+    <div class="app-main">
+      <div id="topbar-root"></div>
+      <main class="page">
+        <div class="page-head">
+          <div>
+            <div class="title-row">
+              <h1>Investment readiness</h1>
+              <span class="badge badge-concept">Concept preview</span>
+            </div>
+            <p class="lede">Before investing more, check the foundations: emergency fund, surplus, debt, goals, diversification and the market itself.</p>
+          </div>
+          <div class="page-head-actions">
+            <a class="btn btn-outline" href="goals.html">View goals →</a>
+            <a class="btn btn-outline" href="budget.html">View budget →</a>
+          </div>
+        </div>
+
+        <div class="callout callout-gold" style="margin-bottom:1.25rem">
+          <strong>Concept preview.</strong> This page shows the planned vision from the FinVerse synopsis — the readiness score is not built yet in the real app. The score and factors below come from the demo dataset, so you can see how the finished feature will feel.
+        </div>
+
+        <div class="grid grid-main-side" style="margin-bottom:1.25rem">
+          <section class="card" aria-labelledby="score-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="score-heading">Your readiness score</h2>
+                <p>Out of 100, across six weighted factors.</p>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+              <div class="score-ring" id="score-ring" style="--pct:72%">
+                <span class="score-num" id="score-num">72</span>
+                <span class="score-label">/ 100</span>
+              </div>
+              <div style="flex:1;min-width:220px">
+                <h3 id="score-verdict" style="font-size:1.35rem">Ready to invest — with care</h3>
+                <p style="color:var(--ink-soft);margin:0.5rem 0 0">Your foundations are solid — no debt and a healthy surplus — but the emergency fund is not yet at 6 months and banking is overweight in the portfolio. Invest steadily, and shore up the gaps below.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="improve-heading">
+            <div class="card-head">
+              <div>
+                <h2 id="improve-heading">Improve my score</h2>
+                <p>Tick an action to see the score move.</p>
+              </div>
+            </div>
+            <div style="display:grid;gap:0.9rem" id="improve-list">
+              <label class="check-row"><input type="checkbox" data-points="6"> Add ₹5,000/month to the emergency fund <span class="badge badge-up">+6 points</span></label>
+              <label class="check-row"><input type="checkbox" data-points="5"> Trim banking exposure below 25% <span class="badge badge-up">+5 points</span></label>
+              <label class="check-row"><input type="checkbox" data-points="3"> Fund the Japan trip on schedule <span class="badge badge-up">+3 points</span></label>
+              <label class="check-row"><input type="checkbox" data-points="4"> Raise SIP after the emergency fund hits 6 months <span class="badge badge-up">+4 points</span></label>
+            </div>
+            <p class="demo-note" style="margin:1rem 0 0">Score caps at 95 — no plan is ever perfect.</p>
+          </section>
+        </div>
+
+        <h2 style="font-size:1.28rem;margin-bottom:1rem">The six factors</h2>
+        <div class="grid grid-3" id="factors-grid" style="margin-bottom:1.25rem"></div>
+
+        <div class="callout" style="margin-bottom:1.25rem">
+          <strong>FinVerse's suggestion.</strong> <span id="readiness-suggestion"></span>
+        </div>
+
+        <div class="disclaimer">Decision support, not financial advice. The readiness score is a planning aid based on your demo data — it is not a recommendation to invest a specific amount.</div>
+      </main>
+    </div>
+  </div>
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/js/data.js"></script>
+  <script src="../assets/js/common.js"></script>
+  <script src="../assets/js/readiness.js"></script>
+</body>
+</html>

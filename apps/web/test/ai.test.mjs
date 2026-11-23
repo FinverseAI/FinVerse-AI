@@ -54,6 +54,7 @@ const validResponse = {
   model: "qwen/qwen-2.5-72b-instruct",
   toolsUsed: ["getCategorySpending"],
   disclaimer: "Not financial advice.",
+  verification: { status: "verified", checksPassed: 3, checksFailed: 0 },
 };
 
 test("isAiChatResponse accepts a well-formed answer, refusal, and fallback", () => {
@@ -65,6 +66,7 @@ test("isAiChatResponse accepts a well-formed answer, refusal, and fallback", () 
       claims: [],
       refused: true,
       refusalReason: "I cannot predict prices.",
+      verification: { status: "refused", checksPassed: 0, checksFailed: 0 },
     }),
     true,
   );
@@ -77,6 +79,7 @@ test("isAiChatResponse accepts a well-formed answer, refusal, and fallback", () 
       fallbackReason: "AI unavailable.",
       metrics: { getBudgetStatus: { available: false } },
       model: null,
+      verification: { status: "unavailable", checksPassed: 0, checksFailed: 0 },
     }),
     true,
   );
@@ -96,4 +99,41 @@ test("isAiChatResponse rejects malformed responses", () => {
   );
   assert.equal(isAiChatResponse({ ...validResponse, disclaimer: null }), false);
   assert.equal(isAiChatResponse({ ...validResponse, metrics: [] }), false);
+});
+
+test("isAiChatResponse validates the verification state", () => {
+  for (const status of ["verified", "template", "refused", "unavailable"]) {
+    assert.equal(
+      isAiChatResponse({
+        ...validResponse,
+        verification: { status, checksPassed: 1, checksFailed: 0 },
+      }),
+      true,
+    );
+  }
+  assert.equal(
+    isAiChatResponse({
+      ...validResponse,
+      verification: {
+        status: "maybe",
+        checksPassed: 1,
+        checksFailed: 0,
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    isAiChatResponse({
+      ...validResponse,
+      verification: { status: "verified", checksPassed: "3", checksFailed: 0 },
+    }),
+    false,
+  );
+  assert.equal(
+    isAiChatResponse({ ...validResponse, verification: null }),
+    false,
+  );
+  const withoutVerification = { ...validResponse };
+  delete withoutVerification.verification;
+  assert.equal(isAiChatResponse(withoutVerification), false);
 });
