@@ -298,7 +298,8 @@ function PaymentForm({
         ({money(bill.amount, 2)} due
         {(bill.paidTotal ?? 0) > 0 &&
           `, ${money(bill.paidTotal ?? 0, 2)} already paid`}
-        ). This only records the payment — it does not pay your provider.
+        ). Recording it also adds a matching expense transaction — it does not
+        pay your provider.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
@@ -370,6 +371,10 @@ function PaymentHistory({
         </strong>{" "}
         — {money(bill.paidTotal ?? 0, 2)} of {money(bill.amount, 2)}.
       </p>
+      <p className="mt-2 text-xs leading-6 text-dash-muted">
+        Removing a payment record does not remove the expense transaction it
+        created.
+      </p>
       {deleteError && (
         <p role="alert" className="mt-4 text-xs text-dash-red">
           {deleteError}
@@ -429,7 +434,12 @@ function PaymentHistory({
   );
 }
 
-export default function UpcomingBills() {
+export default function UpcomingBills({
+  onPaymentRecorded,
+}: {
+  /** Called after a payment lands: the payment also creates an expense transaction, so the transactions list needs a refresh. */
+  onPaymentRecorded?: () => void;
+}) {
   const { items, loading, error, retry, add, update, patch, remove } =
     useActivity<Bill>("/api/bills");
   const [dialog, setDialog] = useState<
@@ -500,6 +510,8 @@ export default function UpcomingBills() {
       return { ...bill, payments, paidTotal };
     });
     setNotice("Payment recorded.");
+    // The payment also created a matching expense transaction.
+    onPaymentRecorded?.();
   }
   async function removePayment(billId: string, paymentId: string) {
     await activityRequest(
@@ -706,7 +718,8 @@ export default function UpcomingBills() {
             {(selectedBill.payments ?? []).length
               ? " and its payment history"
               : ""}
-            .
+            . Expense transactions recorded from its payments stay in your
+            records.
           </p>
           {saveError && (
             <p role="alert" className="mt-4 text-xs text-dash-red">

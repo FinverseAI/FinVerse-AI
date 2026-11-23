@@ -36,6 +36,11 @@ describe('account-scoped dashboard activity', () => {
       findFirst: jest.fn(),
       deleteMany: jest.fn(),
     },
+    // Runs the callback against this same mock, so both writes in a
+    // service transaction hit the mocked delegates.
+    $transaction: jest.fn((fn: (tx: unknown) => unknown): unknown =>
+      fn(prisma),
+    ),
   };
   const bill = {
     name: 'Rent',
@@ -495,6 +500,18 @@ describe('account-scoped dashboard activity', () => {
         amount: '1850.50',
         paid_date: new Date('2026-11-27T00:00:00Z'),
         bill_id: 'bill-1',
+        user_id: 'owner',
+      },
+    });
+    // The payment and its matching expense transaction are written
+    // together, in one database transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.userTransaction.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Rent',
+        amount: '-1850.50',
+        category: 'Bills & Utilities',
+        date: new Date('2026-11-27T00:00:00Z'),
         user_id: 'owner',
       },
     });

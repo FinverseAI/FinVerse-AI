@@ -243,7 +243,7 @@ export default function Dashboard({
                 openTransactionEditor(transaction, "remove-transaction")
               }
             />
-            <UpcomingBills />
+            <UpcomingBills onPaymentRecorded={activity.retry} />
           </section>
           <SpendingAnalysis
             transactions={transactions}

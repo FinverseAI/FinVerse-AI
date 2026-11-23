@@ -129,16 +129,30 @@ export class ActivityService {
   }
 
   async addBillPayment(userId: string, billId: string, input: unknown) {
-    await this.ownedBill(userId, billId);
-    return paymentResponse(
-      await this.prisma.userBillPayment.create({
+    const bill = await this.ownedBill(userId, billId);
+    const payment = validateBillPayment(input);
+    // Team decision (2026-11-23): paying a bill also records the
+    // matching expense transaction, so spending analysis sees it.
+    // Both writes run in one database transaction: either both land
+    // or neither does, so a payment is never recorded without its
+    // transaction. Removing a payment later does NOT remove the
+    // transaction — the two are not linked.
+    const created = await this.prisma.$transaction(async (tx) => {
+      const savedPayment = await tx.userBillPayment.create({
+        data: { ...payment, bill_id: billId, user_id: userId },
+      });
+      await tx.userTransaction.create({
         data: {
-          ...validateBillPayment(input),
-          bill_id: billId,
+          name: bill.name,
+          amount: `-${payment.amount}`,
+          category: 'Bills & Utilities',
+          date: payment.paid_date,
           user_id: userId,
         },
-      }),
-    );
+      });
+      return savedPayment;
+    });
+    return paymentResponse(created);
   }
 
   async removeBillPayment(userId: string, billId: string, paymentId: string) {
