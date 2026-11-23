@@ -20,6 +20,65 @@ export function monthlyCashFlow(transactions: Transaction[], month: string) {
   };
 }
 
+export type MonthlyBalance = {
+  month: string;
+  income: number;
+  expenses: number;
+  net: number;
+  /** Cumulative net flow since the first recorded month. */
+  runningTotal: number;
+  count: number;
+};
+
+/**
+ * Monthly balance history, reconstructed purely from recorded
+ * transactions: each month's income, expenses, net flow, and the
+ * running total of net flow since the first recorded month. Months
+ * with no transactions are included with a zero net, so the running
+ * total carries forward visibly instead of vanishing.
+ *
+ * The running total starts at ₹0 at the first recorded transaction:
+ * it shows how recorded activity adds up, not a bank balance.
+ */
+export function monthlyBalanceHistory(
+  transactions: Transaction[],
+): MonthlyBalance[] {
+  if (!transactions.length) return [];
+  const months = [
+    ...new Set(transactions.map((item) => item.date.slice(0, 7))),
+  ].sort();
+  const first = months[0]!;
+  const last = months[months.length - 1]!;
+  const history: MonthlyBalance[] = [];
+  let runningPaise = 0;
+  for (let month = first; month <= last; month = shiftMonth(month, 1)) {
+    const flow = monthlyCashFlow(transactions, month);
+    runningPaise += Math.round(flow.net * 100);
+    history.push({
+      month,
+      income: flow.income,
+      expenses: flow.expenses,
+      net: flow.net,
+      runningTotal: runningPaise / 100,
+      count: flow.count,
+    });
+  }
+  return history;
+}
+
+/** The running total at the end of a month: 0 before any activity, the latest total after it. */
+export function runningTotalAt(
+  history: MonthlyBalance[],
+  month: string,
+): number {
+  let total = 0;
+  for (const row of history) {
+    if (row.month > month) break;
+    total = row.runningTotal;
+  }
+  return total;
+}
+
 export function shiftMonth(month: string, offset: number) {
   const [year, index] = month.split("-").map(Number);
   const date = new Date(year!, index! - 1 + offset, 1);

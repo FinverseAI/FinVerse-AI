@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   budgetsWithSpending,
   dateKey,
+  monthlyBalanceHistory,
   periodRange,
+  runningTotalAt,
   spendingBreakdown,
   spendingSummary,
   monthlyCashFlow,
@@ -47,6 +49,49 @@ const expense = (date, amount, category = "Other") => ({
   date,
   amount,
   category,
+});
+
+test("balance history reconstructs monthly running totals with gap months carried forward", () => {
+  const history = monthlyBalanceHistory([
+    expense("2026-09-01", 10000, "Income"),
+    expense("2026-09-05", -2500.1, "Rent"),
+    expense("2026-11-02", -0.2, "Groceries"),
+  ]);
+  assert.deepEqual(history, [
+    {
+      month: "2026-09",
+      income: 10000,
+      expenses: 2500.1,
+      net: 7499.9,
+      runningTotal: 7499.9,
+      count: 2,
+    },
+    {
+      month: "2026-10",
+      income: 0,
+      expenses: 0,
+      net: 0,
+      runningTotal: 7499.9,
+      count: 0,
+    },
+    {
+      month: "2026-11",
+      income: 0,
+      expenses: 0.2,
+      net: -0.2,
+      runningTotal: 7499.7,
+      count: 1,
+    },
+  ]);
+  assert.equal(runningTotalAt(history, "2026-08"), 0);
+  assert.equal(runningTotalAt(history, "2026-09"), 7499.9);
+  assert.equal(runningTotalAt(history, "2026-10"), 7499.9);
+  assert.equal(runningTotalAt(history, "2026-12"), 7499.7);
+});
+
+test("balance history is empty without transactions", () => {
+  assert.deepEqual(monthlyBalanceHistory([]), []);
+  assert.equal(runningTotalAt([], "2026-11"), 0);
 });
 
 test("weeks start on Monday, including when the date is a Sunday", () => {
