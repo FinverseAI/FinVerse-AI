@@ -11,11 +11,23 @@ export {
 function dateKey(offsetDays) {
   const date = new Date();
   date.setDate(date.getDate() + offsetDays);
-  return date.toISOString().slice(0, 10);
+  // Local date parts, NOT toISOString(): the dashboard's week/month
+  // logic uses local dates, and toISOString() (UTC) slips a day
+  // behind whenever local time is past midnight but UTC is still
+  // the previous day (00:00–05:30 IST) — t1 landed on Sunday and
+  // dropped out of "this week", failing the render test only at
+  // night. Fixed 2026-11-24 after the harsh-test pass caught it.
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function currentMonth() {
-  return new Date().toISOString().slice(0, 7);
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
 export const transactions = [
