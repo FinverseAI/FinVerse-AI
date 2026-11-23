@@ -5,8 +5,11 @@ import type {
   UserGoalContribution,
   UserTransaction,
 } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { nextMonthlyDue } from './activity.dates';
 import {
+  validateAutoPayRun,
   validateBill,
   validateBillPayment,
   validateGoalContribution,
@@ -32,6 +35,7 @@ function billResponse(bill: UserBill, payments: UserBillPayment[] = []) {
     amount: Number(bill.amount),
     dueDate: bill.due_date.toISOString().slice(0, 10),
     autoPay: bill.auto_pay,
+    recurrence: bill.recurrence ?? null,
     paidTotal: paidCents / 100,
     payments: payments.map(paymentResponse),
   };
@@ -131,28 +135,132 @@ export class ActivityService {
   async addBillPayment(userId: string, billId: string, input: unknown) {
     const bill = await this.ownedBill(userId, billId);
     const payment = validateBillPayment(input);
-    // Team decision (2026-11-23): paying a bill also records the
-    // matching expense transaction, so spending analysis sees it.
-    // Both writes run in one database transaction: either both land
-    // or neither does, so a payment is never recorded without its
-    // transaction. Removing a payment later does NOT remove the
-    // transaction — the two are not linked.
-    const created = await this.prisma.$transaction(async (tx) => {
-      const savedPayment = await tx.userBillPayment.create({
-        data: { ...payment, bill_id: billId, user_id: userId },
-      });
-      await tx.userTransaction.create({
+    const created = await this.prisma.$transaction((tx) =>
+      this.recordPayment(tx, userId, bill, payment.amount, payment.paid_date),
+    );
+    return paymentResponse(created.payment);
+  }
+
+  /**
+   * One payment, recorded atomically: the payment row, its matching
+   * expense transaction (team decision, 2026-11-23 — paying a bill
+   * also records the expense, so spending analysis sees it), and —
+   * for a monthly bill — the next occurrence. Either all three land
+   * or none does. Removing a payment later does NOT remove the
+   * transaction, and does NOT remove a generated next occurrence.
+   */
+  private async recordPayment(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    bill: UserBill,
+    amount: string,
+    paidDate: Date,
+  ) {
+    const savedPayment = await tx.userBillPayment.create({
+      data: { amount, paid_date: paidDate, bill_id: bill.id, user_id: userId },
+    });
+    await tx.userTransaction.create({
+      data: {
+        name: bill.name,
+        amount: `-${amount}`,
+        category: 'Bills & Utilities',
+        date: paidDate,
+        user_id: userId,
+      },
+    });
+    let nextBill: UserBill | null = null;
+    if (bill.recurrence === 'monthly') {
+      nextBill = await tx.userBill.create({
         data: {
           name: bill.name,
-          amount: `-${payment.amount}`,
-          category: 'Bills & Utilities',
-          date: payment.paid_date,
+          amount: bill.amount,
+          due_date: nextMonthlyDue(bill.due_date),
+          auto_pay: bill.auto_pay,
+          recurrence: 'monthly',
           user_id: userId,
         },
       });
-      return savedPayment;
+    }
+    return { payment: savedPayment, nextBill };
+  }
+
+  /**
+   * Auto-pay run (team decision, 2026-11-24): every auto-pay bill
+   * that is due on or before `today` and still has an unpaid
+   * remainder is marked paid — payment + matching expense
+   * transaction (+ next occurrence for monthly bills). The whole run
+   * is one database transaction: either every due bill is recorded
+   * or none is, so a failure can never half-pay the run.
+   *
+   * This records the payment in FinVerse; it does NOT move real
+   * money or pay the provider — the user's bank or provider
+   * auto-pay does that. The run is idempotent: a second run finds
+   * nothing left unpaid and pays nothing. It is triggered by the
+   * dashboard loading, not by a background scheduler (no cron
+   * infrastructure exists), so a bill is recorded on the first
+   * dashboard visit on or after its due date.
+   */
+  async runAutoPay(userId: string, input: unknown) {
+    const { today } = validateAutoPayRun(input);
+    const todayKey = today.toISOString().slice(0, 10);
+    const [bills, payments] = await Promise.all([
+      this.prisma.userBill.findMany({ where: { user_id: userId } }),
+      this.paymentsFor(userId),
+    ]);
+    const paidByBill = new Map<string, number>();
+    for (const payment of payments) {
+      paidByBill.set(
+        payment.bill_id,
+        (paidByBill.get(payment.bill_id) ?? 0) +
+          Math.round(Number(payment.amount) * 100),
+      );
+    }
+    const due = bills
+      .map((bill) => ({
+        bill,
+        remainingCents:
+          Math.round(Number(bill.amount) * 100) -
+          (paidByBill.get(bill.id) ?? 0),
+      }))
+      .filter(
+        ({ bill, remainingCents }) =>
+          bill.auto_pay &&
+          bill.due_date.toISOString().slice(0, 10) <= todayKey &&
+          remainingCents > 0,
+      );
+    if (!due.length) return { paid: [] };
+    // One transaction for the whole run: either every due bill is
+    // recorded or none is, so a failure can never half-pay the run.
+    const paid = await this.prisma.$transaction(async (tx) => {
+      const results: {
+        billId: string;
+        name: string;
+        amount: number;
+        paidDate: string;
+        nextDueDate: string | null;
+      }[] = [];
+      for (const { bill, remainingCents } of due) {
+        const amount = (remainingCents / 100).toFixed(2);
+        const { nextBill } = await this.recordPayment(
+          tx,
+          userId,
+          bill,
+          amount,
+          today,
+        );
+        results.push({
+          billId: bill.id,
+          name: bill.name,
+          amount: remainingCents / 100,
+          paidDate: todayKey,
+          nextDueDate: nextBill
+            ? nextBill.due_date.toISOString().slice(0, 10)
+            : null,
+        });
+      }
+      return results;
     });
-    return paymentResponse(created);
+    return { paid };
   }
 
   async removeBillPayment(userId: string, billId: string, paymentId: string) {

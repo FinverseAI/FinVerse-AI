@@ -31,6 +31,12 @@ export class ActivityController {
     return this.activity.addBill(request.userId, body);
   }
 
+  @Post('bills/auto-pay')
+  @Header('Cache-Control', 'private, no-store')
+  runAutoPay(@Req() request: AuthenticatedRequest, @Body() body: unknown) {
+    return this.activity.runAutoPay(request.userId, body);
+  }
+
   @Put('bills/:id')
   @Header('Cache-Control', 'private, no-store')
   updateBill(

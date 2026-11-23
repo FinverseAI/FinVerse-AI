@@ -178,6 +178,11 @@ model UserBill {
   amount     Decimal           @db.Decimal(12, 2)
   due_date   DateTime          @db.Date
   auto_pay   Boolean           @default(false)
+  // Monthly recurrence ("monthly") or null for a one-off bill. Paying
+  // a monthly bill generates its next occurrence (same amount, due
+  // date one month on). Only "monthly" exists today; the CHECK
+  // constraint in the migration enforces it at the database level.
+  recurrence String?
   created_at DateTime          @default(now())
   payments   UserBillPayment[]
 

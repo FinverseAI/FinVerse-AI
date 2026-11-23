@@ -139,6 +139,10 @@ describe('account-scoped dashboard activity', () => {
       .send(bill)
       .expect(401);
     await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .send({ today: '2026-11-24' })
+      .expect(401);
+    await request(app.getHttpServer())
       .put('/api/bills/bill-1')
       .send(bill)
       .expect(401);
@@ -209,6 +213,12 @@ describe('account-scoped dashboard activity', () => {
       .set('Origin', 'https://other.example')
       .send({ amount: 1850.5, paidDate: '2026-11-27' })
       .expect(403);
+    await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'https://other.example')
+      .send({ today: '2026-11-24' })
+      .expect(403);
     expect(prisma.userBill.updateMany).not.toHaveBeenCalled();
     expect(prisma.userBill.deleteMany).not.toHaveBeenCalled();
     expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
@@ -226,7 +236,7 @@ describe('account-scoped dashboard activity', () => {
       .set('Cookie', 'session=test')
       .expect(200);
     expect(result.body).toEqual([
-      { id: 'bill-1', ...bill, paidTotal: 0, payments: [] },
+      { id: 'bill-1', ...bill, recurrence: null, paidTotal: 0, payments: [] },
     ]);
     expect(result.headers['cache-control']).toBe('private, no-store');
     expect(prisma.userBill.findMany).toHaveBeenCalledWith({
@@ -252,6 +262,7 @@ describe('account-scoped dashboard activity', () => {
         amount: '1850.50',
         due_date: storedBill.due_date,
         auto_pay: true,
+        recurrence: null,
       },
     });
   });
@@ -435,6 +446,7 @@ describe('account-scoped dashboard activity', () => {
     expect(result.body).toEqual({
       id: 'bill-1',
       ...updated,
+      recurrence: null,
       paidTotal: 1850.5,
       payments: [{ id: 'payment-1', amount: 1850.5, paidDate: '2026-11-27' }],
     });
@@ -445,6 +457,7 @@ describe('account-scoped dashboard activity', () => {
         amount: '1900.00',
         due_date: new Date('2026-11-30T00:00:00Z'),
         auto_pay: false,
+        recurrence: null,
       },
     });
   });
@@ -515,6 +528,245 @@ describe('account-scoped dashboard activity', () => {
         user_id: 'owner',
       },
     });
+  });
+  it('generates the next occurrence when a monthly bill is paid', async () => {
+    prisma.userBill.findFirst.mockResolvedValue({
+      ...storedBill,
+      recurrence: 'monthly',
+    });
+    await request(app.getHttpServer())
+      .post('/api/bills/bill-1/payments')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 1850.5, paidDate: '2026-11-27' })
+      .expect(201);
+    // Payment, transaction and next occurrence: one transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
+    expect(prisma.userTransaction.create).toHaveBeenCalledTimes(1);
+    expect(prisma.userBill.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Rent',
+        amount: '1850.50',
+        due_date: new Date('2026-12-28T00:00:00Z'),
+        auto_pay: true,
+        recurrence: 'monthly',
+        user_id: 'owner',
+      },
+    });
+  });
+  it('does not generate a next occurrence for a one-off bill', async () => {
+    await request(app.getHttpServer())
+      .post('/api/bills/bill-1/payments')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 1850.5, paidDate: '2026-11-27' })
+      .expect(201);
+    expect(prisma.userBill.create).not.toHaveBeenCalled();
+  });
+  it('auto-pay pays due auto-pay bills, skips the rest, and rolls monthly bills forward', async () => {
+    const dueMonthly = {
+      ...storedBill,
+      id: 'bill-monthly',
+      name: 'Internet',
+      amount: '999.00',
+      due_date: new Date('2026-11-20T00:00:00Z'),
+      auto_pay: true,
+      recurrence: 'monthly',
+    };
+    const dueOnce = {
+      ...storedBill,
+      id: 'bill-once',
+      name: 'Plumber',
+      amount: '500.00',
+      due_date: new Date('2026-11-24T00:00:00Z'),
+      auto_pay: true,
+      recurrence: null,
+    };
+    const notDue = {
+      ...storedBill,
+      id: 'bill-future',
+      name: 'Rent',
+      amount: '1850.50',
+      due_date: new Date('2026-12-01T00:00:00Z'),
+      auto_pay: true,
+      recurrence: null,
+    };
+    const noAutoPay = {
+      ...storedBill,
+      id: 'bill-manual',
+      name: 'Gym',
+      amount: '100.00',
+      due_date: new Date('2026-11-10T00:00:00Z'),
+      auto_pay: false,
+      recurrence: null,
+    };
+    const alreadyPaid = {
+      ...storedBill,
+      id: 'bill-paid',
+      name: 'Phone',
+      amount: '299.00',
+      due_date: new Date('2026-11-15T00:00:00Z'),
+      auto_pay: true,
+      recurrence: null,
+    };
+    prisma.userBill.findMany.mockResolvedValue([
+      dueMonthly,
+      dueOnce,
+      notDue,
+      noAutoPay,
+      alreadyPaid,
+    ]);
+    prisma.userBillPayment.findMany.mockResolvedValue([
+      { ...storedPayment, bill_id: 'bill-paid', amount: '299.00' },
+    ]);
+    prisma.userBill.create.mockResolvedValue({
+      ...storedBill,
+      id: 'bill-next',
+      due_date: new Date('2026-12-20T00:00:00Z'),
+    });
+    const result = await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ today: '2026-11-24' })
+      .expect(201);
+    expect(result.body).toEqual({
+      paid: [
+        {
+          billId: 'bill-monthly',
+          name: 'Internet',
+          amount: 999,
+          paidDate: '2026-11-24',
+          nextDueDate: '2026-12-20',
+        },
+        {
+          billId: 'bill-once',
+          name: 'Plumber',
+          amount: 500,
+          paidDate: '2026-11-24',
+          nextDueDate: null,
+        },
+      ],
+    });
+    // Two payments + two transactions, one next occurrence, one
+    // database transaction for the whole run.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(2);
+    expect(prisma.userBillPayment.create).toHaveBeenCalledWith({
+      data: {
+        amount: '999.00',
+        paid_date: new Date('2026-11-24T00:00:00Z'),
+        bill_id: 'bill-monthly',
+        user_id: 'owner',
+      },
+    });
+    expect(prisma.userTransaction.create).toHaveBeenCalledTimes(2);
+    expect(prisma.userTransaction.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Internet',
+        amount: '-999.00',
+        category: 'Bills & Utilities',
+        date: new Date('2026-11-24T00:00:00Z'),
+        user_id: 'owner',
+      },
+    });
+    expect(prisma.userBill.create).toHaveBeenCalledTimes(1);
+    expect(prisma.userBill.create).toHaveBeenCalledWith({
+      data: {
+        name: 'Internet',
+        amount: '999.00',
+        due_date: new Date('2026-12-20T00:00:00Z'),
+        auto_pay: true,
+        recurrence: 'monthly',
+        user_id: 'owner',
+      },
+    });
+  });
+  it('auto-pay pays only the unpaid remainder of a partially paid bill', async () => {
+    prisma.userBill.findMany.mockResolvedValue([
+      {
+        ...storedBill,
+        id: 'bill-partial',
+        name: 'Internet',
+        amount: '999.00',
+        due_date: new Date('2026-11-20T00:00:00Z'),
+        auto_pay: true,
+        recurrence: null,
+      },
+    ]);
+    prisma.userBillPayment.findMany.mockResolvedValue([
+      { ...storedPayment, bill_id: 'bill-partial', amount: '400.00' },
+    ]);
+    const result = await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ today: '2026-11-24' })
+      .expect(201);
+    expect(result.body).toEqual({
+      paid: [
+        {
+          billId: 'bill-partial',
+          name: 'Internet',
+          amount: 599,
+          paidDate: '2026-11-24',
+          nextDueDate: null,
+        },
+      ],
+    });
+    expect(prisma.userBillPayment.create).toHaveBeenCalledWith({
+      data: {
+        amount: '599.00',
+        paid_date: new Date('2026-11-24T00:00:00Z'),
+        bill_id: 'bill-partial',
+        user_id: 'owner',
+      },
+    });
+  });
+  it('a second auto-pay run pays nothing once the bills are recorded', async () => {
+    prisma.userBill.findMany.mockResolvedValue([
+      {
+        ...storedBill,
+        id: 'bill-due',
+        name: 'Internet',
+        amount: '999.00',
+        due_date: new Date('2026-11-20T00:00:00Z'),
+        auto_pay: true,
+        recurrence: null,
+      },
+    ]);
+    prisma.userBillPayment.findMany.mockResolvedValueOnce([]);
+    await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ today: '2026-11-24' })
+      .expect(201);
+    expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
+    // The payment is now recorded: the next run sees it and pays nothing.
+    prisma.userBillPayment.findMany.mockResolvedValue([
+      { ...storedPayment, bill_id: 'bill-due', amount: '999.00' },
+    ]);
+    const result = await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ today: '2026-11-24' })
+      .expect(201);
+    expect(result.body).toEqual({ paid: [] });
+    expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+  it('auto-pay rejects an invalid run date before any database write', async () => {
+    await request(app.getHttpServer())
+      .post('/api/bills/auto-pay')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ today: '2026-02-30' })
+      .expect(400);
+    expect(prisma.userBill.findMany).not.toHaveBeenCalled();
+    expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
   });
   it('rejects invalid payments and payments for missing bills', async () => {
     await request(app.getHttpServer())

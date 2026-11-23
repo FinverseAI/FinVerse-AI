@@ -61,7 +61,7 @@ A new user is sent through four setup screens: **name, monthly income and payday
 | Goals | Save a name, target amount, deadline and priority; manage the goal list through the financial-profile editor; add savings towards a goal and view the contribution history. |
 | Transactions | Add an income or expense with a description, amount, category and date; browse, search, edit and remove the saved records. |
 | Expense entry | Add an expense in plain words, by speaking it, or by photographing a receipt; review what was understood before saving (§06). |
-| Bills | Add a bill with amount, due date and auto-pay label; list, search, edit and remove saved bills; record payments and view each bill's payment history. |
+| Bills | Add a bill with amount, due date, auto-pay flag and monthly recurrence; list, search, edit and remove saved bills; record payments and view each bill's payment history. Auto-pay bills due today or overdue are recorded as paid when the dashboard loads, and paying a monthly bill generates its next occurrence. |
 | Notifications | See in-app reminders for bills that are overdue, due today, or due within the next week, with a count on the bell icon. |
 | Spending analysis | View expense totals, category shares and bars for weekly, monthly or custom date ranges. |
 | Comparisons | Compare elapsed days with the previous month or week and see a simple month-end spending estimate. |
@@ -101,14 +101,13 @@ The first edition of this guide listed six boundaries. Five are now closed by im
 | Profile consistency | The budget split is the single source of truth: whenever a split exists (in the request or already stored), the server recomputes fixed expenses, variable expenses and the savings target from income × split, so totals and allocation views cannot diverge. The profile form also keeps those three fields read-only while a split exists. |
 | Category matching | Transaction entry now offers the same 12 categories as setup, plus Income. Older records keep their labels; legacy labels (Housing, Transportation, Utilities, Other) are mapped to the canonical ones on display and on save. |
 | Record maintenance | Transaction edit and delete are implemented, with a confirm step before removal. Bills support editing, payment recording and a per-bill payment history. |
-| Bills and reminders | In-app reminders exist: overdue bills and bills due within the next week appear in the notification centre, with a count on the bell. No email is sent. |
+| Bills and reminders | In-app reminders exist: overdue bills and bills due within the next week appear in the notification centre, with a count on the bell. No email is sent. Auto-pay bills due today or overdue are recorded as paid automatically when the dashboard loads (payment + matching expense transaction); paying a monthly bill generates its next occurrence. |
 | Reports and AI | Transactions export as CSV, PDF, and Excel. Conversational expense entry (plain words, voice, receipt) and AI chat are implemented (§06, §08B). |
 
 ## What remains incomplete
 
 | Boundary | What remains incomplete |
 | --- | --- |
-| Bills and payments | Auto-pay is stored information; payment execution, recurring bill generation and automatic payment of a bill were not found. Recording a payment is a manual record, and it creates the matching expense transaction (§13). |
 | Reports | The account report is an on-screen summary of the saved plan; it is not exportable as a document. Transaction exports are separate (§02). |
 | Money definitions | Whether unpaid bills should affect forecasts and totals, and how a monthly plan should reconcile with actual spending, are still open questions (§13). |
 
@@ -745,6 +744,7 @@ The four remaining open questions from the integration plan were decided on 24 N
 | Decision | Chosen option |
 | --- | --- |
 | Profile consistency | The budget split is the single source of truth. Whenever a split exists — sent with the save or already stored — the server recomputes fixed expenses, variable expenses and the savings target from monthly income × split, so the totals can never silently diverge from the allocation. A save that omits the split inherits the stored one; a save that sends a new split replaces it. |
+| Auto-pay and recurring bills | Auto-pay now executes: when the dashboard loads, every auto-pay bill due today or overdue with an unpaid remainder is recorded as paid (payment + matching expense transaction), and paying a monthly bill generates its next occurrence (same amount, due date one month on, clamped to the last day of the month). Monthly is the only recurrence; bills default to one-off. This records the payment in FinVerse — it does not move real money or pay the provider. Limitation: the run happens when the dashboard loads, not on a background schedule, so a bill is recorded on the first visit on or after its due date. |
 
 ## Questions the reviewed material does not settle
 

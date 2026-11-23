@@ -88,12 +88,42 @@ export function validateBill(input: unknown) {
   if (typeof body.autoPay !== 'boolean') {
     throw new BadRequestException('Choose whether this bill uses auto-pay.');
   }
+  // Monthly is the only recurrence today; anything else is rejected
+  // rather than stored, so a typo can never create a bill that never
+  // recurs. Absent or null means a one-off bill.
+  const recurrence = body.recurrence;
+  if (
+    recurrence !== undefined &&
+    recurrence !== null &&
+    recurrence !== 'monthly'
+  ) {
+    throw new BadRequestException('Choose whether this bill repeats monthly.');
+  }
   return {
     name: name(body.name),
     amount: amount(body.amount),
     due_date: date(body.dueDate),
     auto_pay: body.autoPay,
+    recurrence: recurrence === 'monthly' ? 'monthly' : null,
   };
+}
+
+/**
+ * The auto-pay run takes the caller's local date ("today"): a bill is
+ * due by the user's calendar, not the server's UTC clock. When the
+ * date is missing it defaults to the server's current UTC date.
+ */
+export function validateAutoPayRun(input: unknown) {
+  const now = new Date();
+  const fallback = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+  );
+  if (input === undefined || input === null || input === '')
+    return { today: fallback };
+  const body = record(input);
+  if (body.today === undefined || body.today === null)
+    return { today: fallback };
+  return { today: date(body.today) };
 }
 
 export function validateGoalContribution(input: unknown) {

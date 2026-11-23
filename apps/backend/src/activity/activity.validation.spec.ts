@@ -59,8 +59,24 @@ describe('dashboard activity validation', () => {
       amount: '1850.50',
       due_date: new Date('2026-11-28T00:00:00Z'),
       auto_pay: false,
+      recurrence: null,
     });
   });
+  it('accepts a monthly recurrence and normalizes an absent one to null', () => {
+    expect(validateBill({ ...bill, recurrence: 'monthly' }).recurrence).toBe(
+      'monthly',
+    );
+    expect(validateBill({ ...bill, recurrence: null }).recurrence).toBe(null);
+    expect(validateBill(bill).recurrence).toBe(null);
+  });
+  it.each(['weekly', 'yearly', '', 0, true, {}])(
+    'rejects an unsupported recurrence %s',
+    (recurrence) => {
+      expect(() => validateBill({ ...bill, recurrence })).toThrow(
+        BadRequestException,
+      );
+    },
+  );
   it.each([0, -1, 'NaN', Infinity, '1.001', '', null, true, 100000001])(
     'rejects invalid bill amount %s',
     (amount) => {
