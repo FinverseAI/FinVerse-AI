@@ -14,19 +14,45 @@ const bill = {
 };
 
 describe('dashboard activity validation', () => {
-  it.each(['Groceries', 'Health', 'Travel', 'Education', 'Investments'])(
-    'accepts the onboarding category %s',
-    (category) => {
-      expect(
-        validateTransaction({
-          name: 'Record',
-          amount: -0.01,
-          date: '2026-11-16',
-          category,
-        }).category,
-      ).toBe(category);
-    },
-  );
+  it.each([
+    'Income',
+    'Food & Dining',
+    'Groceries',
+    'Transport',
+    'Shopping',
+    'Bills & Utilities',
+    'Rent',
+    'Health',
+    'Entertainment',
+    'Travel',
+    'Education',
+    'Investments',
+    'Others',
+  ])('accepts the canonical category %s', (category) => {
+    expect(
+      validateTransaction({
+        name: 'Record',
+        amount: -0.01,
+        date: '2026-11-16',
+        category,
+      }).category,
+    ).toBe(category);
+  });
+  it.each([
+    ['Housing', 'Rent'],
+    ['Transportation', 'Transport'],
+    ['Utilities', 'Bills & Utilities'],
+    ['Other', 'Others'],
+  ])('maps the legacy category %s to %s', (legacy, canonical) => {
+    expect(
+      validateTransaction({
+        name: 'Record',
+        amount: -0.01,
+        date: '2026-11-16',
+        category: legacy,
+      }).category,
+    ).toBe(canonical);
+  });
   it('normalizes names, precise amounts, and date-only values', () => {
     expect(validateBill(bill)).toEqual({
       name: 'Rent',

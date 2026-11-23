@@ -1,20 +1,42 @@
 import { BadRequestException } from '@nestjs/common';
 
+/**
+ * The canonical transaction categories: the twelve setup labels
+ * (apps/web/lib/onboarding.ts) plus Income for money coming in.
+ * Transaction entry offers exactly this list.
+ */
 const categories = new Set([
   'Income',
-  'Housing',
   'Food & Dining',
-  'Shopping',
-  'Utilities',
-  'Entertainment',
-  'Other',
-  'Transportation',
   'Groceries',
+  'Transport',
+  'Shopping',
+  'Bills & Utilities',
+  'Rent',
   'Health',
+  'Entertainment',
   'Travel',
   'Education',
   'Investments',
+  'Others',
 ]);
+
+/**
+ * Labels saved before the categories were unified (November 2026).
+ * They are still accepted and mapped to their canonical label, so
+ * records saved under the old names keep working.
+ */
+const LEGACY_CATEGORIES: Record<string, string> = {
+  Housing: 'Rent',
+  Transportation: 'Transport',
+  Utilities: 'Bills & Utilities',
+  Other: 'Others',
+};
+
+/** Map a saved or submitted category label to its canonical form. */
+export function normalizeCategory(category: string): string {
+  return LEGACY_CATEGORIES[category] ?? category;
+}
 
 function record(input: unknown): Record<string, unknown> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -99,13 +121,19 @@ export function validateBillPayment(input: unknown) {
 
 export function validateTransaction(input: unknown) {
   const body = record(input);
-  if (typeof body.category !== 'string' || !categories.has(body.category)) {
+  if (typeof body.category !== 'string') {
+    throw new BadRequestException('Choose a valid category.');
+  }
+  // Older records carry legacy labels; they map to the canonical label
+  // on the way in, so an edit never fails on a saved category.
+  const category = normalizeCategory(body.category);
+  if (!categories.has(category)) {
     throw new BadRequestException('Choose a valid category.');
   }
   return {
     name: name(body.name),
     amount: amount(body.amount, true),
     date: date(body.date),
-    category: body.category,
+    category,
   };
 }

@@ -220,6 +220,11 @@ const CATEGORY_ALIASES: Record<string, string> = {
   Other: 'Others',
 };
 
+/** Map a saved category label to its canonical form. */
+function normalizeCategoryLabel(category: string): string {
+  return CATEGORY_ALIASES[category] ?? category;
+}
+
 function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
@@ -431,7 +436,8 @@ export class AiTools {
       .filter((transaction) => {
         if (
           category &&
-          transaction.category.toLowerCase() !== category.toLowerCase()
+          normalizeCategoryLabel(transaction.category).toLowerCase() !==
+            normalizeCategoryLabel(category).toLowerCase()
         ) {
           return false;
         }

@@ -76,10 +76,28 @@ test("spending excludes income and dates outside the selected inclusive range", 
   assert.equal(result.total, 0.3);
   assert.equal(result.bars.length, 7);
   assert.deepEqual(result.categories, [
-    { name: "Housing", amount: 0.3, percentage: 100 },
+    { name: "Rent", amount: 0.3, percentage: 100 },
   ]);
   assert.equal(result.bars[0].amount, 0.1);
   assert.equal(result.bars[6].amount, 0.2);
+});
+
+test("legacy and canonical labels merge into one breakdown row", () => {
+  const result = spendingBreakdown(
+    [
+      expense("2026-11-09", -100, "Housing"),
+      expense("2026-11-10", -50, "Rent"),
+      expense("2026-11-11", -25, "Other"),
+      expense("2026-11-12", -25, "Others"),
+    ],
+    "2026-11-09",
+    "2026-11-12",
+  );
+  assert.equal(result.total, 200);
+  assert.deepEqual(result.categories, [
+    { name: "Rent", amount: 150, percentage: 75 },
+    { name: "Others", amount: 50, percentage: 25 },
+  ]);
 });
 
 test("comparisons use matching elapsed days and do not invent a percentage without a baseline", () => {

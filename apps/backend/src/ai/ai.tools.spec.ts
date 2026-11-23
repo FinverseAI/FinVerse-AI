@@ -314,6 +314,25 @@ describe('AiTools', () => {
       expect(ranged.transactions).toHaveLength(2);
     });
 
+    it('matches legacy labels through their canonical category', async () => {
+      const { tools } = makeTools({
+        transactions: [
+          {
+            id: '9',
+            name: 'Rent',
+            amount: -15000,
+            category: 'Housing',
+            date: '2026-11-01',
+          },
+        ],
+      });
+      const result = (await tools.execute(USER_ID, 'getTransactions', {
+        category: 'Rent',
+      })) as { count: number; transactions: { name: string }[] };
+      expect(result.count).toBe(1);
+      expect(result.transactions.map((t) => t.name)).toEqual(['Rent']);
+    });
+
     it('returns the most recent first and applies the limit', async () => {
       const { tools } = makeTools({ transactions });
       const result = (await tools.execute(USER_ID, 'getTransactions', {

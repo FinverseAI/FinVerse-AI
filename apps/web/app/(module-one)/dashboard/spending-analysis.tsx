@@ -12,11 +12,21 @@ import {
 } from "./spending-data";
 
 const categoryTones: Record<string, Tone> = {
-  Housing: "accent",
   "Food & Dining": "accent",
+  Groceries: "accent",
+  Transport: "blue",
   Shopping: "blue",
-  Utilities: "purple",
+  "Bills & Utilities": "purple",
+  Rent: "accent",
+  Health: "purple",
   Entertainment: "warning",
+  Travel: "blue",
+  Education: "purple",
+  Investments: "accent",
+  Others: "muted",
+  // Legacy labels, kept so older records keep their colour.
+  Housing: "accent",
+  Utilities: "purple",
   Transportation: "blue",
   Other: "muted",
 };

@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { activityError } from "./use-activity";
 import { dateKey } from "./spending-data";
-import { transactionCategories, money, type Transaction } from "./data";
+import {
+  transactionCategories,
+  money,
+  normalizeCategory,
+  type Transaction,
+} from "./data";
 import { transactionsToCsv } from "../../../lib/export-csv";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import { Icon, MiniStat } from "./ui";
@@ -306,7 +311,9 @@ function TransactionForm({
         <select
           className="dash-input"
           name="category"
-          defaultValue={initial?.category ?? "Other"}
+          defaultValue={
+            initial?.category ? normalizeCategory(initial.category) : "Others"
+          }
         >
           {transactionCategories.map((name) => (
             <option key={name}>{name}</option>

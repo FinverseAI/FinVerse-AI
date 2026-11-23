@@ -1,4 +1,4 @@
-import type { Budget, Transaction } from "./data";
+import { normalizeCategory, type Budget, type Transaction } from "./data.ts";
 
 export function monthlyCashFlow(transactions: Transaction[], month: string) {
   const records = transactions.filter((item) =>
@@ -53,21 +53,13 @@ export function budgetsWithSpending(
   transactions: Transaction[],
   now: Date,
 ) {
-  const aliases: Record<string, string> = {
-    Housing: "Rent",
-    Transportation: "Transport",
-    Utilities: "Bills & Utilities",
-    Other: "Others",
-  };
   const start = periodRange("monthly", now).start;
   const end = dateKey(now);
   return budgets.map((budget) => ({
     ...budget,
     spent:
       transactions.reduce((sum, transaction) => {
-        const matches =
-          transaction.category === budget.name ||
-          aliases[transaction.category] === budget.name;
+        const matches = normalizeCategory(transaction.category) === budget.name;
         return (
           sum +
           (matches &&
@@ -139,7 +131,7 @@ export function spendingSummary(transactions: Transaction[], now: Date) {
           (item) =>
             item.amount < 0 && item.date >= monthStart && item.date <= today,
         )
-        .map((item) => item.category),
+        .map((item) => normalizeCategory(item.category)),
     ).size,
   };
 }
@@ -153,12 +145,15 @@ export function spendingBreakdown(
     (item) => item.amount < 0 && item.date >= start && item.date <= end,
   );
   const categories = new Map<string, number>();
-  for (const expense of expenses)
+  for (const expense of expenses) {
+    // Legacy labels merge into their canonical category, so one
+    // category never appears twice in the breakdown.
+    const name = normalizeCategory(expense.category);
     categories.set(
-      expense.category,
-      (categories.get(expense.category) ?? 0) +
-        Math.round(-expense.amount * 100),
+      name,
+      (categories.get(name) ?? 0) + Math.round(-expense.amount * 100),
     );
+  }
   const totalCents = [...categories.values()].reduce(
     (sum, amount) => sum + amount,
     0,
