@@ -166,7 +166,7 @@ class Cover(Flowable):
         # Two modules, with status in text rather than color alone.
         for x, title, status, desc in [
             (0, '01  Personal finance', 'IMPLEMENTED FOUNDATION', 'Profiles, goals, transactions,<br/>bills and spending analysis'),
-            (257, '02  Stock intelligence', 'PLANNED MODULE', 'Markets, company research,<br/>portfolio analysis and AI'),
+            (257, '02  Stock intelligence', 'IMPLEMENTED MODULE', 'Markets, company research,<br/>portfolio analysis and AI'),
         ]:
             c.setFillColor(PALE if x == 0 else PAPER)
             c.roundRect(x, 271, 242, 125, 9, fill=1, stroke=0)
@@ -183,9 +183,9 @@ class Cover(Flowable):
         c.line(0, 231, CONTENT, 231)
         c.setFillColor(NAVY)
         c.setFont(BOLD, 12)
-        c.drawString(0, 203, 'B.Tech major project  |  Edition 1.1')
+        c.drawString(0, 203, 'B.Tech major project  |  Edition 1.2')
         c.setFont(REG, 11)
-        c.drawString(0, 180, 'Reviewed 15 November 2026')
+        c.drawString(0, 180, 'Reviewed 23 November 2026')
         p = Paragraph('For teachers, friends, recruiters and new teammates.<br/><br/>Based on the current working copy and project planning documents. Implemented code, partial features and future plans are distinguished throughout. Live deployment and complete end-to-end operation are not claimed.', ParagraphStyle('coversmall', fontName=REG, fontSize=10, leading=15, textColor=MUTED))
         _, ph = p.wrapOn(c, 460, 140)
         p.drawOn(c, 0, 140-ph)
@@ -195,7 +195,7 @@ class GuideDoc(BaseDocTemplate):
     def __init__(self, filename):
         super().__init__(filename, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN,
             topMargin=54, bottomMargin=45, title='FinVerse AI - The Project, Explained',
-            author='FinVerse AI project documentation', subject='Living project guide, Edition 1.1, 15 November 2026')
+            author='FinVerse AI project documentation', subject='Living project guide, Edition 1.2, 23 November 2026')
         self.section = 'FinVerse AI'
         self.section_pages = []
         frame = Frame(MARGIN, 45, CONTENT, H-99, leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
@@ -211,7 +211,7 @@ class GuideDoc(BaseDocTemplate):
             c.drawString(MARGIN, H-31, 'FINVERSE AI / PROJECT GUIDE')
             c.setFont(REG, 8)
             c.setFillColor(MUTED)
-            c.drawRightString(W-MARGIN, H-31, 'EDITION 1.1 / 15 NOV 2026')
+            c.drawRightString(W-MARGIN, H-31, 'EDITION 1.2 / 23 NOV 2026')
         c.setStrokeColor(LINE)
         c.line(MARGIN, 32, W-MARGIN, 32)
         c.setFont(REG, 7.8)
@@ -318,7 +318,7 @@ def main():
     story.extend(table(contents_lines))
     story.extend([para('A guide that grows with the project', 'h2'),
         para('Each chapter starts on a fresh page. Chapter numbers stay stable when pages are added. Section 16 contains the update template and edition history.'),
-        para('Snapshot: 15 November 2026. Implemented means code exists; it does not mean the feature has been deployed or independently tested with live services.')])
+        para('Snapshot: 23 November 2026. Implemented means code exists; it does not mean the feature has been deployed or independently tested with live services.')])
     for section in sections[1:]:
         story.append(PageBreak())
         story.extend(chapter(section))

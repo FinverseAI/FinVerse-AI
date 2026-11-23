@@ -10,8 +10,10 @@ A personal-finance workspace for people budgeting in Indian rupees. Set a monthl
 - Recorded monthly cash flow, weekly/monthly/custom spending analysis, and search.
 - Bill reminders with overdue states and an informational auto-pay flag.
 - Profile and goal editing, loading/error/empty states, and keyboard-accessible dialogs.
+- Stock intelligence: Yahoo Finance quotes and history (cached, stale-marked), indicators (SMA/EMA/RSI/MACD), holdings, watchlists, portfolio math (CAGR/XIRR, concentration) and mean-variance optimization.
+- AI layer: chat, stock/news/readiness explanations and a natural-language stock screener, backed by retrieval (pgvector) and a guardrail that re-checks every number against the computed evidence. The Investment Readiness score (0–100) combines cash flow and portfolio risk; an evaluation harness measures the AI layer's grounding, consistency, quality, latency and cost.
 
-Records are entered manually. FinVerse does not connect bank accounts, execute payments, or provide an AI adviser. Savings goals store targets and deadlines; contributions to individual goals are not tracked. Monthly plan figures and recorded activity are shown separately.
+Records are entered manually. FinVerse does not connect bank accounts or execute payments. The AI layer explains the user's own numbers and market data — it does not give personalised investment advice. Savings goals store targets and deadlines, and contributions to individual goals are tracked. Monthly plan figures and recorded activity are shown separately.
 
 ## Stack and structure
 
@@ -20,9 +22,15 @@ This npm/Turborepo monorepo uses Next.js 16 App Router, React 19, Tailwind CSS 4
 | Location                     | Responsibility                                                                         |
 | ---------------------------- | -------------------------------------------------------------------------------------- |
 | `apps/web/app/(module-one)`  | Landing, auth, onboarding, and dashboard routes                                        |
+| `apps/web/app/(module-two)`  | Market overview and stock detail routes                                                |
 | `apps/web/auth`              | Better Auth, session/profile guards, authentication UI                                 |
 | `apps/web/lib`               | Profile contracts, budget calculations, same-origin API forwarding, environment checks |
 | `apps/backend/src/profile`   | Validated profile/goals writes in a database transaction                               |
+| `apps/backend/src/market`    | Market data, holdings, watchlists, portfolio math                                      |
+| `apps/backend/src/ai`        | LLM provider, tools, prompts, guardrail, indicators                                    |
+| `apps/backend/src/rag`       | Retrieval (embeddings, chunking, news, screener)                                       |
+| `apps/backend/src/readiness` | Investment Readiness score formula and endpoint                                        |
+| `apps/backend/src/eval`      | Evaluation harness: scenarios, baseline, metrics, rating pack                          |
 | `apps/backend/src/activity`  | Account-scoped transactions and bill reminders                                         |
 | `apps/backend/prisma`        | Schema and migration history                                                           |
 | `packages`                   | Shared lint and TypeScript configuration                                               |
