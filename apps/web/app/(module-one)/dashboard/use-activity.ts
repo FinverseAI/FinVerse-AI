@@ -49,7 +49,21 @@ export function activityError(error: unknown) {
     : "Unable to reach your account. Please try again.";
 }
 
-export function useActivity<T extends { id: string }>(path: string) {
+/** The state and actions `useActivity` returns, so a parent can own the fetch and pass it down. */
+export type Activity<T extends { id: string }> = {
+  items: T[];
+  loading: boolean;
+  error: string;
+  retry: () => void;
+  add: (input: Omit<T, "id">) => Promise<void>;
+  update: (id: string, input: Omit<T, "id">) => Promise<void>;
+  patch: (id: string, updater: (item: T) => T) => void;
+  remove: (id: string) => Promise<void>;
+};
+
+export function useActivity<T extends { id: string }>(
+  path: string,
+): Activity<T> {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

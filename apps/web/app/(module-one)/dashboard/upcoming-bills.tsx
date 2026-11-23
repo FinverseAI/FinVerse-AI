@@ -4,7 +4,7 @@ import { useState } from "react";
 import { money } from "./data";
 import { Icon, MiniStat, PanelHeading } from "./ui";
 import { ActivityEmpty, ActivityError } from "./recent-transactions";
-import { activityError, activityRequest, useActivity } from "./use-activity";
+import { activityError, activityRequest, type Activity } from "./use-activity";
 import { Modal } from "./modal";
 import { dateKey } from "./spending-data";
 
@@ -14,7 +14,7 @@ type BillPayment = {
   paidDate: string;
 };
 
-type Bill = {
+export type Bill = {
   id: string;
   name: string;
   amount: number;
@@ -435,13 +435,15 @@ function PaymentHistory({
 }
 
 export default function UpcomingBills({
+  activity,
   onPaymentRecorded,
 }: {
+  /** The bills fetch, owned by the dashboard so it can also feed the notification centre. */
+  activity: Activity<Bill>;
   /** Called after a payment lands: the payment also creates an expense transaction, so the transactions list needs a refresh. */
   onPaymentRecorded?: () => void;
 }) {
-  const { items, loading, error, retry, add, update, patch, remove } =
-    useActivity<Bill>("/api/bills");
+  const { items, loading, error, retry, add, update, patch, remove } = activity;
   const [dialog, setDialog] = useState<
     "all" | "add" | "edit" | "remove" | "pay" | "history" | null
   >(null);

@@ -13,6 +13,8 @@ type HeaderProps = {
   onSearch: () => void;
   onAdd: () => void;
   onNotifications: () => void;
+  /** Bills needing attention (overdue or due within a week); shows a badge on the bell. */
+  notificationCount?: number;
   onReport: () => void;
   onTransactions: () => void;
   user?: AuthUser;
@@ -122,6 +124,7 @@ export function Header({
   onSearch,
   onAdd,
   onNotifications,
+  notificationCount = 0,
   onReport,
   onTransactions,
   user,
@@ -204,10 +207,22 @@ export function Header({
         </button>
         <button
           className="dash-icon-button relative"
-          aria-label="Notifications"
+          aria-label={
+            notificationCount > 0
+              ? `Notifications, ${notificationCount} bill${notificationCount === 1 ? "" : "s"} need${notificationCount === 1 ? "s" : ""} attention`
+              : "Notifications"
+          }
           onClick={onNotifications}
         >
           <Icon name="bell" />
+          {notificationCount > 0 && (
+            <span
+              aria-hidden="true"
+              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dash-red px-1 text-[10px] font-semibold text-white"
+            >
+              {notificationCount > 9 ? "9+" : notificationCount}
+            </span>
+          )}
         </button>
         <ProfileMenu
           user={user}

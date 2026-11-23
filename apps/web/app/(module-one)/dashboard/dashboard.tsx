@@ -15,13 +15,17 @@ import BalanceBreakdownCard from "./balance-breakdown-card";
 import ExpenseBreakdownCard from "./expense-breakdown-card";
 import PlanningCards from "./planning-cards";
 import RecentTransactions from "./recent-transactions";
-import UpcomingBills from "./upcoming-bills";
+import UpcomingBills, { type Bill } from "./upcoming-bills";
 import SpendingAnalysis from "./spending-analysis";
 import ReadinessCard from "./readiness-card";
 import AiChat from "./ai-chat";
 import ExpenseEntry from "./expense-entry";
 import { useActivity } from "./use-activity";
 import { budgetsWithSpending, dateKey } from "./spending-data";
+import {
+  billNotifications,
+  type BillNotification,
+} from "../../../lib/notifications";
 import { Modal } from "./modal";
 import type { DialogKind } from "./dashboard-dialog";
 
@@ -59,7 +63,14 @@ export default function Dashboard({
   const [profileSaving, setProfileSaving] = useState(false);
   const activity = useActivity<Transaction>("/api/transactions");
   const transactions = activity.items;
+  // The bills fetch lives here so the same data feeds the bills panel,
+  // the notification badge, and the notification centre.
+  const bills = useActivity<Bill>("/api/bills");
   const today = dateKey(new Date());
+  const notifications: BillNotification[] = useMemo(
+    () => billNotifications(bills.items, today),
+    [bills.items, today],
+  );
   const currentBudgets = useMemo(
     () =>
       budgetsWithSpending(budgets, transactions, new Date(`${today}T12:00:00`)),
@@ -153,6 +164,7 @@ export default function Dashboard({
           onTransactions={() => setDialog("transactions")}
           onAdd={() => setDialog("transaction")}
           onNotifications={() => setDialog("notifications")}
+          notificationCount={notifications.length}
           onReport={() => setDialog("report")}
           user={user}
           onSignOut={signOut}
@@ -243,7 +255,10 @@ export default function Dashboard({
                 openTransactionEditor(transaction, "remove-transaction")
               }
             />
-            <UpcomingBills onPaymentRecorded={activity.retry} />
+            <UpcomingBills
+              activity={bills}
+              onPaymentRecorded={activity.retry}
+            />
           </section>
           <SpendingAnalysis
             transactions={transactions}
@@ -302,6 +317,10 @@ export default function Dashboard({
           transactionsLoading={activity.loading}
           transactionsError={activity.error}
           onRetryTransactions={activity.retry}
+          notifications={notifications}
+          notificationsLoading={bills.loading}
+          notificationsError={bills.error}
+          onRetryNotifications={bills.retry}
           query={query}
           onQuery={setQuery}
           profile={data.profile!}

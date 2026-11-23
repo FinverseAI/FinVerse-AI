@@ -13,6 +13,7 @@ import { transactionsToCsv } from "../../../lib/export-csv";
 import { transactionsToPdf } from "../../../lib/export-pdf";
 import { transactionsToXlsx } from "../../../lib/export-xlsx";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
+import type { BillNotification } from "../../../lib/notifications";
 import { Icon, MiniStat } from "./ui";
 import { Modal } from "./modal";
 
@@ -40,6 +41,10 @@ type DialogProps = {
   transactionsLoading: boolean;
   transactionsError: string;
   onRetryTransactions: () => void;
+  notifications: BillNotification[];
+  notificationsLoading: boolean;
+  notificationsError: string;
+  onRetryNotifications: () => void;
   query: string;
   onQuery: (query: string) => void;
   profile: FinancialProfile;
@@ -60,6 +65,10 @@ export function DashboardDialog({
   transactionsLoading,
   transactionsError,
   onRetryTransactions,
+  notifications,
+  notificationsLoading,
+  notificationsError,
+  onRetryNotifications,
   query,
   onQuery,
   profile,
@@ -214,10 +223,96 @@ export function DashboardDialog({
           </p>
         </div>
       )}
-      {kind === "notifications" && (
-        <p className="text-sm text-dash-muted">No notifications yet.</p>
+      {kind === "notifications" && notificationsLoading && (
+        <p role="status" className="py-8 text-center text-sm text-dash-muted">
+          Loading notifications…
+        </p>
       )}
+      {kind === "notifications" && notificationsError && (
+        <div role="alert">
+          <p className="text-sm text-dash-red">{notificationsError}</p>
+          <button
+            className="dash-small-button mt-4"
+            onClick={onRetryNotifications}
+          >
+            Try again
+          </button>
+        </div>
+      )}
+      {kind === "notifications" &&
+        !notificationsLoading &&
+        !notificationsError && (
+          <NotificationList notifications={notifications} />
+        )}
     </Modal>
+  );
+}
+
+/**
+ * In-app reminders only — FinVerse sends no email. Each notification
+ * comes from a bill: overdue, due today, or due within the next week.
+ * Paying a bill removes its notification.
+ */
+function NotificationList({
+  notifications,
+}: {
+  notifications: BillNotification[];
+}) {
+  if (!notifications.length) {
+    return (
+      <div>
+        <p className="py-8 text-center text-sm text-dash-muted">
+          All caught up — no bills due soon.
+        </p>
+        <p className="text-center text-xs leading-6 text-dash-muted">
+          Bills that are overdue or due in the next week appear here.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <ul className="space-y-3">
+        {notifications.map((notification) => (
+          <li
+            key={notification.billId}
+            className={`surface-inset flex items-center gap-3 border px-3 py-2.5 ${notification.kind === "overdue" ? "border-dash-red/40" : ""}`}
+          >
+            <Icon
+              name="calendar"
+              className={`size-4 shrink-0 ${notification.kind === "overdue" ? "text-dash-red" : notification.kind === "due-today" ? "text-dash-warning" : "text-dash-muted"}`}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">
+                {notification.billName}
+              </p>
+              <p className="mt-0.5 text-xs text-dash-muted">
+                {notification.kind === "overdue"
+                  ? `Overdue by ${-notification.daysUntilDue} day${-notification.daysUntilDue === 1 ? "" : "s"}`
+                  : notification.kind === "due-today"
+                    ? "Due today"
+                    : `Due in ${notification.daysUntilDue} day${notification.daysUntilDue === 1 ? "" : "s"}`}
+                {" · "}
+                {new Date(
+                  `${notification.dueDate}T12:00:00`,
+                ).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+            <p className="shrink-0 font-mono text-xs">
+              {money(notification.amountDue, 2)}
+            </p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 text-xs leading-6 text-dash-muted">
+        Paying a bill removes its notification. FinVerse does not send email
+        reminders.
+      </p>
+    </div>
   );
 }
 
