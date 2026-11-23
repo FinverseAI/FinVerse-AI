@@ -42,6 +42,20 @@ export interface ChatCompletion {
   content: string | null;
   toolCalls: ToolCall[];
   model: string;
+  /**
+   * Token usage reported by the provider, when it reports any. The
+   * Phase 5 evaluation turns this into measured API cost; a provider
+   * that omits usage yields null, and the eval says so instead of
+   * estimating from characters.
+   */
+  usage: TokenUsage | null;
+}
+
+/** Token counts for one completion, as reported by the provider. */
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 }
 
 export interface ChatOptions {
@@ -179,5 +193,30 @@ function parseCompletion(data: unknown): ChatCompletion {
     content,
     toolCalls,
     model: typeof record.model === 'string' ? record.model : '',
+    usage: parseUsage(record.usage),
   };
+}
+
+/**
+ * Parse the provider's usage block defensively: all three counts must
+ * be finite numbers, otherwise the whole block is null — a partial
+ * usage block would understate cost, which is worse than none.
+ */
+function parseUsage(value: unknown): TokenUsage | null {
+  if (!value || typeof value !== 'object') return null;
+  const usage = value as Record<string, unknown>;
+  const promptTokens = usage.prompt_tokens;
+  const completionTokens = usage.completion_tokens;
+  const totalTokens = usage.total_tokens;
+  if (
+    typeof promptTokens !== 'number' ||
+    !Number.isFinite(promptTokens) ||
+    typeof completionTokens !== 'number' ||
+    !Number.isFinite(completionTokens) ||
+    typeof totalTokens !== 'number' ||
+    !Number.isFinite(totalTokens)
+  ) {
+    return null;
+  }
+  return { promptTokens, completionTokens, totalTokens };
 }

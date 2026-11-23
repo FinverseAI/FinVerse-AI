@@ -146,7 +146,14 @@ function scriptedClient(responses: Array<ChatCompletion | Error>): {
       calls.push(request);
       const next = queue.shift();
       if (next instanceof Error) throw next;
-      return next ?? { content: null, toolCalls: [], model: 'test-model' };
+      return (
+        next ?? {
+          content: null,
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        }
+      );
     }),
   };
   return { client, calls };
@@ -157,11 +164,12 @@ function toolCallCompletion(name: string, args: unknown): ChatCompletion {
     content: null,
     toolCalls: [{ id: 'call_1', name, arguments: JSON.stringify(args) }],
     model: 'test-model',
+    usage: null,
   };
 }
 
 function contentCompletion(content: string): ChatCompletion {
-  return { content, toolCalls: [], model: 'test-model' };
+  return { content, toolCalls: [], model: 'test-model', usage: null };
 }
 
 function makeService(

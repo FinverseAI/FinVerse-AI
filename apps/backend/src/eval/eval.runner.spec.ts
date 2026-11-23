@@ -1,0 +1,223 @@
+import { readinessTemplate } from '../ai/ai.guardrail-templates';
+import type { ChatCompletion, ChatOptions, LlmClient } from '../ai/ai.provider';
+import { scoreReadiness } from '../readiness/readiness.formula';
+import { EVAL_SCENARIOS } from './eval.scenarios';
+import { renderReportMarkdown, runEval } from './eval.runner';
+
+/** A stub client returning a fixed completion (or throwing). */
+function stubClient(
+  completion: ChatCompletion | Error,
+): LlmClient & { calls: ChatOptions[] } {
+  const calls: ChatOptions[] = [];
+  return {
+    calls,
+    async chat(options: ChatOptions): Promise<ChatCompletion> {
+      calls.push(options);
+      if (completion instanceof Error) throw completion;
+      return completion;
+    },
+  };
+}
+
+function templateCompletionFor(scenarioId: string): ChatCompletion {
+  const scenario = EVAL_SCENARIOS.find((entry) => entry.id === scenarioId);
+  expect(scenario).toBeDefined();
+  const assessment = scoreReadiness(
+    (scenario as (typeof EVAL_SCENARIOS)[number]).inputs,
+  );
+  expect(assessment.available).toBe(true);
+  if (assessment.available !== true) throw new Error('unavailable');
+  const template = readinessTemplate(assessment);
+  return {
+    content: JSON.stringify({
+      answer: template.answer,
+      claims: template.claims,
+      refused: false,
+      refusalReason: null,
+    }),
+    toolCalls: [],
+    model: 'deepseek/deepseek-r1-0528',
+    usage: { promptTokens: 1000, completionTokens: 500, totalTokens: 1500 },
+  };
+}
+
+describe('runEval — no key', () => {
+  it('completes end to end: baseline measured, LLM pending key, mock both modes', async () => {
+    const report = await runEval({ client: null });
+    expect(report.keyPresent).toBe(false);
+    expect(report.scenariosTotal).toBe(20);
+    expect(report.scenariosMeasured).toBe(19);
+    expect(report.scenariosUnavailable).toBe(1);
+    expect(report.repeats).toBe(5);
+    // Baseline: 19/19 answers pass, every check passes.
+    expect(report.grounding.baseline?.answerRate).toBe(1);
+    expect(report.grounding.baseline?.checkRate).toBe(1);
+    expect(report.grounding.baseline?.answersTotal).toBe(19);
+    // LLM: nothing measured, everything pending.
+    expect(report.grounding.llm).toBeNull();
+    expect(report.consistency.llm).toBeNull();
+    expect(report.totalCostUsd.llm).toBeNull();
+    for (const scenario of report.scenarios) {
+      if (scenario.status === 'measured') {
+        expect(scenario.llm.status).toBe('pending-key');
+        expect(scenario.llm.runs).toEqual([]);
+      }
+    }
+    // Mock: correct passes everywhere, corrupt fails everywhere.
+    expect(report.grounding['mock-correct']?.answerRate).toBe(1);
+    expect(report.grounding['mock-corrupt']?.answerRate).toBe(0);
+    expect(report.grounding['mock-corrupt']?.answersTotal).toBe(19);
+    // Baseline costs nothing; the mock costs nothing.
+    expect(report.totalCostUsd.baseline).toBe(0);
+    // Prompt sizes are real measured data.
+    expect(report.totalPromptChars).toBeGreaterThan(0);
+    const measured = report.scenarios.filter(
+      (scenario) => scenario.status === 'measured',
+    );
+    for (const scenario of measured) {
+      expect(scenario.promptChars).toBeGreaterThan(0);
+    }
+    // The pending list says what is waiting on the key.
+    expect(report.pending.length).toBeGreaterThan(0);
+    expect(report.pending.join(' ')).toContain('OPENROUTER_API_KEY');
+  });
+
+  it('records the unavailable scenario honestly (no systems run)', async () => {
+    const report = await runEval({
+      client: null,
+      scenarioIds: ['no-data'],
+    });
+    expect(report.scenariosTotal).toBe(1);
+    expect(report.scenariosMeasured).toBe(0);
+    const [scenario] = report.scenarios;
+    expect(scenario?.status).toBe('unavailable');
+    expect(scenario?.score).toBeNull();
+    expect(scenario?.baseline).toBeNull();
+    expect(scenario?.llm.status).toBe('not-run');
+  });
+
+  it('runs a scenario subset when asked', async () => {
+    const report = await runEval({
+      client: null,
+      scenarioIds: ['healthy-saver', 'maxed-out'],
+      mock: [],
+    });
+    expect(report.scenariosTotal).toBe(2);
+    expect(
+      report.scenarios.map((scenario) => scenario.scenarioId).sort(),
+    ).toEqual(['healthy-saver', 'maxed-out']);
+    expect(report.grounding['mock-correct']).toBeNull();
+  });
+});
+
+describe('runEval — stub live client', () => {
+  it('runs the live path end to end with a stub that answers correctly', async () => {
+    const client = stubClient(templateCompletionFor('healthy-saver'));
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 3,
+      mock: [],
+    });
+    expect(report.keyPresent).toBe(true);
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.status).toBe('measured');
+    expect(scenario?.llm.runs).toHaveLength(3);
+    expect(scenario?.llm.runs.every((run) => run.status === 'ok')).toBe(true);
+    expect(scenario?.llm.grounding?.answerRate).toBe(1);
+    // A deterministic stub agrees with itself every time.
+    expect(scenario?.llm.consistency).toBe(1);
+    // Cost from the stub's reported usage: 3 runs × (1000×0.571 + 500×2.286)/1e6.
+    expect(scenario?.llm.totalCostUsd).toBeCloseTo(3 * 0.001714, 6);
+    // The request used the production prompt shape: JSON mode, reasoning tokens.
+    expect(client.calls).toHaveLength(3);
+    expect(client.calls[0]?.responseFormatJson).toBe(true);
+    expect(client.calls[0]?.maxTokens).toBe(4096);
+    expect(client.calls[0]?.model).toBe('deepseek/deepseek-r1-0528');
+    const userMessage = client.calls[0]?.messages.find(
+      (message) => message.role === 'user',
+    );
+    expect(userMessage?.content).toContain(
+      'Your computed readiness assessment:',
+    );
+    expect(userMessage?.content).toContain('"score":100');
+  });
+
+  it('records an unparseable reply as a failed run, not a crash', async () => {
+    const client = stubClient({
+      content: 'this is not JSON at all',
+      toolCalls: [],
+      model: 'deepseek/deepseek-r1-0528',
+      usage: null,
+    });
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs[0]?.status).toBe('parse-error');
+    expect(scenario?.llm.grounding?.answerRate).toBe(0);
+    expect(scenario?.llm.totalCostUsd).toBeNull();
+  });
+
+  it('records a provider failure as a failed run, not a crash', async () => {
+    const client = stubClient(new Error('The AI provider returned an error.'));
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs[0]?.status).toBe('provider-error');
+    expect(scenario?.llm.runs[0]?.error).toContain(
+      'provider returned an error',
+    );
+    expect(scenario?.llm.grounding?.answerRate).toBe(0);
+  });
+
+  it('records a refusal honestly (verified as vacuous, conclusions empty)', async () => {
+    const client = stubClient({
+      content: JSON.stringify({
+        answer: 'I cannot explain this score.',
+        claims: [],
+        refused: true,
+        refusalReason: 'The data is too thin.',
+      }),
+      toolCalls: [],
+      model: 'deepseek/deepseek-r1-0528',
+      usage: { promptTokens: 800, completionTokens: 50, totalTokens: 850 },
+    });
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs[0]?.status).toBe('refused');
+    expect(scenario?.llm.runs[0]?.verification?.passed).toBe(true);
+    expect(scenario?.llm.runs[0]?.conclusions?.score).toBeNull();
+  });
+});
+
+describe('renderReportMarkdown', () => {
+  it('renders the results table with pending-key labels, never fabricated numbers', async () => {
+    const report = await runEval({
+      client: null,
+      scenarioIds: ['healthy-saver', 'no-data'],
+    });
+    const markdown = renderReportMarkdown(report);
+    expect(markdown).toContain('# FinVerse AI — Phase 5 Evaluation Results');
+    expect(markdown).toContain('Template baseline');
+    expect(markdown).toContain('LLM (reasoning model)');
+    expect(markdown).toContain('pending key');
+    expect(markdown).toContain('Mock rows exercise the runner mechanics only');
+    expect(markdown).toContain('Healthy saver (healthy-saver)');
+    expect(markdown).toContain('n/a (no score)');
+    expect(markdown).toContain('## Pending');
+    expect(markdown).toContain('OPENROUTER_API_KEY');
+  });
+});

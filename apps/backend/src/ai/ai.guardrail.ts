@@ -1,5 +1,6 @@
 import type { RetrievedChunk } from '../rag/rag.repository';
 import type { ScreenResponse } from '../rag/rag.service';
+import type { ReadinessAssessment } from '../readiness/readiness.formula';
 import type { AiAnswer, AiClaim } from './ai.validation';
 
 /**
@@ -877,6 +878,27 @@ function verifyToolClaim(
     );
   }
   return { rows, numbers: declaredNumbers };
+}
+
+/**
+ * The guardrail context for an explain-readiness request: the computed
+ * assessment is the ONLY evidence the model's claims are checked
+ * against. Shared by the production service and the Phase 5 evaluation
+ * runner, so the eval verifies against the same evidence shape the
+ * users' answers are verified against.
+ */
+export function buildReadinessGuardrailContext(
+  requestId: string,
+  userId: string,
+  assessment: ReadinessAssessment,
+): GuardrailContext {
+  return {
+    requestId,
+    userId,
+    feature: 'explain-readiness',
+    toolResults: new Map([['getReadinessScore', [assessment]]]),
+    chunks: [],
+  };
 }
 
 /**

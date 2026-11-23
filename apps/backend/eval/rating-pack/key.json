@@ -1,0 +1,82 @@
+{
+  "warning": "SEALED — do not open until every rating is finished. Opening this file before rating breaks the blind.",
+  "generatedAt": "2026-11-23T17:22:14.904Z",
+  "key": {
+    "S01-A": {
+      "scenarioId": "healthy-saver",
+      "system": "baseline"
+    },
+    "S02-A": {
+      "scenarioId": "over-spender",
+      "system": "baseline"
+    },
+    "S03-A": {
+      "scenarioId": "concentrated-portfolio",
+      "system": "baseline"
+    },
+    "S04-A": {
+      "scenarioId": "diversified-portfolio",
+      "system": "baseline"
+    },
+    "S05-A": {
+      "scenarioId": "high-debt",
+      "system": "baseline"
+    },
+    "S06-A": {
+      "scenarioId": "no-emergency-fund",
+      "system": "baseline"
+    },
+    "S07-A": {
+      "scenarioId": "volatile-holdings",
+      "system": "baseline"
+    },
+    "S08-A": {
+      "scenarioId": "no-portfolio",
+      "system": "baseline"
+    },
+    "S09-A": {
+      "scenarioId": "young-starter",
+      "system": "baseline"
+    },
+    "S10-A": {
+      "scenarioId": "mid-career-builder",
+      "system": "baseline"
+    },
+    "S11-A": {
+      "scenarioId": "debt-free-high-surplus",
+      "system": "baseline"
+    },
+    "S12-A": {
+      "scenarioId": "single-stock-gambler",
+      "system": "baseline"
+    },
+    "S13-A": {
+      "scenarioId": "retiree-steady",
+      "system": "baseline"
+    },
+    "S14-A": {
+      "scenarioId": "freelancer-irregular",
+      "system": "baseline"
+    },
+    "S15-A": {
+      "scenarioId": "new-investor",
+      "system": "baseline"
+    },
+    "S16-A": {
+      "scenarioId": "emergency-only",
+      "system": "baseline"
+    },
+    "S17-A": {
+      "scenarioId": "maxed-out",
+      "system": "baseline"
+    },
+    "S18-A": {
+      "scenarioId": "balanced-ready",
+      "system": "baseline"
+    },
+    "S19-A": {
+      "scenarioId": "partial-history",
+      "system": "baseline"
+    }
+  }
+}

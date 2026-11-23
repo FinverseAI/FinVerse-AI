@@ -26,6 +26,7 @@ import { ScreenFiltersSchema } from '../rag/rag.validation';
 import { AiResponseCache } from './ai.cache';
 import { resolveAiConfig, type AiConfig } from './ai.config';
 import {
+  buildReadinessGuardrailContext,
   chunksFromRetrieved,
   chunksFromToolResults,
   type GuardrailContext,
@@ -50,13 +51,14 @@ import {
 import {
   AI_DISCLAIMER,
   NEWS_EXPLANATION_INTRO,
-  READINESS_EXPLANATION_INTRO,
   NO_RETRIEVED_CONTEXT_NOTE,
+  READINESS_EXPLANATION_MAX_DATA_CHARS,
   SCREENER_SUMMARY_INTRO,
   SCREENER_TRANSLATION_INTRO,
   STOCK_EXPLANATION_INTRO,
   STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
+  buildReadinessExplanationMessages,
   correctionPrompt,
   guardrailCorrectionPrompt,
 } from './ai.prompts';
@@ -702,25 +704,19 @@ export class AiService {
     assessment: ReadinessAssessment,
   ): Promise<AiChatResponse> {
     try {
-      const userContent = [
-        READINESS_EXPLANATION_INTRO,
-        question ? `The user asks: ${question}` : '',
-        'Your computed readiness assessment:',
-        truncate(JSON.stringify(assessment), MAX_EXPLAIN_DATA_CHARS),
-      ]
-        .filter((line) => line !== '')
-        .join('\n');
-      const messages: ChatMessage[] = [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userContent },
-      ];
-      const guardrailContext: GuardrailContext = {
-        requestId: randomUUID(),
+      // The prompt construction and the guardrail evidence are shared
+      // with the Phase 5 evaluation runner (same helpers), so the eval
+      // measures exactly what production sends and checks.
+      const messages = buildReadinessExplanationMessages(
+        assessment,
+        question,
+        READINESS_EXPLANATION_MAX_DATA_CHARS,
+      );
+      const guardrailContext = buildReadinessGuardrailContext(
+        randomUUID(),
         userId,
-        feature: 'explain-readiness',
-        toolResults: new Map([['getReadinessScore', [assessment]]]),
-        chunks: [],
-      };
+        assessment,
+      );
       const { answer, verification } = await this.guardedAnswer(
         messages,
         this.config.reasoningModel,

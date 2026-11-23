@@ -54,6 +54,7 @@ describe('ai endpoints', () => {
           content: null,
           toolCalls: [],
           model: 'test-model',
+          usage: null,
         },
     );
     const client: LlmClient = { chat };
@@ -154,9 +155,24 @@ describe('ai endpoints', () => {
 
     beforeAll(async () => {
       ({ app } = await createApp(configuredEnv, [
-        { content: 'thinking', toolCalls: [], model: 'test-model' },
-        { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
-        { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+        {
+          content: 'thinking',
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        },
+        {
+          content: ANSWER_JSON,
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        },
+        {
+          content: ANSWER_JSON,
+          toolCalls: [],
+          model: 'test-model',
+          usage: null,
+        },
       ]));
     });
 
@@ -259,9 +275,24 @@ describe('ai endpoints', () => {
       const { app: failingApp } = await createApp(
         configuredEnv,
         [
-          { content: 'thinking', toolCalls: [], model: 'test-model' },
-          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
-          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+          {
+            content: 'thinking',
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
+          {
+            content: ANSWER_JSON,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
+          {
+            content: ANSWER_JSON,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
         ],
         snapshot,
         {
@@ -386,7 +417,14 @@ describe('ai endpoints', () => {
     it('explains readiness with the reasoning model', async () => {
       const { app } = await createApp(
         configuredEnv,
-        [{ content: readinessJson, toolCalls: [], model: 'test-model' }],
+        [
+          {
+            content: readinessJson,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
+        ],
         assessment,
       );
       const response = await session(
@@ -471,7 +509,14 @@ describe('ai endpoints', () => {
     it('explains news from retrieved articles, citing them', async () => {
       const { app } = await createApp(
         configuredEnv,
-        [{ content: ANSWER_JSON, toolCalls: [], model: 'test-model' }],
+        [
+          {
+            content: ANSWER_JSON,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
+        ],
         {},
         {
           retrievalResult: {
@@ -521,8 +566,14 @@ describe('ai endpoints', () => {
               },
             ],
             model: 'test-model',
+            usage: null,
           },
-          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+          {
+            content: ANSWER_JSON,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
         ],
         {},
         { screenResult },
@@ -555,8 +606,18 @@ describe('ai endpoints', () => {
       ({ app } = await createApp(
         { ...configuredEnv, LLM_RATE_LIMIT_PER_MINUTE: '1' },
         [
-          { content: 'thinking', toolCalls: [], model: 'test-model' },
-          { content: ANSWER_JSON, toolCalls: [], model: 'test-model' },
+          {
+            content: 'thinking',
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
+          {
+            content: ANSWER_JSON,
+            toolCalls: [],
+            model: 'test-model',
+            usage: null,
+          },
         ],
       ));
     });

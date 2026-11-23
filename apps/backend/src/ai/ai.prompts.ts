@@ -6,6 +6,9 @@
  * predictions and buy/sell advice are refusals, not answers.
  */
 
+import type { ReadinessAssessment } from '../readiness/readiness.formula';
+import type { ChatMessage } from './ai.provider';
+
 export const SYSTEM_PROMPT = [
   'You are the FinVerse AI assistant, a decision-support explainer for a',
   'personal finance and investment app. You explain the user\u2019s own',
@@ -136,6 +139,45 @@ export const SCREENER_SUMMARY_INTRO = [
   'cite the stocks by symbol. Do not predict what any stock will do',
   'next and do not recommend buying, selling, or holding anything.',
 ].join('\n');
+
+/**
+ * Max assessment JSON chars in an explain-readiness prompt. Shared by
+ * the production service and the Phase 5 evaluation runner, so the
+ * eval sends the same prompt shape production sends.
+ */
+export const READINESS_EXPLANATION_MAX_DATA_CHARS = 8000;
+
+/**
+ * The exact messages the explain-readiness feature sends: the system
+ * prompt plus the readiness intro, the user's question (if any), and
+ * the computed assessment as JSON, truncated the same way the service
+ * truncates it. Shared by the production service and the Phase 5
+ * evaluation runner, so the eval measures the prompts the users
+ * actually get — not a copy that drifts from them.
+ */
+export function buildReadinessExplanationMessages(
+  assessment: ReadinessAssessment,
+  question: string | undefined,
+  maxDataChars: number,
+): ChatMessage[] {
+  const data = JSON.stringify(assessment);
+  const truncated =
+    data.length > maxDataChars
+      ? `${data.slice(0, maxDataChars)}\u2026[truncated]`
+      : data;
+  const userContent = [
+    READINESS_EXPLANATION_INTRO,
+    question ? `The user asks: ${question}` : '',
+    'Your computed readiness assessment:',
+    truncated,
+  ]
+    .filter((line) => line !== '')
+    .join('\n');
+  return [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: userContent },
+  ];
+}
 
 export function correctionPrompt(invalidOutput: string): string {
   return [

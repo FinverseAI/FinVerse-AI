@@ -76,7 +76,61 @@ describe('OpenRouterClient', () => {
         },
       ],
       model: 'qwen/qwen-2.5-72b-instruct',
+      usage: null,
     });
+  });
+
+  it('passes through provider token usage when reported, and null when absent', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        model: 'deepseek/deepseek-r1-0528',
+        choices: [{ message: { content: '{}' } }],
+        usage: {
+          prompt_tokens: 1240,
+          completion_tokens: 486,
+          total_tokens: 1726,
+        },
+      }),
+    );
+    const client = new OpenRouterClient('test-key', 'https://example.test/v1');
+    const withUsage = await client.chat({
+      model: 'deepseek/deepseek-r1-0528',
+      messages: [],
+      timeoutMs: 5000,
+    });
+    expect(withUsage.usage).toEqual({
+      promptTokens: 1240,
+      completionTokens: 486,
+      totalTokens: 1726,
+    });
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        model: 'deepseek/deepseek-r1-0528',
+        choices: [{ message: { content: '{}' } }],
+      }),
+    );
+    const withoutUsage = await client.chat({
+      model: 'deepseek/deepseek-r1-0528',
+      messages: [],
+      timeoutMs: 5000,
+    });
+    expect(withoutUsage.usage).toBeNull();
+  });
+
+  it('treats a partial usage block as no usage at all', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        choices: [{ message: { content: '{}' } }],
+        usage: { prompt_tokens: 100, completion_tokens: 'many' },
+      }),
+    );
+    const client = new OpenRouterClient('test-key', 'https://example.test/v1');
+    const result = await client.chat({
+      model: 'm',
+      messages: [],
+      timeoutMs: 5000,
+    });
+    expect(result.usage).toBeNull();
   });
 
   it('sends tool_choice auto when tools are given, and a forced tool when asked', async () => {
