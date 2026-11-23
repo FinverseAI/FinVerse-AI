@@ -10,6 +10,8 @@ import {
   type Transaction,
 } from "./data";
 import { transactionsToCsv } from "../../../lib/export-csv";
+import { transactionsToPdf } from "../../../lib/export-pdf";
+import { transactionsToXlsx } from "../../../lib/export-xlsx";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import { Icon, MiniStat } from "./ui";
 import { Modal } from "./modal";
@@ -367,18 +369,59 @@ function TransactionTable({
         .toLowerCase()
         .includes(query.toLowerCase()),
     );
-  function exportCsv() {
-    const blob = new Blob([transactionsToCsv(filtered)], {
-      type: "text/csv;charset=utf-8",
-    });
+  const [exporting, setExporting] = useState<"pdf" | "xlsx" | null>(null);
+  const [exportError, setExportError] = useState("");
+  function download(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `finverse-transactions-${dateKey(new Date())}.csv`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+  function exportCsv() {
+    download(
+      new Blob([transactionsToCsv(filtered)], {
+        type: "text/csv;charset=utf-8",
+      }),
+      `finverse-transactions-${dateKey(new Date())}.csv`,
+    );
+  }
+  async function exportPdf() {
+    if (exporting) return;
+    setExporting("pdf");
+    setExportError("");
+    try {
+      const bytes = await transactionsToPdf(filtered);
+      download(
+        new Blob([bytes as BlobPart], { type: "application/pdf" }),
+        `finverse-transactions-${dateKey(new Date())}.pdf`,
+      );
+    } catch {
+      setExportError("The PDF export failed. Please try again.");
+    } finally {
+      setExporting(null);
+    }
+  }
+  async function exportXlsx() {
+    if (exporting) return;
+    setExporting("xlsx");
+    setExportError("");
+    try {
+      const bytes = await transactionsToXlsx(filtered);
+      download(
+        new Blob([bytes as BlobPart], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        }),
+        `finverse-transactions-${dateKey(new Date())}.xlsx`,
+      );
+    } catch {
+      setExportError("The Excel export failed. Please try again.");
+    } finally {
+      setExporting(null);
+    }
   }
   return (
     <div>
@@ -396,17 +439,44 @@ function TransactionTable({
           {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
           {query ? " matching your search" : ""}
         </p>
-        <button
-          type="button"
-          className="dash-small-button gap-1.5"
-          onClick={exportCsv}
-          disabled={!filtered.length}
-          title="Download the listed transactions as a CSV file"
-        >
-          <Icon name="download" className="size-3" />
-          Export CSV
-        </button>
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            className="dash-small-button gap-1.5"
+            onClick={exportCsv}
+            disabled={!filtered.length}
+            title="Download the listed transactions as a CSV file"
+          >
+            <Icon name="download" className="size-3" />
+            Export CSV
+          </button>
+          <button
+            type="button"
+            className="dash-small-button gap-1.5"
+            onClick={exportPdf}
+            disabled={!filtered.length || exporting !== null}
+            title="Download the listed transactions as a PDF statement"
+          >
+            <Icon name="download" className="size-3" />
+            {exporting === "pdf" ? "Exporting…" : "Export PDF"}
+          </button>
+          <button
+            type="button"
+            className="dash-small-button gap-1.5"
+            onClick={exportXlsx}
+            disabled={!filtered.length || exporting !== null}
+            title="Download the listed transactions as an Excel workbook"
+          >
+            <Icon name="download" className="size-3" />
+            {exporting === "xlsx" ? "Exporting…" : "Export Excel"}
+          </button>
+        </div>
       </div>
+      {exportError && (
+        <p role="alert" className="mt-3 text-xs text-dash-red">
+          {exportError}
+        </p>
+      )}
       <div className="mt-4 overflow-x-auto">
         <table className="w-full text-left text-xs">
           <caption className="sr-only">All recorded transactions</caption>
