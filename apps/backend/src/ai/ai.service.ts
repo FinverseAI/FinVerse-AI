@@ -130,8 +130,8 @@ const MAX_EXPLAIN_DATA_CHARS = 8000;
  * 4096 to 16384 after the 24 Nov 2026 eval re-run: R1 burned 4096 tokens
  * on reasoning alone and returned empty content — it never got room to
  * emit its answer. The cap is a ceiling, not a spend: typical answers
- * use 300–1500 tokens. (The 30s production timeout still binds slow
- * calls; see the eval writeup — that limit is a product decision.)
+ * use 300–1500 tokens. (The 110s production timeout still binds very
+ * slow calls; it sits inside the 120s Next.js forwarder budget.)
  */
 const REASONING_MAX_TOKENS = 16384;
 

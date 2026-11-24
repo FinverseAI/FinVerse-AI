@@ -436,7 +436,7 @@ RAG (**retrieval-augmented generation**) means the model answers from retrieved 
 
 ## Safety rails
 
-Per-user rate limits, a 30-second model timeout, a cost cap per request, and a refusal path for questions the evidence cannot answer ("I don't have that information") — the model is instructed never to guess. The assistant explains numbers; it does not give personalised investment advice, connect bank accounts, or execute payments.
+Per-user rate limits, a 110-second model timeout (inside the 120s AI-route forwarder budget, so the template fallback still reaches the user on a timeout), a cost cap per request, and a refusal path for questions the evidence cannot answer ("I don't have that information") — the model is instructed never to guess. The assistant explains numbers; it does not give personalised investment advice, connect bank accounts, or execute payments.
 
 ## Evidence and limits
 
@@ -789,7 +789,7 @@ The same four corrections were applied to the architecture write-up (`docs/archi
 
 **Investment data:** Yahoo Finance is the provider (free, no key); quotes are cached 15 minutes, history 24 hours, and stale prices are marked, never invented (§04A). Corporate actions are not yet adjusted for; the refresh rate and usage terms of any second provider are undecided.
 
-**AI behavior:** Hosted models via OpenRouter (Qwen 2.5 72B primary, DeepSeek R1 reasoning); the model timeout is 30 seconds, and unsupported questions get a refusal, not a guess (§08B). An extracted transaction is always confirmed by the user in a review dialog before saving (§06).
+**AI behavior:** Hosted models via OpenRouter (Qwen 2.5 72B primary, DeepSeek R1 reasoning); the model timeout is 110 seconds (inside the 120s AI-route forwarder budget), and unsupported questions get a refusal, not a guess (§08B). An extracted transaction is always confirmed by the user in a review dialog before saving (§06).
 
 **Storage and operations:** Receipt photos and voice are never uploaded: receipts are read in the browser and voice is transcribed in the browser, so there is no receipt or audio storage at all (team decision, 23 November 2026). Reminders are in-app only — no email is sent. Production hosting is Netlify (`https://finverseaii.netlify.app`, backend as a Netlify Function); backups and monitoring arrangements are not established. Vector records live in PostgreSQL (pgvector) and connect to users via `user_id`, scoped at retrieval (§07, §08B).
 

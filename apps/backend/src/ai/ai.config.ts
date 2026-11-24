@@ -44,7 +44,17 @@ export interface AiConfig {
 export const DEFAULT_PRIMARY_MODEL = 'qwen/qwen-2.5-72b-instruct';
 export const DEFAULT_REASONING_MODEL = 'deepseek/deepseek-r1-0528';
 export const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1';
-export const DEFAULT_TIMEOUT_MS = 30_000;
+/**
+ * Per-LLM-call timeout. Raised from 30s to 110s on 24 Nov 2026 (Vivek's
+ * call): the live R1 calls took 8.5s (median) to ~85s, so at 30s most
+ * reasoning answers died into the template fallback. 110s, not 120s:
+ * the Next.js AI-route forwarder allows 120s
+ * (apps/web/app/api/ai/<name>/route.ts), so the LLM timeout sits 10s inside
+ * it — when a call times out, the template fallback still has room to
+ * reach the user instead of the forwarder cutting the request first.
+ * Overridable per deploy with LLM_TIMEOUT_MS.
+ */
+export const DEFAULT_TIMEOUT_MS = 110_000;
 export const DEFAULT_MAX_TOOL_ROUNDS = 4;
 export const DEFAULT_RATE_LIMIT_PER_MINUTE = 10;
 export const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;

@@ -172,7 +172,7 @@ News articles, company profiles (Yahoo `longBusinessSummary`) and the user's own
 
 ### 6.6 Safety rails
 
-Per-user rate limits, a 30-second model timeout, a per-request cost cap, and a refusal path for questions the evidence cannot answer. The assistant explains numbers; it does not give personalised investment advice, connect bank accounts, or execute payments.
+Per-user rate limits, a 110-second model timeout (inside the 120s AI-route forwarder budget, so the template fallback still reaches the user on a timeout), a per-request cost cap, and a refusal path for questions the evidence cannot answer. The assistant explains numbers; it does not give personalised investment advice, connect bank accounts, or execute payments.
 
 ---
 

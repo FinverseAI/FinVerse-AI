@@ -171,13 +171,13 @@ tokens), eval timeout 120s → 300s (at the observed ~48 tokens/s, a
 | LLM latency + cost | Same top-up | Same run (usage reported by the provider) |
 | Explanation-quality ratings | Live LLM outputs + human raters | Re-generate the rating pack from the live report; the team rates blind, then unblinds with `key.json` |
 
-**Production note.** Production's reasoning timeout is still 30s
-(`DEFAULT_TIMEOUT_MS`), while the live R1 calls took 8.5s (median,
-run 1) to ~85s (run 2, long reasoning). Slow production R1 calls
-fail into the template fallback — the user gets a correct but
-template answer instead of an LLM one. Raising the production
-timeout (Netlify AI routes allow 120s) is a product decision, not
-yet taken.
+**Production note.** Production's reasoning timeout was raised from
+30s to 110s on 24 Nov 2026 (Vivek's decision): the live R1 calls took
+8.5s (median, run 1) to ~85s (run 2, long reasoning), so at 30s most
+production R1 answers would have failed into the template fallback.
+110s, not 120s: the Next.js AI-route forwarder allows 120s, so the
+LLM timeout sits 10s inside it and the fallback still reaches the
+user when a call times out.
 
 ## 6. Observations (for the report discussion)
 
