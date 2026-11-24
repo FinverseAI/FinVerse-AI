@@ -165,9 +165,9 @@ const fetchedAtFormat = new Intl.DateTimeFormat("en-IN", {
 });
 
 export function formatFetchedAt(iso: string | null) {
-  if (!iso) return "";
+  if (!iso) return "Unknown";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "" : fetchedAtFormat.format(date);
+  return Number.isNaN(date.getTime()) ? "Unknown" : fetchedAtFormat.format(date);
 }
 
 /**

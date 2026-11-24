@@ -50,8 +50,11 @@ const extensions = [".tsx", ".ts", ".mjs", ".js"];
 function resolveRelative(specifier, parentURL) {
   const parentPath = fileURLToPath(parentURL);
   const base = path.resolve(path.dirname(parentPath), specifier);
+  const pathWithoutExtension = base
+    .replace(/\.(?:tsx?|mjs|js)$/, "")
+    .replaceAll("\\", "/");
   for (const [suffix, url] of pathStubs) {
-    if (base.endsWith(suffix)) return url;
+    if (pathWithoutExtension.endsWith(suffix)) return url;
   }
   for (const extension of extensions) {
     const candidate = base + extension;
@@ -76,6 +79,11 @@ export async function resolve(specifier, context, nextResolve) {
 }
 
 export async function load(url, context, nextLoad) {
+  // Styles are handled by Next's bundler in the app, but Node's test runner
+  // has no CSS module loader. Components only need the import to resolve.
+  if (url.endsWith(".css")) {
+    return { format: "module", source: "export default {};", shortCircuit: true };
+  }
   if (url.endsWith(".tsx")) {
     const filePath = fileURLToPath(url);
     const source = await readFile(filePath, "utf8");

@@ -79,9 +79,9 @@ test("the dashboard page renders the dashboard for the signed-in user", async ()
 
 test("the market page renders the market sections", async () => {
   const html = render(await MarketPage());
-  assert.match(html, /Today&#x27;s indices/);
-  assert.match(html, /Find a stock/);
-  assert.match(html, /Your watchlist/);
+  assert.match(html, /Market overview/);
+  assert.match(html, /Benchmarks/);
+  assert.match(html, /Loading stock prices and technical indicators…/);
 });
 
 test("the stock page uppercases the symbol and renders its profile", async () => {
@@ -89,7 +89,10 @@ test("the stock page uppercases the symbol and renders its profile", async () =>
     await StockPage({ params: Promise.resolve({ symbol: "reliance" }) }),
   );
   assert.match(html, /Loading RELIANCE…/);
-  assert.match(html, /Price history, indicators and fundamentals for RELIANCE/);
+  assert.match(
+    html,
+    /Explore RELIANCE: price performance, technical signals, and the stories behind the stock\./,
+  );
 });
 
 test("the stock page metadata uses the uppercased symbol", async () => {

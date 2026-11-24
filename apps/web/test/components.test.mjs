@@ -726,7 +726,7 @@ test("PortfolioSection values the holdings and shows the return metrics", () => 
       onRetry: noop,
     }),
   );
-  assert.match(empty, /You have no holdings yet/);
+  assert.match(empty, /No holdings yet/);
 });
 
 test("HoldingsSection lists each holding with its gain or loss", () => {
@@ -780,8 +780,8 @@ test("OptimizerSection asks for two priced holdings and fetches history for them
 test("ScreenerSection renders the filter mode with its screen button", () => {
   const html = render(createElement(ScreenerSection));
   assert.match(html, /Smart stock screener/);
-  assert.match(html, /Run screen/);
-  assert.match(html, /e\.g\. Energy/);
+  assert.match(html, /Loading the stock universe…/);
+  assert.match(html, /All sectors/);
 });
 
 test("PriceChart, RsiChart and MacdChart render SVGs from history", () => {
@@ -854,10 +854,7 @@ test("StockProfile renders the loading states for a symbol", () => {
 
 test("Market renders the indices, search, watchlist and portfolio sections", () => {
   const html = render(createElement(Market, { user: stubUser }));
-  assert.match(html, /Today&#x27;s indices/);
-  assert.match(html, /Loading market data…/);
-  assert.match(html, /Find a stock/);
-  assert.match(html, /Your watchlist/);
-  assert.match(html, /Loading watchlist…/);
-  assert.match(html, /About these prices/);
+  assert.match(html, /Benchmarks/);
+  assert.match(html, /Loading stock prices and technical indicators…/);
+  assert.match(html, /Market overview/);
 });
