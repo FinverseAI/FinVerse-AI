@@ -115,11 +115,11 @@ The health route reports process liveness, not database readiness. Before public
 
 Create separate Node web services for the backend and frontend. For both services, leave **Root Directory** empty so npm runs from the repository root and can resolve the workspaces.
 
-| Render setting | Backend service | Frontend service |
-| --- | --- | --- |
-| Build Command | `npm ci --include=dev && npm run db:generate --workspace backend && npm run db:migrate --workspace backend && npm run build --workspace backend` | `npm ci --include=dev && npm run db:generate --workspace backend && npm run build --workspace web` |
-| Start Command | `npm run start:prod --workspace backend` | `npm run start --workspace web -- --hostname 0.0.0.0` |
-| Health Check Path | `/api/health` | `/` |
+| Render setting    | Backend service                                                                                                                                  | Frontend service                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Build Command     | `npm ci --include=dev && npm run db:generate --workspace backend && npm run db:migrate --workspace backend && npm run build --workspace backend` | `npm ci --include=dev && npm run db:generate --workspace backend && npm run build --workspace web` |
+| Start Command     | `npm run start:prod --workspace backend`                                                                                                         | `npm run start --workspace web -- --hostname 0.0.0.0`                                              |
+| Health Check Path | `/api/health`                                                                                                                                    | `/`                                                                                                |
 
 Set each service's environment variables from the Environment table above in Render. Use the frontend's public HTTPS origin for `BETTER_AUTH_URL` on both services, and the backend's reachable URL for `BACKEND_URL` on the frontend. Both services need the same database; the backend migration command also needs `DIRECT_URL`. Supply the frontend auth secret before building. Let Render supply `PORT`.
 

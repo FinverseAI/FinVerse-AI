@@ -82,7 +82,11 @@ export async function load(url, context, nextLoad) {
   // Styles are handled by Next's bundler in the app, but Node's test runner
   // has no CSS module loader. Components only need the import to resolve.
   if (url.endsWith(".css")) {
-    return { format: "module", source: "export default {};", shortCircuit: true };
+    return {
+      format: "module",
+      source: "export default {};",
+      shortCircuit: true,
+    };
   }
   if (url.endsWith(".tsx")) {
     const filePath = fileURLToPath(url);
