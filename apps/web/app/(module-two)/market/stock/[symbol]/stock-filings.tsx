@@ -182,7 +182,11 @@ export function StockFilingsSection({ symbol }: { symbol: string }) {
   }
 
   return (
-    <section id="filings" aria-label="Filings and reports" className="dash-panel">
+    <section
+      id="filings"
+      aria-label="Filings and reports"
+      className="dash-panel"
+    >
       <PanelHeading icon="file" title="Filings & Reports" />
       {loading ? (
         <p role="status" className="mt-4 text-sm text-dash-muted">
