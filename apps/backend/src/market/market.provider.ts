@@ -1,3 +1,4 @@
+import { Injectable, Optional } from '@nestjs/common';
 import YahooFinance from 'yahoo-finance2';
 
 /**
@@ -43,6 +44,21 @@ export interface MarketProfileData {
   fiftyTwoWeekLow?: number;
   description?: string;
   currency: string;
+  // Deeper fundamentals (Filings & Reports, Nov 2026): every field is
+  // verified to exist in yahoo-finance2's quoteSummary types — book
+  // value, price-to-book, beta and shares outstanding come from
+  // defaultKeyStatistics; ROE, debt-to-equity and growth from
+  // financialData; payout ratio from summaryDetail. Absent values stay
+  // undefined and surface as null, never as zero.
+  bookValue?: number;
+  priceToBook?: number;
+  returnOnEquity?: number;
+  debtToEquity?: number;
+  revenueGrowth?: number;
+  earningsGrowth?: number;
+  payoutRatio?: number;
+  beta?: number;
+  sharesOutstanding?: number;
 }
 
 /**
@@ -84,9 +100,17 @@ function text(value: unknown): string | undefined {
  * Yahoo Finance implementation (yahoo-finance2, free, no API key).
  * Throws on any provider failure; callers decide how to fall back
  * (stale cache, partial results, or a 503) and never invent a price.
+ * The client is injectable for tests; in production Nest passes nothing
+ * (@Optional) and the default client is built. The library's default
+ * export is a const, not a class, so the instance type is spelled out.
  */
+@Injectable()
 export class YahooFinanceProvider implements MarketDataProvider {
-  private readonly client = new YahooFinance();
+  private readonly client: InstanceType<typeof YahooFinance>;
+
+  constructor(@Optional() client?: InstanceType<typeof YahooFinance>) {
+    this.client = client ?? new YahooFinance();
+  }
 
   async activeIndianSymbols(): Promise<string[]> {
     const response = await fetch(
@@ -211,11 +235,19 @@ export class YahooFinanceProvider implements MarketDataProvider {
 
   async profile(symbol: string): Promise<MarketProfileData> {
     const result = await this.client.quoteSummary(symbol, {
-      modules: ['assetProfile', 'summaryDetail', 'price'],
+      modules: [
+        'assetProfile',
+        'summaryDetail',
+        'price',
+        'financialData',
+        'defaultKeyStatistics',
+      ],
     });
     const assetProfile = result.assetProfile;
     const summaryDetail = result.summaryDetail;
     const price = result.price;
+    const financialData = result.financialData;
+    const keyStatistics = result.defaultKeyStatistics;
     return {
       symbol,
       name: text(price?.longName) ?? text(price?.shortName),
@@ -229,6 +261,15 @@ export class YahooFinanceProvider implements MarketDataProvider {
       fiftyTwoWeekLow: finite(summaryDetail?.fiftyTwoWeekLow),
       description: text(assetProfile?.longBusinessSummary),
       currency: text(price?.currency) ?? 'INR',
+      bookValue: finite(keyStatistics?.bookValue),
+      priceToBook: finite(keyStatistics?.priceToBook),
+      returnOnEquity: finite(financialData?.returnOnEquity),
+      debtToEquity: finite(financialData?.debtToEquity),
+      revenueGrowth: finite(financialData?.revenueGrowth),
+      earningsGrowth: finite(financialData?.earningsGrowth),
+      payoutRatio: finite(summaryDetail?.payoutRatio),
+      beta: finite(keyStatistics?.beta),
+      sharesOutstanding: finite(keyStatistics?.sharesOutstanding),
     };
   }
 }

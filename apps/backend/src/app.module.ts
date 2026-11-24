@@ -10,6 +10,7 @@ import { AiModule } from './ai/ai.module';
 import { validateEnvironment } from './config/environment';
 import { RagModule } from './rag/rag.module';
 import { ReadinessModule } from './readiness/readiness.module';
+import { FilingsModule } from './filings/filings.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ReadinessModule } from './readiness/readiness.module';
     ProfileModule,
     ActivityModule,
     MarketModule,
+    FilingsModule,
     RagModule,
     ReadinessModule,
     AiModule,
