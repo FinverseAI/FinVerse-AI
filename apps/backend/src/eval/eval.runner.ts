@@ -804,7 +804,22 @@ export function renderReportMarkdown(report: EvalReport): string {
           ? notRun
           : 'n/a (no tokens)'
         : cost === 0
-          ? '$0 (no model calls)'
+          ? // $0 with runs means a free model ran (24 Nov 2026: ERNIE
+            // :free, 45 calls, $0) — "no model calls" would be false.
+            // Only a system with no runs at all gets that label.
+            report.scenarios.some((scenario) => {
+              const systemResult =
+                system === 'baseline'
+                  ? scenario.baseline
+                  : system === 'llm'
+                    ? scenario.llm
+                    : system === 'mock-correct'
+                      ? scenario.mockCorrect
+                      : scenario.mockCorrupt;
+              return (systemResult?.runs.length ?? 0) > 0;
+            })
+            ? '$0.0000'
+            : '$0 (no model calls)'
           : usd(cost);
     return `| ${label} | ${answers} | ${checks} | ${consistencyText} | ${costText} |`;
   };

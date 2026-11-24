@@ -392,4 +392,19 @@ describe('renderReportMarkdown', () => {
     expect(markdown).toContain('no successful runs');
     expect(markdown).not.toContain('pending key');
   }, 15_000);
+
+  it('shows $0.0000 — not "no model calls" — when a free model ran (24 Nov 2026: ERNIE :free, 45 calls, $0)', async () => {
+    const client = stubClient(templateCompletionFor('healthy-saver'));
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    // Simulate the free model: the runs happened, the price is zero.
+    report.totalCostUsd.llm = 0;
+    const markdown = renderReportMarkdown(report);
+    expect(markdown).toContain('$0.0000');
+    expect(markdown).not.toContain('$0 (no model calls)');
+  }, 15_000);
 });
