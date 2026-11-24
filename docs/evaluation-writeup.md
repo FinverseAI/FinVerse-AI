@@ -132,9 +132,11 @@ explain). Per-scenario results are in
 
 ## 4. Live runs (24 November 2026) — what happened, honestly
 
-Two live runs have been made. Neither produced LLM metrics yet — both
-failed for reasons outside the model, and both are recorded here
-because the report must not present a 0% as a model score.
+Three live runs have been made. The first two produced no LLM
+metrics — both failed for reasons outside the model, and both are
+recorded here because the report must not present a 0% as a model
+score. The third ran on a free model and produced the first real
+LLM measurements.
 
 **Run 1 (~19:45–20:01 IST).** Key provided; 0 of 95 LLM runs
 parseable: 54 provider-errors + 41 parse-errors. Diagnosis: the
@@ -162,14 +164,73 @@ production — the cap is a ceiling, typical answers use 300–1500
 tokens), eval timeout 120s → 300s (at the observed ~48 tokens/s, a
 16K-token call can take over 5 minutes; the eval runs unattended).
 
+**Run 3 — free model, part 1 (22:23–22:49 IST).** The paid account
+was still at $0, so the eval ran on OpenRouter's free tier instead
+(Vivek's decision, 21:55 IST). The free-model wiring (commit
+`8f990ee`): the eval reads the same `LLM_MODEL_PRIMARY` /
+`LLM_MODEL_REASONING` variables production uses, so one setting
+changes both; `:free` models price to $0. The live catalog listed
+11 `:free` models; the first pick, Gemma 4 31B, rejected every call
+with HTTP 429 (upstream saturation — the quota counter stayed at
+0), so the run used **`baidu/ernie-5.5-flash-preview:free`** instead.
+Free-tier quota: 50 requests/day (this account is below the $10
+lifetime-purchase tier), so the 95-call run split across two days:
+part 1a (healthy-saver × 5) + part 1b (8 scenarios × 5) tonight
+(45 calls + 5 smoke/diagnostic calls = exactly 50), part 2 (10
+scenarios × 5) after the UTC-midnight reset. The parts were merged
+with a script that recomputes every summary from the stored runs
+(never averages part summaries); the script lives outside the repo
+with the goal files.
+
+The smoke test caught **two prompt defects that also affected
+production** (the LLM explanation feature would have failed the
+guardrail on every answer): no prompt ever named the citable tool,
+so the model invented `readinessAssessment` and failed 0/24 checks
+with every number correct (fixed in `dbf5fee` — the intros now name
+`getReadinessScore` / `getStockFundamentals` and the exact value
+keys); and the model copied a list (`"suggestions": []`) into a
+claim's values, which the schema rejects — while the parse error
+was the bare Zod message ("Invalid input") with no field path, so
+the retry could not fix it (fixed in `63116c4` — values must be
+scalars, errors name the field path, both parse retries receive
+the error). A third fix (`5ec858f`) stops the model quoting the
+30%/20% full-marks thresholds from the detail strings (formula
+constants, not citable values) and dropping numberless claims.
+
+**Part 1 results (9 of 19 scenarios, 45 runs, ERNIE 5.5 Flash
+:free):** 45/45 runs ok (0 provider-errors, 0 parse-errors).
+Baseline grounding 100% (9/9 answers, 630/630 checks). **LLM
+grounding 86.7% (39/45 answers), 99.8% (3525/3531 checks). LLM
+self-consistency 100%. Cost $0.0000.** Median latency ~13s. The 6
+failing answers each failed exactly one check — a numberless claim
+the model kept despite the instruction to drop it. The
+self-consistency figure needed a correction: the first computation
+said 72.5%, but that was a **measurement artifact** — the old band
+extractor scanned the prose in a fixed candidate order and took the
+first candidate found anywhere, so the model's ordinary verb use
+("building the fund further") misread repeats as "Building" on
+scenarios whose stated band was "Ready" (the score was correct and
+all five factors were mentioned in every repeat). The extractor now
+reads the band from the claim values, with a position-aware prose
+fallback (`ac31d6f`); the merged report recomputes every conclusion
+with the fixed code, and every scenario is 1.0.
+
+**Scope note.** These numbers measure ERNIE 5.5 Flash, not the
+pinned qwen-2.5-72B / DeepSeek R1. They are the first evidence the
+harness measures a real model end-to-end (prompt → parse →
+verify → metrics), and they validate the prompt and guardrail
+design — but the pinned-model metrics in the final report still
+require the top-up run.
+
 ## 5. What is pending (and what unblocks it)
 
 | Pending item | Blocked on | How to complete |
 | --- | --- | --- |
-| LLM grounding rate | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key |
-| LLM self-consistency | Same top-up | Same run (5 repeats per scenario) |
-| LLM latency + cost | Same top-up | Same run (usage reported by the provider) |
-| Explanation-quality ratings | Live LLM outputs + human raters | Re-generate the rating pack from the live report; the team rates blind, then unblinds with `key.json` |
+| LLM grounding rate (free model, full set) | Free-quota reset (UTC midnight) + key re-paste | Part 2: 10 scenarios × 5 on ERNIE :free (25 Nov 2026), then re-merge |
+| LLM grounding rate (pinned models) | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key |
+| LLM self-consistency (pinned models) | Same top-up | Same run (5 repeats per scenario) |
+| LLM latency + cost (pinned models) | Same top-up | Same run (usage reported by the provider) |
+| Explanation-quality ratings | Live LLM outputs + human raters | The rating pack now holds part-1 LLM outputs (9 scenarios); re-generate from the full report after part 2, then the team rates blind and unblinds with `key.json` |
 
 **Production note.** Production's reasoning timeout was raised from
 30s to 110s on 24 Nov 2026 (Vivek's decision): the live R1 calls took

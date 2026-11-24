@@ -1,12 +1,12 @@
 # Blind rating pack — FinVerse AI explanation quality
 
-Generated: 2026-11-24T15:26:21.191Z. Outputs: 19 (one per system per measured scenario).
+Generated: 2026-11-24T17:22:03.307Z. Outputs: 18 (one per system per measured scenario).
 
 ## What this is
 
 This pack rates explanation quality (Phase 5, metric 3) — the one metric a script cannot measure. Each output is an explanation of one scenario's readiness score, produced either by the template baseline or by the reasoning model. The outputs are shuffled and labelled with opaque codes (S01-A, S01-B): **you do not know which system produced which output, and that is the point.** Rate them blind, then unblind with `key.json` afterwards.
 
-⚠️ This pack contains TEMPLATE BASELINE outputs only — no LLM outputs exist yet (the eval ran without an API key). Rate the baseline now if useful, but the comparison needs a live run: re-generate this pack from a report with measured LLM runs.
+This pack contains BOTH systems (template baseline + LLM), shuffled per scenario.
 
 ## How to rate
 
