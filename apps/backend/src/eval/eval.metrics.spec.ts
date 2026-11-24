@@ -112,6 +112,42 @@ describe('extractConclusions', () => {
     expect(conclusions.factorsMentioned).toEqual([]);
     expect(conclusions.score).toBe(54);
   });
+
+  it('reads the band from the claim values, not a later prose "building" (24 Nov 2026: ERNIE wrote "building the fund further" and the old scan misread the band)', () => {
+    const conclusions = extractConclusions(
+      answer(
+        'Your score is 82 out of 100 (Ready). Building the emergency fund further would add 6.2 points.',
+        [
+          {
+            text: 'Your score is 82 out of 100 (Ready).',
+            source: {
+              tool: 'getReadinessScore',
+              values: { score: 82, band: 'Ready', scale: 100 },
+            },
+          },
+        ],
+      ),
+    );
+    expect(conclusions.band).toBe('Ready');
+  });
+
+  it('falls back to the band named FIRST in the prose when no claim carries one', () => {
+    const conclusions = extractConclusions(
+      answer(
+        'Your score is 82 out of 100 (Ready). Building the emergency fund further would add 6.2 points.',
+        [
+          {
+            text: 'Your score is 82 out of 100 (Ready).',
+            source: {
+              tool: 'getReadinessScore',
+              values: { score: 82, scale: 100 },
+            },
+          },
+        ],
+      ),
+    );
+    expect(conclusions.band).toBe('Ready');
+  });
 });
 
 describe('pairwiseAgreement', () => {

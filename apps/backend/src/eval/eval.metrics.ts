@@ -55,17 +55,35 @@ export const READINESS_BANDS = ['Not ready', 'Building', 'Ready'] as const;
 
 /**
  * Extract the key conclusions from a structured answer. Reads the
- * claims (the machine-checked part) for the score and the factors,
- * and the prose for the band. "Not ready" is matched before "Ready"
- * so the longer phrase wins.
+ * claims (the machine-checked part) for the score, the band, and the
+ * factors; the prose is only a fallback for the band, for answers
+ * whose claims carry none (the template baseline). The prose fallback
+ * takes the band named FIRST in the text — the headline band — so a
+ * later ordinary use of "building" ("building the fund further")
+ * cannot override it.
+ *
+ * 24 Nov 2026: the old prose-only scan checked candidates in a fixed
+ * order ("Not ready", "Building", "Ready") and returned the first
+ * candidate found ANYWHERE in the prose, so ERNIE's "building the
+ * fund further" in the suggestions misread 4 of 5 repeats as
+ * "Building" on scenarios whose stated band was "Ready" — the
+ * recorded self-consistency (72.5%) was a measurement artifact, not
+ * model disagreement. The score and factors were already claims-first.
  */
 export function extractConclusions(answer: AiAnswer): AnswerConclusions {
   let score: number | null = null;
+  let band: string | null = null;
   const factors = new Set<string>();
   for (const claim of answer.claims) {
     const values = claim.source.values;
     if (typeof values.score === 'number' && Number.isFinite(values.score)) {
       score = values.score;
+    }
+    if (typeof values.band === 'string') {
+      const named = READINESS_BANDS.find(
+        (candidate) => candidate === values.band,
+      );
+      if (named) band = named;
     }
     if (typeof values.name === 'string') {
       const named = READINESS_FACTOR_NAMES.find(
@@ -74,21 +92,27 @@ export function extractConclusions(answer: AiAnswer): AnswerConclusions {
       if (named) factors.add(named);
     }
   }
-  let band: string | null = null;
-  const prose = answer.answer;
-  // Longest first: "Not ready" contains "ready".
-  for (const candidate of ['Not ready', 'Building', 'Ready']) {
-    const pattern = new RegExp(`\\b${candidate}\\b`, 'i');
-    if (pattern.test(prose)) {
-      band = candidate;
-      break;
-    }
+  if (band === null) {
+    band = extractBandFromProse(answer.answer);
   }
   return {
     score,
     band,
     factorsMentioned: [...factors].sort(),
   };
+}
+
+/** The band named first in the prose, or null if none is named. */
+function extractBandFromProse(prose: string): string | null {
+  let best: { band: string; index: number } | null = null;
+  for (const candidate of READINESS_BANDS) {
+    const pattern = new RegExp(`\\b${candidate}\\b`, 'i');
+    const index = prose.search(pattern);
+    if (index >= 0 && (best === null || index < best.index)) {
+      best = { band: candidate, index };
+    }
+  }
+  return best?.band ?? null;
 }
 
 function conclusionsAgree(a: AnswerConclusions, b: AnswerConclusions): boolean {
