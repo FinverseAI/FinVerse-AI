@@ -1,5 +1,6 @@
 import {
   AI_DISCLAIMER,
+  READINESS_EXPLANATION_INTRO,
   STOCK_EXPLANATION_INTRO,
   SYSTEM_PROMPT,
   guardrailCorrectionPrompt,
@@ -37,6 +38,24 @@ describe('ai prompts', () => {
 
   it('carries the decision-support-not-advice disclaimer', () => {
     expect(AI_DISCLAIMER).toContain('not financial advice');
+  });
+
+  it('names the exact tool and value keys the guardrail checks (24 Nov 2026: ERNIE cited "readinessAssessment" and failed every check — the prompt never named getReadinessScore)', () => {
+    expect(READINESS_EXPLANATION_INTRO).toContain(
+      'Cite every claim with the tool name `getReadinessScore`',
+    );
+    expect(READINESS_EXPLANATION_INTRO).toContain(
+      'use the exact field names from the assessment JSON below',
+    );
+    expect(READINESS_EXPLANATION_INTRO).toContain(
+      'Every number in your answer text must also appear',
+    );
+    expect(STOCK_EXPLANATION_INTRO).toContain(
+      'Cite every claim with the tool name `getStockFundamentals`',
+    );
+    expect(STOCK_EXPLANATION_INTRO).toContain(
+      'use the exact field names from the figures below',
+    );
   });
 
   it('names the failed claims and correct values in the guardrail retry', () => {
