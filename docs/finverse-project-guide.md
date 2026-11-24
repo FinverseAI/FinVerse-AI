@@ -738,6 +738,16 @@ The module document recommends building a strong core before advanced research f
 | 5. Build the market foundation | **Done (§04A).** Next: alerts, a second price source, corporate-action adjustments. |
 | 6. Add researched intelligence | **Done (§08B–§08D, §12A).** Next: configure the API key, run the live evaluation, collect human ratings. |
 
+## Phases 7–12
+
+The approved plan defines only Phases 0–6; Phases 7–12 are mapped in
+`docs/phase-7-12-roadmap.md` (finalised 24 November 2026). Phase 7 is
+live verification and production hardening (the API key in production,
+the Neon migrations, one authenticated journey verified live) and is the
+highest priority. Phases 8–9 — the entry UI and Module 1 completion —
+are already built and live. Phases 10–12 are advanced evaluation, the
+final report with viva prep, and submission with the demo.
+
 ## Team decisions made 23 November 2026
 
 Four open questions from the integration plan were decided by the team on 23 November 2026 and are implemented in the code as described:
