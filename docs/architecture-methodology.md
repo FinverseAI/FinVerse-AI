@@ -344,15 +344,15 @@ What is **not** verified: live model answers, latency and cost (no API key); Goo
 3. **Evaluation scope.** The harness covers the readiness explainer only. Chat and RAG answers need a live database and are not yet measured.
 4. **The guardrail checks numbers, not judgement.** A true number can still support a misleading conclusion; only the human rubric addresses that, and it has not yet been collected.
 5. **Thresholds are uncalibrated.** The Readiness factor thresholds (6 months of expenses, 30% surplus, and so on) are reasoned choices, not calibrated against real user outcomes.
-6. **No voice, receipt or alert features.** The extraction schema exists, but the entry UI is not built; alerts and exports are planned.
+6. **No price-alert triggering.** Voice, receipt and plain-words expense entry, transaction exports (CSV, PDF, Excel) and in-app bill reminders are all built (23–24 November 2026). Watchlist items store price-alert thresholds (`alert_direction`, `alert_price`), but nothing yet checks prices against them or notifies the user.
 
 ---
 
 ## 14. Future work
 
-- Configure the OpenRouter key; run the live evaluation; collect the human rubric ratings.
+- Live evaluation running (key provided 24 November 2026); configure the key in Netlify env vars for production; collect the human rubric ratings.
 - Extend the evaluation harness to chat and RAG answers.
-- Build the expense-extraction entry flow (schema exists; save/review UI needed), then voice and receipt entry.
+- Price-alert triggering for the stored watchlist thresholds.
 - Strategy-document features not yet built: "Why Did My Stock Move?" (attribution with visible chain-of-thought), Market Regime Detection, and the What-If Portfolio Simulator.
 - Alerts, a second price source, corporate-action adjustments, and scenario stress tests.
 - Calibrate the Readiness thresholds against real user feedback once the feature is used.
