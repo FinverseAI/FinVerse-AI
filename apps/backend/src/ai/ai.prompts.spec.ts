@@ -52,6 +52,15 @@ describe('ai prompts', () => {
     expect(READINESS_EXPLANATION_INTRO).toContain(
       'Every number in your answer text must also appear',
     );
+    // 24 Nov 2026 re-smoke: ERNIE quoted the 30%/20% thresholds from
+    // the detail strings and kept a numberless stale/asOf claim — 4
+    // failures on an otherwise 83/87 run. Thresholds are not citable
+    // values, and a claim with no number or name cannot be checked.
+    expect(READINESS_EXPLANATION_INTRO).toContain(
+      'do not repeat those threshold numbers',
+    );
+    // The sentence spans two joined lines; assert the first line's tail.
+    expect(READINESS_EXPLANATION_INTRO).toContain('leave out any claim that');
     expect(STOCK_EXPLANATION_INTRO).toContain(
       'Cite every claim with the tool name `getStockFundamentals`',
     );

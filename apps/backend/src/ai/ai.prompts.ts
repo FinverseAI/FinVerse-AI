@@ -113,7 +113,12 @@ export const READINESS_EXPLANATION_INTRO = [
   '(for example "score", "scale", "points", "maxPoints", "months",',
   '"totalDebt"), with the factor "name" first in each factor claim.',
   'Every number in your answer text must also appear in some claim\u2019s',
-  '"values".',
+  '"values". The detail text mentions scoring thresholds (for example',
+  '"30% is full marks") — do not repeat those threshold numbers in',
+  'your answer or claims; they are not values you can cite. Say',
+  '"above the full-marks level" instead. Every claim must carry at',
+  'least one number or name from the data; leave out any claim that',
+  'has none.',
 ].join('\n');
 
 export const NEWS_EXPLANATION_INTRO = [
