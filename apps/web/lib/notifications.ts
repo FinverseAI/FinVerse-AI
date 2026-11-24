@@ -1,10 +1,17 @@
 /**
- * In-app notifications, derived from bills — no email, no new infra.
- * A bill becomes a notification while it is unpaid and its due date
- * is past, today, or within the next week. Fully paid bills never
- * appear. The list is recomputed from the bills on every render, so
- * there is no read/unread state to store: paying a bill (or its due
- * date passing out of the window) removes its notification.
+ * In-app notifications — no email, no new infra. Two sources feed the
+ * notification centre, both rendered the same way:
+ *
+ * - Bills: a bill becomes a notification while it is unpaid and its due
+ *   date is past, today, or within the next week. Fully paid bills never
+ *   appear. The list is recomputed from the bills on every render, so
+ *   there is no read/unread state to store: paying a bill (or its due
+ *   date passing out of the window) removes its notification.
+ * - Price alerts: a watchlist alert that fired (the price crossed its
+ *   target on a market-overview load) stays in the centre until the
+ *   price moves back across the threshold and the alert re-arms. The
+ *   fired list comes from GET /api/market/alerts; evaluation happens
+ *   on the market overview, not here.
  */
 
 export type BillForNotification = {
@@ -16,6 +23,7 @@ export type BillForNotification = {
 };
 
 export type BillNotification = {
+  source: "bill";
   billId: string;
   billName: string;
   kind: "overdue" | "due-today" | "due-soon";
@@ -24,6 +32,58 @@ export type BillNotification = {
   /** Negative when overdue, 0 when due today. */
   daysUntilDue: number;
 };
+
+/** A fired price alert, as served by GET /api/market/alerts. */
+export type FiredAlertForNotification = {
+  id: string;
+  symbol: string;
+  name: string | null;
+  alertDirection: "above" | "below" | null;
+  alertPrice: number | null;
+  currency?: string | null;
+  firedAt: string | null;
+};
+
+export type PriceAlertNotification = {
+  source: "price-alert";
+  alertId: string;
+  symbol: string;
+  name: string | null;
+  alertDirection: "above" | "below";
+  alertPrice: number;
+  currency: string;
+  firedAt: string;
+};
+
+export type DashboardNotification = BillNotification | PriceAlertNotification;
+
+/**
+ * Maps fired alerts to notifications. A row missing its direction,
+ * target or fired time is dropped — a notification that cannot say
+ * what crossed, or when, would be worse than none.
+ */
+export function priceAlertNotifications(
+  alerts: FiredAlertForNotification[],
+): PriceAlertNotification[] {
+  return alerts
+    .filter(
+      (alert) =>
+        (alert.alertDirection === "above" ||
+          alert.alertDirection === "below") &&
+        alert.alertPrice != null &&
+        alert.firedAt != null,
+    )
+    .map((alert) => ({
+      source: "price-alert" as const,
+      alertId: alert.id,
+      symbol: alert.symbol,
+      name: alert.name,
+      alertDirection: alert.alertDirection as "above" | "below",
+      alertPrice: alert.alertPrice as number,
+      currency: alert.currency ?? "INR",
+      firedAt: alert.firedAt as string,
+    }));
+}
 
 export const DUE_SOON_DAYS = 7;
 
@@ -52,6 +112,7 @@ export function billNotifications(
         bill.dueDate !== "",
     )
     .map(({ bill, amountDue, daysUntilDue }): BillNotification => ({
+      source: "bill",
       billId: bill.id,
       billName: bill.name,
       kind:

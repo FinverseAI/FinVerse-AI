@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { activityError } from "./use-activity";
 import {
   committedBills,
@@ -19,7 +20,8 @@ import { transactionsToCsv } from "../../../lib/export-csv";
 import { accountReportToPdf, transactionsToPdf } from "../../../lib/export-pdf";
 import { transactionsToXlsx } from "../../../lib/export-xlsx";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
-import type { BillNotification } from "../../../lib/notifications";
+import type { DashboardNotification } from "../../../lib/notifications";
+import { formatFetchedAt, formatPrice } from "../../../lib/market";
 import { Icon, MiniStat } from "./ui";
 import { Modal } from "./modal";
 
@@ -57,7 +59,7 @@ type DialogProps = {
   transactionsLoading: boolean;
   transactionsError: string;
   onRetryTransactions: () => void;
-  notifications: BillNotification[];
+  notifications: DashboardNotification[];
   notificationsLoading: boolean;
   notificationsError: string;
   onRetryNotifications: () => void;
@@ -345,23 +347,26 @@ export function DashboardDialog({
 }
 
 /**
- * In-app reminders only — FinVerse sends no email. Each notification
- * comes from a bill: overdue, due today, or due within the next week.
- * Paying a bill removes its notification.
+ * In-app reminders only — FinVerse sends no email. Bills appear while
+ * unpaid and due soon; price alerts appear while fired (the target was
+ * crossed on a market-overview load). Paying a bill removes its
+ * notification; an alert clears when the price moves back across its
+ * target and the alert re-arms.
  */
 function NotificationList({
   notifications,
 }: {
-  notifications: BillNotification[];
+  notifications: DashboardNotification[];
 }) {
   if (!notifications.length) {
     return (
       <div>
         <p className="py-8 text-center text-sm text-dash-muted">
-          All caught up — no bills due soon.
+          All caught up — no bills due soon and no price alerts fired.
         </p>
         <p className="text-center text-xs leading-6 text-dash-muted">
-          Bills that are overdue or due in the next week appear here.
+          Bills that are overdue or due in the next week appear here, along with
+          any watchlist price alerts that have fired.
         </p>
       </div>
     );
@@ -369,43 +374,75 @@ function NotificationList({
   return (
     <div>
       <ul className="space-y-3">
-        {notifications.map((notification) => (
-          <li
-            key={notification.billId}
-            className={`surface-inset flex items-center gap-3 border px-3 py-2.5 ${notification.kind === "overdue" ? "border-dash-red/40" : ""}`}
-          >
-            <Icon
-              name="calendar"
-              className={`size-4 shrink-0 ${notification.kind === "overdue" ? "text-dash-red" : notification.kind === "due-today" ? "text-dash-warning" : "text-dash-muted"}`}
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
-                {notification.billName}
+        {notifications.map((notification) =>
+          notification.source === "price-alert" ? (
+            <li
+              key={`alert-${notification.alertId}`}
+              className="surface-inset flex items-center gap-3 border px-3 py-2.5"
+            >
+              <Icon name="bell" className="size-4 shrink-0 text-dash-accent" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  <Link
+                    className="hover:text-dash-accent"
+                    href={`/market/stock/${encodeURIComponent(notification.symbol)}`}
+                  >
+                    {notification.symbol}
+                  </Link>
+                  {notification.name ? (
+                    <span className="font-normal text-dash-muted">
+                      {" "}
+                      · {notification.name}
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-0.5 text-xs text-dash-muted">
+                  Price alert — reached{" "}
+                  {notification.alertDirection === "above" ? "≥" : "≤"}{" "}
+                  {formatPrice(notification.alertPrice, notification.currency)}{" "}
+                  · {formatFetchedAt(notification.firedAt)}
+                </p>
+              </div>
+            </li>
+          ) : (
+            <li
+              key={notification.billId}
+              className={`surface-inset flex items-center gap-3 border px-3 py-2.5 ${notification.kind === "overdue" ? "border-dash-red/40" : ""}`}
+            >
+              <Icon
+                name="calendar"
+                className={`size-4 shrink-0 ${notification.kind === "overdue" ? "text-dash-red" : notification.kind === "due-today" ? "text-dash-warning" : "text-dash-muted"}`}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">
+                  {notification.billName}
+                </p>
+                <p className="mt-0.5 text-xs text-dash-muted">
+                  {notification.kind === "overdue"
+                    ? `Overdue by ${-notification.daysUntilDue} day${-notification.daysUntilDue === 1 ? "" : "s"}`
+                    : notification.kind === "due-today"
+                      ? "Due today"
+                      : `Due in ${notification.daysUntilDue} day${notification.daysUntilDue === 1 ? "" : "s"}`}
+                  {" · "}
+                  {new Date(
+                    `${notification.dueDate}T12:00:00`,
+                  ).toLocaleDateString("en-IN", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <p className="shrink-0 font-mono text-xs">
+                {money(notification.amountDue, 2)}
               </p>
-              <p className="mt-0.5 text-xs text-dash-muted">
-                {notification.kind === "overdue"
-                  ? `Overdue by ${-notification.daysUntilDue} day${-notification.daysUntilDue === 1 ? "" : "s"}`
-                  : notification.kind === "due-today"
-                    ? "Due today"
-                    : `Due in ${notification.daysUntilDue} day${notification.daysUntilDue === 1 ? "" : "s"}`}
-                {" · "}
-                {new Date(
-                  `${notification.dueDate}T12:00:00`,
-                ).toLocaleDateString("en-IN", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-            </div>
-            <p className="shrink-0 font-mono text-xs">
-              {money(notification.amountDue, 2)}
-            </p>
-          </li>
-        ))}
+            </li>
+          ),
+        )}
       </ul>
       <p className="mt-4 text-xs leading-6 text-dash-muted">
-        Paying a bill removes its notification. FinVerse does not send email
+        Paying a bill removes its notification; a price alert clears when the
+        price moves back across its target. FinVerse does not send email
         reminders.
       </p>
     </div>

@@ -245,6 +245,11 @@ model WatchlistItem {
   note       String?  @db.VarChar(500)
   alert_direction String? @db.VarChar(5)
   alert_price Decimal? @db.Decimal(14, 2)
+  // When the configured alert last fired (null = never fired, or
+  // re-armed after the price moved back across the threshold).
+  // Evaluated on the market-overview load — there is no background
+  // job system, so a fired alert notifies once per crossing.
+  alert_fired_at DateTime?
   created_at DateTime @default(now())
 
   @@unique([user_id, symbol])

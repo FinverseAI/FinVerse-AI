@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { authClient } from "../../../auth/client";
@@ -24,8 +24,10 @@ import { useActivity, activityRequest } from "./use-activity";
 import { budgetsWithSpending, dateKey } from "./spending-data";
 import {
   billNotifications,
-  type BillNotification,
+  priceAlertNotifications,
+  type DashboardNotification,
 } from "../../../lib/notifications";
+import type { FiredAlert } from "../../../lib/market";
 import { Modal } from "./modal";
 import type { DialogKind } from "./dashboard-dialog";
 
@@ -66,10 +68,19 @@ export default function Dashboard({
   // The bills fetch lives here so the same data feeds the bills panel,
   // the notification badge, and the notification centre.
   const bills = useActivity<Bill>("/api/bills");
+  // Fired price alerts join the same centre. This is a cheap
+  // database-only read (no quote fetching); evaluation happens on the
+  // market-overview load. Fail-open: a failed fetch just leaves the
+  // alerts out — the bills still notify, and the market page still
+  // shows the fired alerts.
+  const firedAlerts = useActivity<FiredAlert>("/api/market/alerts");
   const today = dateKey(new Date());
-  const notifications: BillNotification[] = useMemo(
-    () => billNotifications(bills.items, today),
-    [bills.items, today],
+  const notifications: DashboardNotification[] = useMemo(
+    () => [
+      ...billNotifications(bills.items, today),
+      ...priceAlertNotifications(firedAlerts.items),
+    ],
+    [bills.items, firedAlerts.items, today],
   );
   const currentBudgets = useMemo(
     () =>
@@ -85,6 +96,11 @@ export default function Dashboard({
   // re-renders (the activity objects themselves are new each render).
   const retryTransactions = activity.retry;
   const retryBills = bills.retry;
+  const retryAlerts = firedAlerts.retry;
+  const retryNotifications = useCallback(() => {
+    retryBills();
+    retryAlerts();
+  }, [retryBills, retryAlerts]);
 
   // Auto-pay runs once per dashboard load: due auto-pay bills are
   // recorded as paid (payment + matching expense transaction). It is
@@ -359,7 +375,7 @@ export default function Dashboard({
           notifications={notifications}
           notificationsLoading={bills.loading}
           notificationsError={bills.error}
-          onRetryNotifications={bills.retry}
+          onRetryNotifications={retryNotifications}
           query={query}
           onQuery={setQuery}
           profile={data.profile!}

@@ -20,6 +20,10 @@ type Watched = OverviewResponse["watchlist"][number];
 
 function alertStatus(item: Watched) {
   if (!item.alertDirection || item.alertPrice == null) return "No alert";
+  // A recorded firing outranks the live quote: the target WAS reached,
+  // even if the current quote is stale or missing. The state clears
+  // when the price moves back and the alert re-arms.
+  if (item.alertFiredAt) return "Target reached";
   if (item.quote?.price == null || item.quote.stale) return "Awaiting quote";
   const reached =
     item.alertDirection === "above"
@@ -114,7 +118,8 @@ function WatchSettings({
           </label>
         </div>
         <p className="desk-muted">
-          The status updates here when a quote refreshes.
+          The status updates here when a quote refreshes. Changing the target
+          re-arms a fired alert.
         </p>
         {error && (
           <p role="alert" className="market-negative">
@@ -220,6 +225,43 @@ export function Watchlist({
 
   return (
     <div className="space-y-5">
+      {(overview?.alerts?.length ?? 0) > 0 && (
+        <section
+          className="dash-panel"
+          aria-label="Price alerts fired"
+          role="status"
+        >
+          <PanelHeading icon="bell" title="Price alerts fired" />
+          <ul className="mt-3 space-y-2">
+            {overview!.alerts.map((alert) => (
+              <li
+                key={alert.id}
+                className="surface-inset flex flex-wrap items-center gap-x-2 gap-y-1 border px-3 py-2 text-sm"
+              >
+                <Link
+                  className="font-medium text-dash-text hover:text-dash-accent"
+                  href={`/market/stock/${encodeURIComponent(alert.symbol)}`}
+                >
+                  {alert.symbol}
+                </Link>
+                <span className="text-dash-muted">
+                  {alert.alertDirection === "above" ? "rose to" : "fell to"}{" "}
+                  {formatPrice(alert.price, alert.currency)} — target{" "}
+                  {alert.alertDirection === "above" ? "≥" : "≤"}{" "}
+                  {formatPrice(alert.alertPrice, alert.currency)}
+                </span>
+                <span className="ml-auto font-mono text-xs text-dash-muted">
+                  {formatFetchedAt(alert.firedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="desk-muted mt-3">
+            These fired on this load. They stay in your notifications until the
+            price moves back across the target.
+          </p>
+        </section>
+      )}
       <section className="dash-panel">
         <div className="desk-heading">
           <div>

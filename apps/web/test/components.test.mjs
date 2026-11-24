@@ -99,6 +99,7 @@ const StockProfile = (
   await import("../app/(module-two)/market/stock/[symbol]/stock-profile.tsx")
 ).default;
 const Market = (await import("../app/(module-two)/market/market.tsx")).default;
+const { Watchlist } = await import("../app/(module-two)/market/watchlist.tsx");
 
 const noop = () => {};
 const asyncNoop = async () => {};
@@ -409,6 +410,7 @@ const dialogProps = {
   onRetryTransactions: noop,
   notifications: [
     {
+      source: "bill",
       billId: "b2",
       billName: "Broadband",
       kind: "overdue",
@@ -485,6 +487,139 @@ test("DashboardDialog notifications list the overdue bill", () => {
   );
   assert.match(html, /Notifications/);
   assert.match(html, /Broadband/);
+});
+
+test("DashboardDialog notifications list a fired price alert alongside bills", () => {
+  const html = render(
+    createElement(DashboardDialog, {
+      ...dialogProps,
+      kind: "notifications",
+      notifications: [
+        ...dialogProps.notifications,
+        {
+          source: "price-alert",
+          alertId: "watch-1",
+          symbol: "RELIANCE.NS",
+          name: "Reliance Industries Limited",
+          alertDirection: "above",
+          alertPrice: 2500,
+          currency: "INR",
+          firedAt: "2026-11-24T10:00:00.000Z",
+        },
+      ],
+    }),
+  );
+  assert.match(html, /Broadband/);
+  assert.match(html, /RELIANCE\.NS/);
+  assert.match(html, /Price alert/);
+  assert.match(html, /₹2,500\.00/);
+});
+
+test("DashboardDialog notifications show the empty state when nothing is due or fired", () => {
+  const html = render(
+    createElement(DashboardDialog, {
+      ...dialogProps,
+      kind: "notifications",
+      notifications: [],
+    }),
+  );
+  assert.match(html, /All caught up/);
+  assert.match(html, /no price alerts fired/);
+});
+
+const overviewQuote = (overrides = {}) => ({
+  symbol: "RELIANCE.NS",
+  name: "Reliance Industries Limited",
+  price: 2600,
+  previousClose: 2580,
+  change: 20,
+  changePercent: 0.78,
+  currency: "INR",
+  sector: "Energy",
+  fetchedAt: "2026-11-24T14:00:00.000Z",
+  stale: false,
+  ...overrides,
+});
+
+const overviewItem = (overrides = {}) => ({
+  id: "watch-1",
+  symbol: "RELIANCE.NS",
+  name: "Reliance Industries Limited",
+  note: null,
+  alertDirection: "above",
+  alertPrice: 2500,
+  alertFiredAt: null,
+  quote: overviewQuote(),
+  ...overrides,
+});
+
+const overviewResponse = (overrides = {}) => ({
+  indices: [],
+  watchlist: [overviewItem()],
+  alerts: [],
+  unavailable: [],
+  ...overrides,
+});
+
+function renderWatchlist(overview) {
+  return render(
+    createElement(Watchlist, {
+      overview,
+      loading: false,
+      error: "",
+      onChanged: noop,
+    }),
+  );
+}
+
+test("Watchlist shows newly fired price alerts", () => {
+  const html = renderWatchlist(
+    overviewResponse({
+      alerts: [
+        {
+          id: "watch-1",
+          symbol: "RELIANCE.NS",
+          name: "Reliance Industries Limited",
+          alertDirection: "above",
+          alertPrice: 2500,
+          price: 2600,
+          currency: "INR",
+          firedAt: "2026-11-24T14:00:00.000Z",
+        },
+      ],
+      watchlist: [overviewItem({ alertFiredAt: "2026-11-24T14:00:00.000Z" })],
+    }),
+  );
+  assert.match(html, /Price alerts fired/);
+  assert.match(html, /rose to/);
+  assert.match(html, /₹2,600\.00/);
+  assert.match(html, /Target reached/);
+});
+
+test("Watchlist keeps Target reached from a recorded firing on a stale quote", () => {
+  const html = renderWatchlist(
+    overviewResponse({
+      watchlist: [
+        overviewItem({
+          alertFiredAt: "2026-11-24T10:00:00.000Z",
+          quote: overviewQuote({ stale: true }),
+        }),
+      ],
+    }),
+  );
+  assert.match(html, /Target reached/);
+  assert.doesNotMatch(html, /Awaiting quote/);
+  assert.doesNotMatch(html, /Price alerts fired/);
+});
+
+test("Watchlist shows Watching for an un-crossed alert", () => {
+  const html = renderWatchlist(
+    overviewResponse({
+      watchlist: [overviewItem({ quote: overviewQuote({ price: 2400 }) })],
+    }),
+  );
+  assert.match(html, /Watching/);
+  assert.doesNotMatch(html, /Price alerts fired/);
 });
 
 test("TransactionForm renders every field and prefills the initial record", () => {

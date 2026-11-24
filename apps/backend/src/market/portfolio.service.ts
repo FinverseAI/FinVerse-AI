@@ -150,12 +150,23 @@ export class PortfolioService {
   }
 
   async updateWatchSettings(userId: string, id: string, input: unknown) {
-    const result = await this.prisma.watchlistItem.updateMany({
+    const data = validateWatchSettings(input);
+    const current = await this.prisma.watchlistItem.findFirst({
       where: { id, user_id: userId },
-      data: validateWatchSettings(input),
     });
-    if (!result.count)
+    if (!current)
       throw new NotFoundException('This watchlist item no longer exists.');
+    // A changed alert re-arms: the old fired state belongs to the old
+    // target, so a new target must be able to fire on its own crossing.
+    // A note-only edit keeps the fired state — editing a research note
+    // must not re-trigger a notification for an alert that already fired.
+    const alertChanged =
+      (current.alert_direction ?? null) !== data.alert_direction ||
+      Number(current.alert_price ?? null) !== Number(data.alert_price ?? null);
+    await this.prisma.watchlistItem.update({
+      where: { id },
+      data: alertChanged ? { ...data, alert_fired_at: null } : data,
+    });
     return { updated: true };
   }
 

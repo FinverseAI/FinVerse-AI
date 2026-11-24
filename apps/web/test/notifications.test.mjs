@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { billNotifications } from "../lib/notifications.ts";
+import {
+  billNotifications,
+  priceAlertNotifications,
+} from "../lib/notifications.ts";
 
 const TODAY = "2026-11-23";
 function bill(overrides) {
@@ -16,6 +19,7 @@ function bill(overrides) {
 test("a bill due tomorrow appears as due-soon", () => {
   const [notification] = billNotifications([bill()], TODAY);
   assert.deepEqual(notification, {
+    source: "bill",
     billId: "bill-1",
     billName: "Rent",
     kind: "due-soon",
@@ -77,4 +81,51 @@ test("notifications sort overdue first, then by due date", () => {
 
 test("an empty bill list yields no notifications", () => {
   assert.deepEqual(billNotifications([], TODAY), []);
+});
+
+function firedAlert(overrides) {
+  return {
+    id: "watch-1",
+    symbol: "RELIANCE.NS",
+    name: "Reliance Industries Limited",
+    alertDirection: "above",
+    alertPrice: 2500,
+    currency: "INR",
+    firedAt: "2026-11-24T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+test("a fired alert maps to a price-alert notification", () => {
+  const [notification] = priceAlertNotifications([firedAlert()]);
+  assert.deepEqual(notification, {
+    source: "price-alert",
+    alertId: "watch-1",
+    symbol: "RELIANCE.NS",
+    name: "Reliance Industries Limited",
+    alertDirection: "above",
+    alertPrice: 2500,
+    currency: "INR",
+    firedAt: "2026-11-24T10:00:00.000Z",
+  });
+});
+
+test("an alert without a currency defaults to INR", () => {
+  const [notification] = priceAlertNotifications([
+    firedAlert({ currency: null }),
+  ]);
+  assert.equal(notification.currency, "INR");
+});
+
+test("rows missing direction, target or fired time are dropped", () => {
+  const notifications = priceAlertNotifications([
+    firedAlert({ alertDirection: null }),
+    firedAlert({ id: "watch-2", alertPrice: null }),
+    firedAlert({ id: "watch-3", firedAt: null }),
+    firedAlert({ id: "watch-4" }),
+  ]);
+  assert.deepEqual(
+    notifications.map((notification) => notification.alertId),
+    ["watch-4"],
+  );
 });

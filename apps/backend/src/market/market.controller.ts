@@ -30,6 +30,12 @@ export class MarketController {
     return this.market.overview(request.userId);
   }
 
+  @Get('market/alerts')
+  @Header('Cache-Control', 'private, no-store')
+  firedAlerts(@Req() request: AuthenticatedRequest) {
+    return this.market.firedAlerts(request.userId);
+  }
+
   @Get('market/search')
   @Header('Cache-Control', 'private, no-store')
   search(@Query('q') query: string) {

@@ -69,6 +69,30 @@ export type SearchResult = {
   type?: string;
 };
 
+/** An alert that fired on THIS overview load — the in-app notification. */
+export type PriceAlert = {
+  id: string;
+  symbol: string;
+  name: string | null;
+  alertDirection: "above" | "below";
+  alertPrice: number;
+  /** The fresh price that crossed the target. */
+  price: number;
+  currency: string;
+  firedAt: string;
+};
+
+/** An alert currently fired, as returned by GET /api/market/alerts. */
+export type FiredAlert = {
+  id: string;
+  symbol: string;
+  name: string | null;
+  alertDirection: "above" | "below" | null;
+  alertPrice: number | null;
+  currency: string;
+  firedAt: string | null;
+};
+
 export type OverviewResponse = {
   indices: MarketQuote[];
   watchlist: {
@@ -78,8 +102,12 @@ export type OverviewResponse = {
     note: string | null;
     alertDirection: "above" | "below" | null;
     alertPrice: number | null;
+    /** When the alert last fired; null when never fired or re-armed. */
+    alertFiredAt: string | null;
     quote: MarketQuote | null;
   }[];
+  /** Alerts that fired on this load (empty when nothing crossed). */
+  alerts: PriceAlert[];
   unavailable: string[];
 };
 

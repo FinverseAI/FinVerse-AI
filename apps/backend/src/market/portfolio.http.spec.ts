@@ -26,9 +26,10 @@ describe('holdings, watchlist and portfolio summary', () => {
       deleteMany: jest.fn(),
     },
     watchlistItem: {
-      updateMany: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
+      update: jest.fn(),
       deleteMany: jest.fn(),
     },
   };
@@ -107,7 +108,9 @@ describe('holdings, watchlist and portfolio summary', () => {
     prisma.userHolding.updateMany.mockResolvedValue({ count: 1 });
     prisma.userHolding.deleteMany.mockResolvedValue({ count: 1 });
     prisma.watchlistItem.findMany.mockResolvedValue([storedWatchlistItem]);
+    prisma.watchlistItem.findFirst.mockResolvedValue(storedWatchlistItem);
     prisma.watchlistItem.create.mockResolvedValue(storedWatchlistItem);
+    prisma.watchlistItem.update.mockResolvedValue(storedWatchlistItem);
     prisma.watchlistItem.deleteMany.mockResolvedValue({ count: 1 });
     provider.quote.mockResolvedValue({
       symbol: 'RELIANCE.NS',
@@ -324,30 +327,90 @@ describe('holdings, watchlist and portfolio summary', () => {
       session(
         request(app.getHttpServer()).put('/api/watchlist/watch-1').send(body),
       );
-    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
     await save({
       note: 'Watch earnings',
       alertDirection: 'above',
       alertPrice: 4200,
     }).expect(200);
-    expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+    expect(prisma.watchlistItem.findFirst).toHaveBeenCalledWith({
       where: { id: 'watch-1', user_id: 'owner' },
+    });
+    // A newly set alert re-arms (the stored item had no alert).
+    expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
+      where: { id: 'watch-1' },
       data: {
         note: 'Watch earnings',
         alert_direction: 'above',
         alert_price: '4200.00',
+        alert_fired_at: null,
       },
     });
     await save({ note: '', alertDirection: null, alertPrice: null }).expect(
       200,
     );
-    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
-      where: { id: 'watch-1', user_id: 'owner' },
+    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1' },
       data: { note: null, alert_direction: null, alert_price: null },
     });
     await save({ alertDirection: 'below', alertPrice: -2 }).expect(400);
-    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 0 });
+    prisma.watchlistItem.findFirst.mockResolvedValue(null);
     await save({ note: 'unowned item' }).expect(404);
+  });
+
+  it('re-arms the alert only when the alert itself changes', async () => {
+    const save = (body: object) =>
+      session(
+        request(app.getHttpServer()).put('/api/watchlist/watch-1').send(body),
+      );
+    prisma.watchlistItem.findFirst.mockResolvedValue({
+      ...storedWatchlistItem,
+      alert_direction: 'above',
+      alert_price: '4200.00',
+      alert_fired_at: new Date('2026-11-24T10:00:00Z'),
+    });
+    // A note-only edit keeps the fired state: the alert already fired
+    // and must not re-notify.
+    await save({
+      note: 'New note',
+      alertDirection: 'above',
+      alertPrice: 4200,
+    }).expect(200);
+    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1' },
+      data: {
+        note: 'New note',
+        alert_direction: 'above',
+        alert_price: '4200.00',
+      },
+    });
+    // A changed target clears the fired state so the new target can fire.
+    await save({
+      note: 'New note',
+      alertDirection: 'above',
+      alertPrice: 4300,
+    }).expect(200);
+    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1' },
+      data: {
+        note: 'New note',
+        alert_direction: 'above',
+        alert_price: '4300.00',
+        alert_fired_at: null,
+      },
+    });
+    // Clearing the alert clears the fired state with it.
+    await save({ note: '', alertDirection: null, alertPrice: null }).expect(
+      200,
+    );
+    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1' },
+      data: {
+        note: null,
+        alert_direction: null,
+        alert_price: null,
+        alert_fired_at: null,
+      },
+    });
   });
 
   it('manages the watchlist with duplicate protection', async () => {

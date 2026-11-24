@@ -3,8 +3,13 @@ import {
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import type { MarketHistory, MarketQuote } from '@prisma/client';
+import type { MarketHistory, MarketQuote, WatchlistItem } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  evaluateAlert,
+  type AlertDecision,
+  type AlertDirection,
+} from './market.alerts';
 import {
   MARKET_DATA_PROVIDER,
   type MarketDataProvider,
@@ -305,6 +310,121 @@ export class MarketService {
     return this.provider.activeIndianSymbols();
   }
 
+  /**
+   * Price-alert triggering, evaluated on the overview load — there is
+   * no background-job system, so the quotes refresh is the trigger
+   * point (the market page re-fetches the overview every 15 minutes
+   * while it is open). A crossed alert fires once per crossing and
+   * re-arms when the price moves back; see market.alerts.ts.
+   *
+   * Fail-open by design: every item is evaluated and written
+   * independently, and any failure (a bad row, a down database) is
+   * swallowed — the quotes response is never affected. An alert is
+   * only reported as fired AFTER its fired_at write succeeds, so a
+   * failed write re-fires on the next load instead of losing the
+   * notification.
+   */
+  private async evaluatePriceAlerts(
+    items: WatchlistItem[],
+    bySymbol: Map<string, ReturnType<typeof quoteResponse>>,
+  ): Promise<{
+    fired: {
+      id: string;
+      symbol: string;
+      name: string | null;
+      alertDirection: AlertDirection;
+      alertPrice: number;
+      price: number;
+      currency: string;
+      firedAt: string;
+    }[];
+    firedAtById: Map<string, Date | null>;
+  }> {
+    const fired: {
+      id: string;
+      symbol: string;
+      name: string | null;
+      alertDirection: AlertDirection;
+      alertPrice: number;
+      price: number;
+      currency: string;
+      firedAt: string;
+    }[] = [];
+    const firedAtById = new Map<string, Date | null>();
+    for (const item of items) {
+      let decision: AlertDecision;
+      try {
+        decision = evaluateAlert(item, bySymbol.get(item.symbol) ?? null);
+      } catch {
+        continue;
+      }
+      if (decision === 'none') continue;
+      const firedAt = decision === 'fire' ? new Date() : null;
+      try {
+        await this.prisma.watchlistItem.update({
+          where: { id: item.id },
+          data: { alert_fired_at: firedAt },
+        });
+      } catch {
+        // A failed write re-fires (or re-arms) on the next load.
+        continue;
+      }
+      firedAtById.set(item.id, firedAt);
+      if (decision === 'fire') {
+        const quote = bySymbol.get(item.symbol);
+        if (!quote) continue;
+        fired.push({
+          id: item.id,
+          symbol: item.symbol,
+          name: item.name,
+          alertDirection: item.alert_direction as AlertDirection,
+          alertPrice: Number(item.alert_price),
+          price: quote.price,
+          currency: quote.currency,
+          firedAt: firedAt!.toISOString(),
+        });
+      }
+    }
+    return { fired, firedAtById };
+  }
+
+  /**
+   * Alerts currently fired, for the notification centre: a cheap
+   * database-only read — no quote fetching, no evaluation. The
+   * dashboard reads this alongside the bills; evaluation itself
+   * happens on the market-overview load.
+   */
+  async firedAlerts(userId: string) {
+    const items = await this.prisma.watchlistItem.findMany({
+      where: {
+        user_id: userId,
+        alert_direction: { not: null },
+        alert_fired_at: { not: null },
+      },
+      orderBy: [{ alert_fired_at: 'desc' }, { id: 'asc' }],
+    });
+    // The target price needs its currency for display; the cached
+    // quote is the cheapest source, and INR is the honest default for
+    // an uncached (usually Indian) symbol.
+    const quotes = items.length
+      ? await this.prisma.marketQuote.findMany({
+          where: { symbol: { in: items.map((item) => item.symbol) } },
+        })
+      : [];
+    const currencyBySymbol = new Map(
+      quotes.map((quote) => [quote.symbol, quote.currency]),
+    );
+    return items.map((item) => ({
+      id: item.id,
+      symbol: item.symbol,
+      name: item.name,
+      alertDirection: item.alert_direction,
+      alertPrice: item.alert_price == null ? null : Number(item.alert_price),
+      currency: currencyBySymbol.get(item.symbol) ?? 'INR',
+      firedAt: item.alert_fired_at ? item.alert_fired_at.toISOString() : null,
+    }));
+  }
+
   async overview(userId: string) {
     const items = await this.prisma.watchlistItem.findMany({
       where: { user_id: userId },
@@ -315,6 +435,10 @@ export class MarketService {
       ...items.map((item) => item.symbol),
     ]);
     const bySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
+    const { fired, firedAtById } = await this.evaluatePriceAlerts(
+      items,
+      bySymbol,
+    );
     return {
       indices: overviewIndices.map((symbol) => ({
         ...(bySymbol.get(symbol) ?? {
@@ -338,8 +462,15 @@ export class MarketService {
         note: item.note ?? null,
         alertDirection: item.alert_direction ?? null,
         alertPrice: item.alert_price == null ? null : Number(item.alert_price),
+        // The post-evaluation state: a just-fired alert already shows
+        // its fired time; a just-re-armed one already shows null.
+        alertFiredAt: firedAtById.has(item.id)
+          ? (firedAtById.get(item.id)?.toISOString() ?? null)
+          : (item.alert_fired_at?.toISOString() ?? null),
         quote: bySymbol.get(item.symbol) ?? null,
       })),
+      // Alerts that fired on THIS load — the in-app notification.
+      alerts: fired,
       unavailable,
     };
   }

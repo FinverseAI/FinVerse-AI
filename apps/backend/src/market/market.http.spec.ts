@@ -15,6 +15,7 @@ describe('market data endpoints', () => {
   const prisma = {
     marketQuote: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       upsert: jest.fn(),
     },
     marketHistory: {
@@ -24,6 +25,7 @@ describe('market data endpoints', () => {
     },
     watchlistItem: {
       findMany: jest.fn(),
+      update: jest.fn(),
     },
   };
   const provider = {
@@ -88,6 +90,7 @@ describe('market data endpoints', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     prisma.marketQuote.findUnique.mockResolvedValue(null);
+    prisma.marketQuote.findMany.mockResolvedValue([]);
     prisma.marketQuote.upsert.mockImplementation(async (args: any) => ({
       ...cachedQuote(),
       ...args.create,
@@ -97,6 +100,7 @@ describe('market data endpoints', () => {
     prisma.marketHistory.createMany.mockResolvedValue({ count: 0 });
     prisma.marketHistory.deleteMany.mockResolvedValue({ count: 0 });
     prisma.watchlistItem.findMany.mockResolvedValue([]);
+    prisma.watchlistItem.update.mockResolvedValue({});
     provider.quote.mockResolvedValue(liveQuote);
     provider.history.mockResolvedValue([]);
     provider.search.mockResolvedValue([]);
@@ -118,6 +122,7 @@ describe('market data endpoints', () => {
 
   it('requires authentication for every market route', async () => {
     await request(app.getHttpServer()).get('/api/market/overview').expect(401);
+    await request(app.getHttpServer()).get('/api/market/alerts').expect(401);
     await request(app.getHttpServer())
       .get('/api/market/search?q=reliance')
       .expect(401);
@@ -484,5 +489,152 @@ describe('market data endpoints', () => {
       'GC=F',
       'SI=F',
     ]);
+  });
+
+  describe('price alerts', () => {
+    const watchItem = (overrides: Record<string, unknown> = {}) => ({
+      id: 'watch-1',
+      user_id: 'owner',
+      symbol: 'RELIANCE.NS',
+      name: 'Reliance Industries Limited',
+      note: null,
+      alert_direction: 'above',
+      alert_price: '2500.00',
+      alert_fired_at: null,
+      ...overrides,
+    });
+    // Fresh cached quotes for every symbol, at the given prices.
+    const freshQuotes = (prices: Record<string, number>) => {
+      prisma.marketQuote.findUnique.mockImplementation(async (args: any) => {
+        const symbol = args.where.symbol as string;
+        return cachedQuote({
+          symbol,
+          price: (prices[symbol] ?? 100).toFixed(4),
+          fetched_at: freshAt(),
+        });
+      });
+    };
+
+    it('fires a crossed price alert once on the overview load', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([watchItem()]);
+      freshQuotes({ 'RELIANCE.NS': 2600 });
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
+        where: { id: 'watch-1' },
+        data: { alert_fired_at: expect.any(Date) },
+      });
+      expect(result.body.alerts).toHaveLength(1);
+      expect(result.body.alerts[0]).toMatchObject({
+        id: 'watch-1',
+        symbol: 'RELIANCE.NS',
+        alertDirection: 'above',
+        alertPrice: 2500,
+        price: 2600,
+        currency: 'INR',
+      });
+      expect(typeof result.body.alerts[0].firedAt).toBe('string');
+      expect(result.body.watchlist[0].alertFiredAt).toBe(
+        result.body.alerts[0].firedAt,
+      );
+    });
+
+    it('does not re-fire an alert that already fired', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: new Date('2026-11-24T10:00:00Z') }),
+      ]);
+      freshQuotes({ 'RELIANCE.NS': 2600 });
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(result.body.alerts).toEqual([]);
+      expect(prisma.watchlistItem.update).not.toHaveBeenCalled();
+      expect(result.body.watchlist[0].alertFiredAt).toBe(
+        '2026-11-24T10:00:00.000Z',
+      );
+    });
+
+    it('re-arms a fired alert when the price moves back across', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: new Date('2026-11-24T10:00:00Z') }),
+      ]);
+      freshQuotes({ 'RELIANCE.NS': 2400 });
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
+        where: { id: 'watch-1' },
+        data: { alert_fired_at: null },
+      });
+      expect(result.body.alerts).toEqual([]);
+      expect(result.body.watchlist[0].alertFiredAt).toBeNull();
+    });
+
+    it('never fires on a stale quote', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([watchItem()]);
+      prisma.marketQuote.findUnique.mockImplementation(async (args: any) => {
+        const symbol = args.where.symbol as string;
+        return symbol === 'RELIANCE.NS'
+          ? cachedQuote({ price: '2600.2500', fetched_at: staleAt() })
+          : cachedQuote({ symbol, price: '100.0000', fetched_at: freshAt() });
+      });
+      provider.quote.mockRejectedValue(new Error('Yahoo is down'));
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(result.body.watchlist[0].quote.stale).toBe(true);
+      expect(result.body.alerts).toEqual([]);
+      expect(prisma.watchlistItem.update).not.toHaveBeenCalled();
+    });
+
+    it('a failed alert write never breaks the overview', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([watchItem()]);
+      freshQuotes({ 'RELIANCE.NS': 2600 });
+      prisma.watchlistItem.update.mockRejectedValue(
+        new Error('database is down'),
+      );
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(result.body.alerts).toEqual([]);
+      expect(result.body.watchlist).toHaveLength(1);
+      expect(result.body.watchlist[0].quote.price).toBe(2600);
+    });
+
+    it('serves currently fired alerts for the notification centre', async () => {
+      const firedAt = new Date('2026-11-24T10:00:00Z');
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: firedAt }),
+      ]);
+      prisma.marketQuote.findMany.mockResolvedValue([
+        { symbol: 'RELIANCE.NS', currency: 'INR' },
+      ]);
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/alerts'),
+      ).expect(200);
+      expect(prisma.watchlistItem.findMany).toHaveBeenCalledWith({
+        where: {
+          user_id: 'owner',
+          alert_direction: { not: null },
+          alert_fired_at: { not: null },
+        },
+        orderBy: [{ alert_fired_at: 'desc' }, { id: 'asc' }],
+      });
+      expect(prisma.marketQuote.findMany).toHaveBeenCalledWith({
+        where: { symbol: { in: ['RELIANCE.NS'] } },
+      });
+      expect(result.body).toEqual([
+        {
+          id: 'watch-1',
+          symbol: 'RELIANCE.NS',
+          name: 'Reliance Industries Limited',
+          alertDirection: 'above',
+          alertPrice: 2500,
+          currency: 'INR',
+          firedAt: '2026-11-24T10:00:00.000Z',
+        },
+      ]);
+    });
   });
 });
