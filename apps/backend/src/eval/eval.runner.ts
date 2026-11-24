@@ -30,7 +30,6 @@ import { runBaseline } from './eval.baseline';
 import {
   EVAL_DEFAULT_REPEATS,
   EVAL_EMBEDDING_MODEL,
-  EVAL_MODEL_PRICES,
   EVAL_PRICES_AS_OF,
   EVAL_PRIMARY_MODEL,
   EVAL_PROVIDER_MAX_RETRIES,
@@ -39,6 +38,7 @@ import {
   EVAL_REASONING_MODEL,
   EVAL_REPEAT_PACE_MS,
   EVAL_TIMEOUT_MS,
+  priceForModel,
 } from './eval.config';
 import {
   costOfUsage,
@@ -297,7 +297,7 @@ async function runModelSystem(
     ),
     { role: 'user', content: STRUCTURED_OUTPUT_INSTRUCTIONS },
   ];
-  const price = EVAL_MODEL_PRICES[model];
+  const price = priceForModel(model);
   const runs: EvalRun[] = [];
   for (let repeat = 1; repeat <= repeats; repeat++) {
     const started = performance.now();
