@@ -4,13 +4,13 @@
 
 A living guide to what exists, how it works, and what comes next.
 
-**B.Tech major project | Edition 1.4 | 24 November 2026**
+**B.Tech major project | Edition 1.5 | 24 November 2026**
 
 Personal finance + stock market and investment intelligence
 
 Prepared for teachers, friends, recruiters and new teammates. Based on the current project files and the supplied project planning documents.
 
-> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). The remaining Module 1 integration work is also built: plain-words, voice and receipt expense entry, bill payments that record their expense transaction, in-app bill reminders, PDF and Excel exports, and monthly balance history (§02, §03, §06). The four open product questions from that integration are now decided and built (24 November 2026): the budget split is the single source of truth for derived amounts, auto-pay executes on dashboard load and monthly bills generate their next occurrence, unpaid bills count as committed spending in forecasts with plan and actual shown side by side, and the account report exports as a PDF (§02, §03, §13). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative, and expense extraction falls back to a local matcher.
+> TODAY: The personal-finance foundation is implemented, and the stock module and the language-model layer are now implemented too: market data, holdings and portfolio math (§04A), an AI assistant with tools and structured answers (§08B), a guardrail that checks every claim (§08C), a cross-module Investment Readiness score (§08D), and an evaluation harness (§12A). The remaining Module 1 integration work is also built: plain-words, voice and receipt expense entry, bill payments that record their expense transaction, in-app bill reminders, PDF and Excel exports, and monthly balance history (§02, §03, §06). The four open product questions from that integration are now decided and built (24 November 2026): the budget split is the single source of truth for derived amounts, auto-pay executes on dashboard load and monthly bills generate their next occurrence, unpaid bills count as committed spending in forecasts with plan and actual shown side by side, and the account report exports as a PDF (§02, §03, §13). The stock page also gained a Filings & Reports section (24 November 2026): exchange announcements plus official deep links to annual reports, quarterly results, investor presentations, DRHP filings and rating rationales, with deeper Yahoo fundamentals (§04A). Live model calls still need the OpenRouter API key, which is not yet configured — without it the AI endpoints answer with the raw computed numbers and no narrative, and expense extraction falls back to a local matcher.
 
 This is a description of the reviewed working copy, including changes not yet committed to Git. It is not a claim that every feature has passed a live demonstration or is deployed publicly.
 
@@ -31,7 +31,7 @@ The intended audience is people managing personal money and people who want to u
 | Module | Purpose | Position today |
 | --- | --- | --- |
 | Personal Finance Dashboard | Organize income, spending, budgets, savings goals and bills. | Core records and several dashboard views are implemented; some features remain partial. |
-| Stock Market & Investment Intelligence | Understand stocks, market news, holdings and investment risk. | Implemented (§04A): market data, indicators, holdings, watchlists, portfolio math, optimization, news and screener. |
+| Stock Market & Investment Intelligence | Understand stocks, market news, holdings and investment risk. | Implemented (§04A): market data, indicators, holdings, watchlists, portfolio math, optimization, news, screener and filings & reports. |
 
 The long-term connection is now a working feature: the Investment Readiness score (§08D) combines cash-flow position (emergency fund, debt, surplus) with portfolio risk (concentration, volatility) into one documented 0–100 score, explained by the AI layer through the guardrail. [S1, S11]
 
@@ -143,13 +143,23 @@ The older blueprint names market and news tools, but no functioning provider int
 
 # 04A | Stock intelligence: what is built
 
-*Feature and date: the market module (Phase 0 of the LLM-layer plan), built 19 November 2026. [S11]*
+*Feature and date: the market module (Phase 0 of the LLM-layer plan), built 19 November 2026. Filings & Reports extension added 24 November 2026. [S11]*
 
 The plan in Section 04 is now implemented: market data, stock pages, holdings, watchlists, portfolio math and optimization all exist in the source, with tests. The module's rule is the same as the rest of the project: **the code calculates, and the numbers are traceable to a stored price plus a formula.**
 
 ## Market data: where prices come from
 
 Prices come from Yahoo Finance through the `yahoo-finance2` library (free, no API key), covering NSE symbols such as `RELIANCE.NS` and indices such as `^NSEI` (NIFTY 50). Quotes are cached in PostgreSQL (`market_quotes`) for 15 minutes and price history (`market_history`) for 24 hours; each cached row carries a fetched-at timestamp. When the cache is stale or Yahoo cannot be reached, the API returns the last-known price **marked stale** — a price is never invented, and stale data is never presented as live. A symbol with no price at all returns a 503, not a guess.
+
+The profile also carries deeper fundamentals from Yahoo's `quoteSummary` (book value, price-to-book, return on equity, debt-to-equity, revenue and earnings growth, payout ratio, beta, shares outstanding). Each field is shown only when Yahoo reports it; a missing field shows a dash, never zero.
+
+## Filings & Reports: where documents come from
+
+The stock page has a Filings & Reports section (`GET /api/market/filings/:symbol`, `apps/backend/src/filings/`), returning a document index in six categories: annual reports, quarterly results, investor presentations, announcements, DRHP filings and ratings. Each category carries a status — `live`, `links-only` or `unavailable` — and the response carries an `asOf` timestamp.
+
+Two sources feed it. First, live exchange feeds: the module fetches NSE corporate announcements for the symbol and BSE announcements for the company's scrip code (10-minute cache, ~8-second timeout, fail-open — a blocked feed returns an honest empty state, never an error page). Second, deep links that need no fetch at all: the NSE and BSE company pages, the company's own investor-relations page, SEBI's public-issues filing list for DRHP documents, and the CRISIL, ICRA and CARE homepages for rating rationales. The deep links are the reliable backbone — the section stays useful even when both exchange feeds are blocked. A curated registry of 15 NIFTY 50 large-caps maps each symbol to its verified BSE scrip code and investor-relations page; unknown symbols get Yahoo-only data plus generic exchange links, never a guessed scrip code.
+
+Three limits are deliberate. **FinVerse links to documents; it does not host them** — every PDF opens on the exchange, the company or the rating agency. **Finology and Tickertape are not scraped** — they are commercial sites with no public API, so the module does not touch them. **The exchange APIs are bot-blocked from servers**: probed live on 24 November 2026, NSE's and BSE's APIs both returned HTTP 403 (Akamai) from a datacenter IP, and the module makes no attempt to bypass that. In practice the announcements feed will usually be `unavailable` on a deployed server, and the section then says so plainly and leans on the official links. The BSE announcement response shape has not been verified live for the same reason; the parser accepts the documented field variants defensively and degrades to empty on anything unexpected.
 
 ## What the module calculates
 
@@ -168,8 +178,9 @@ Every indicator is unit-tested against known reference values (for example RSI 5
 | Area | What the current code lets a user do |
 | --- | --- |
 | Market overview | See NIFTY 50 / SENSEX and a stock list with prices and changes (`/market`). |
-| Stock search and profile | Find a company and inspect its price, previous close, change, 52-week range, P/E, market cap, dividend yield and technicals (`/market/stock/[symbol]`). |
+| Stock search and profile | Find a company and inspect its price, previous close, change, 52-week range, P/E, market cap, dividend yield and technicals, plus deeper fundamentals (book value, price-to-book, return on equity, debt-to-equity, growth, payout ratio, beta, shares outstanding) (`/market/stock/[symbol]`). |
 | Charts | Price history charts from the stored history table. |
+| Filings & Reports | See the last 30 days of exchange announcements and open official documents — annual reports, quarterly results, investor presentations, DRHP filings and rating rationales — on the exchange, company or agency site (`/market/stock/[symbol]`, Filings & Reports section). |
 | Holdings | Record holdings (symbol, quantity, buy price, buy date), list them, and see the valued portfolio with gains and sector weights. |
 | Watchlist | Keep a list of symbols to follow. |
 | Portfolio dashboard | Total value, invested amount, gains/losses, concentration, and the optimization view. |
@@ -185,7 +196,7 @@ Holdings and watchlist items are user-owned rows (one holding per user per symbo
 
 ## Evidence and limits
 
-Backend market tests cover the provider (cached/stale/error paths), the service, and the HTTP routes; the indicator and portfolio-math specs pin reference values. Limits: Yahoo is the only price source (no fallback provider); corporate actions (splits, bonuses) are not adjusted for; the screener universe is the seeded stock list, not the whole NSE; no alerts exist yet. Migrations for the market tables (`20261119120000_add_market_module`) are recorded in the repository; whether they are applied on the production database is a deployment step, not something this guide can verify from source.
+Backend market tests cover the provider (cached/stale/error paths), the service, and the HTTP routes; the indicator and portfolio-math specs pin reference values. The filings tests cover the NSE/BSE response parsers, the registry, the deep-link builders, the fail-open HTTP behaviour (live, blocked and unknown-symbol cases) and the section's render states. Limits: Yahoo is the only price source (no fallback provider); corporate actions (splits, bonuses) are not adjusted for; the screener universe is the seeded stock list, not the whole NSE; no alerts exist yet. For filings: the exchange announcement feeds are bot-blocked from servers (HTTP 403, verified 24 November 2026), so live announcements will usually be unavailable on a deployed server and the section relies on its official deep links; the BSE response shape is unverified live; the registry covers 15 large-caps only. Migrations for the market tables (`20261119120000_add_market_module`) are recorded in the repository; whether they are applied on the production database is a deployment step, not something this guide can verify from source. The filings module adds no database tables.
 
 ## Technology decision
 
@@ -193,7 +204,7 @@ Backend market tests cover the provider (cached/stale/error paths), the service,
 
 ## Status and next step
 
-Implemented. Next: alerts, a second price source for resilience, and corporate-action adjustments.
+Implemented. Next: alerts, a second price source for resilience, and corporate-action adjustments. For filings: widen the registry beyond the 15 large-caps, and use a server-side exchange feed if NSE/BSE ever offer an API that is reachable from a server.
 
 ---
 
@@ -639,7 +650,7 @@ Still open: a background-job system and a second price source. Voice input and r
 
 | State | What the evidence supports |
 | --- | --- |
-| Implemented in source | Landing and Google-auth flows; profile-based route protection; onboarding; profile and goal saving/editing; transaction add/list/search/edit/delete; bill add/list/edit/delete with payment recording and payment history; spending analysis; user-scoped backend checks; database schemas and migrations. **Since Edition 1.1:** market module (quotes, history, indicators, holdings, watchlists, portfolio math, optimization); AI layer (chat, stock/news/readiness explanations, screener, RAG retrieval); guardrail verification engine; Investment Readiness score and dashboard card; evaluation harness. **Since Edition 1.2:** persistent budget management; 12-category alignment with legacy mapping; plain-words, voice and receipt expense entry with a confirm-before-save review; bill payments that create their matching expense transaction; in-app bill reminders; CSV, PDF and Excel transaction exports; monthly balance history reconstructed from transactions. |
+| Implemented in source | Landing and Google-auth flows; profile-based route protection; onboarding; profile and goal saving/editing; transaction add/list/search/edit/delete; bill add/list/edit/delete with payment recording and payment history; spending analysis; user-scoped backend checks; database schemas and migrations. **Since Edition 1.1:** market module (quotes, history, indicators, holdings, watchlists, portfolio math, optimization); AI layer (chat, stock/news/readiness explanations, screener, RAG retrieval); guardrail verification engine; Investment Readiness score and dashboard card; evaluation harness. **Since Edition 1.2:** persistent budget management; 12-category alignment with legacy mapping; plain-words, voice and receipt expense entry with a confirm-before-save review; bill payments that create their matching expense transaction; in-app bill reminders; CSV, PDF and Excel transaction exports; monthly balance history reconstructed from transactions. **Since Edition 1.4:** the budget split as the single source of truth for derived amounts; auto-pay execution with monthly bill recurrence; committed spending in forecasts with plan and actual side by side; the account-report PDF export; Filings & Reports (exchange announcements plus official document deep links) with deeper Yahoo fundamentals. |
 | Partial / integration work | Connection of transactions to all summary cards (profile cards still show the saved plan, not recorded activity); profile consistency between expense totals and the budget split; export of the account report as a document. |
 | Configured, not connected | Redis is in Compose, with no consuming application integration found. The OpenRouter API key is not configured, so live model calls are not yet possible (§12A). |
 | Planned | Scenario stress tests; recurring bill generation; payment execution. |
@@ -662,7 +673,7 @@ The earlier backend checks use mocked dependencies for several cases; passing th
 
 ## Which snapshot does this describe?
 
-The reviewed repository was based on Git commit **`629c037`** (the savings-snapshot label), which includes the Module 1 integration work of 23 November 2026: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, the notification centre, and the UI audit fixes — ten commits on top of the Phase 6 documentation (`8f3293c`), plus the Edition 1.3 guide changes in this edition. Edition 1.4 (24 November 2026) adds the four remaining integration items: the budget split as the single source of truth, auto-pay execution with monthly recurrence, the money definitions (committed spending in forecasts, plan vs actual side by side), and the account-report PDF export.
+The reviewed repository was based on Git commit **`629c037`** (the savings-snapshot label), which includes the Module 1 integration work of 23 November 2026: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, the notification centre, and the UI audit fixes — ten commits on top of the Phase 6 documentation (`8f3293c`), plus the Edition 1.3 guide changes in this edition. Edition 1.4 (24 November 2026) adds the four remaining integration items: the budget split as the single source of truth, auto-pay execution with monthly recurrence, the money definitions (committed spending in forecasts, plan vs actual side by side), and the account-report PDF export. Edition 1.5 (24 November 2026) adds the Filings & Reports module and the deeper Yahoo fundamentals (§04A).
 
 Older notes contain earlier behavior. In particular, DASHBOARD_SOURCE.md embeds a mock dashboard; ONBOARDING.md predates parts of the current onboarding and saved activity flow. Those notes remain useful history, but current source determines this edition's feature claims. [S10]
 
@@ -850,6 +861,8 @@ The editable source for this guide is **docs/finverse-project-guide.md**. The co
 | 1.1 | 15 November 2026 | Rechecked core source; added contents, a data relationship diagram and worked calculation examples; rebuilt and visually reviewed the PDF. |
 | 1.2 | 23 November 2026 | Added chapters 04A (market module), 08B (AI layer), 08C (guardrails), 08D (Readiness), 12A (evaluation); updated status tables, technology list, progress record and open questions; corrected the README's AI claim; rebuilt the PDF. |
 | 1.3 | 23 November 2026 | Refreshed §02, §03, §06, §12 and §13 for the Module 1 integration work: category alignment, PDF/Excel exports, balance history, plain-words/voice/receipt expense entry, bill-payment transactions, in-app reminders; recorded the four team decisions of 23 November 2026. |
+| 1.4 | 24 November 2026 | Added the four remaining Module 1 integration items: the budget split as the single source of truth, auto-pay execution with monthly recurrence, the money definitions (committed spending in forecasts, plan vs actual side by side), and the account-report PDF export. |
+| 1.5 | 24 November 2026 | Added the Filings & Reports module (§04A): exchange announcements plus official deep links to annual reports, quarterly results, investor presentations, DRHP filings and rating rationales, with deeper Yahoo fundamentals; recorded the exchange-API bot-block and the no-scrape limits. |
 
 ## Where future chapters belong
 
