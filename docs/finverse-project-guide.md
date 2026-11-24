@@ -664,11 +664,12 @@ Still open: a background-job system and a second price source. Voice input and r
 
 | Check | Result on 24 November 2026 |
 | --- | --- |
-| Backend tests | 722 of 722 passed (53 suites), covering the finance core, market module, AI layer, guardrails, readiness, the evaluation harness and the Filings & Reports module. |
-| Web tests | 194 of 194 passed (spending calculations, exports, expense extraction, receipt reading, notifications, market pages and related checks). |
+| Backend tests | 746 of 746 passed (54 suites), covering the finance core, market module, AI layer, guardrails, readiness, the evaluation harness, the Filings & Reports module, price-alert triggering and the eval retry fixes. |
+| Web tests | 208 of 208 passed (spending calculations, exports, expense extraction, receipt reading, notifications, market pages, price-alert panels, plan-vs-actual cards and related checks). |
 | End-to-end tests | 6 of 6 passed. |
 | Type checks and lint | Backend `tsc`, Oxlint, Prettier, web `tsc` and ESLint all clean. |
 | Evaluation harness (no API key) | Baseline grounding 100.0% (19/19 answers, 1,355/1,355 checks); corrupted-output fixture caught on every answer (0/19 passed) — see §12A. |
+| First live eval run (24 Nov 2026, key provided) | 0/95 LLM runs parseable — harness defects, not a model score (see `eval/results/eval-results.md` and the fix in the eval runner: structured-output instructions, correction retry, 120s timeout, provider backoff). Baseline re-confirmed 100%. Re-run pending. |
 | Live user journey and deployed service | The public site (Netlify, `https://finverseaii.netlify.app`) was checked on 23 November 2026: homepage, health, auth-guard and origin-check responses all behaved as expected. Google login and end-to-end persistence against a live account were not tested. |
 
 Counts re-run independently on 24 November 2026 at HEAD `f5ac221` (after the Filings & Reports rebase onto Sarthak's market-workspace commits); the 23 November figures were 648/648 backend (48 suites), 92/92 web and 5/5 end-to-end.
