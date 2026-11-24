@@ -46,6 +46,18 @@ export type MarketProfile = MarketQuote & {
     fiftyTwoWeekHigh: number | null;
     fiftyTwoWeekLow: number | null;
     description: string | null;
+    // Deeper fundamentals (Yahoo financialData / defaultKeyStatistics).
+    // Ratios arrive as fractions (0.168 = 16.8%); the stock page formats
+    // them. Null means Yahoo did not report the field, never zero.
+    bookValue: number | null;
+    priceToBook: number | null;
+    returnOnEquity: number | null;
+    debtToEquity: number | null;
+    revenueGrowth: number | null;
+    earningsGrowth: number | null;
+    payoutRatio: number | null;
+    beta: number | null;
+    sharesOutstanding: number | null;
   } | null;
   fundamentalsAvailable: boolean;
 };

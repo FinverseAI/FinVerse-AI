@@ -192,3 +192,106 @@ export const macdValues = historyBars.map((_, index) =>
         histogram: 2.5,
       },
 );
+
+// Filings & Reports fixtures: one live index with entries, one with both
+// exchange feeds blocked (the honest degraded state the UI must show).
+function filingsBlock(status, entries, links) {
+  return { status, entries, links };
+}
+
+const filingsLinks = [
+  {
+    label: "HDFC Bank Ltd — investor relations",
+    url: "https://www.hdfcbank.com/personal/about-us/investor-relations",
+    source: "Company IR",
+  },
+  {
+    label: "NSE filings for HDFCBANK",
+    url: "https://www.nseindia.com/get-quotes/equity?symbol=HDFCBANK",
+    source: "NSE",
+  },
+];
+
+export const filingsResponse = {
+  symbol: "HDFCBANK.NS",
+  nseSymbol: "HDFCBANK",
+  company: { name: "HDFC Bank Ltd", bseScripCode: "500180" },
+  asOf: "2026-11-24T07:00:00.000Z",
+  categories: {
+    "annual-reports": filingsBlock("links-only", [], filingsLinks),
+    "quarterly-results": filingsBlock("links-only", [], filingsLinks),
+    "investor-presentations": filingsBlock("links-only", [], filingsLinks),
+    announcements: filingsBlock(
+      "live",
+      [
+        {
+          title: "Board meeting intimation.",
+          date: "2026-11-24",
+          source: "NSE",
+          url: "https://www.nseindia.com/board.pdf",
+          documentType: "announcement",
+        },
+        {
+          title: "Results declared.",
+          date: "2026-11-23",
+          source: "BSE",
+          url: "https://www.bseindia.com/results.pdf",
+          documentType: "announcement",
+        },
+      ],
+      [
+        {
+          label: "NSE announcements for HDFCBANK",
+          url: "https://www.nseindia.com/get-quotes/equity?symbol=HDFCBANK",
+          source: "NSE",
+        },
+      ],
+    ),
+    drhp: filingsBlock(
+      "links-only",
+      [],
+      [
+        {
+          label: "SEBI — public issues & offer documents (DRHP/RHP)",
+          url: "https://www.sebi.gov.in/filings/public-issues.html",
+          source: "SEBI",
+        },
+      ],
+    ),
+    ratings: filingsBlock(
+      "links-only",
+      [],
+      [
+        {
+          label: "Search CRISIL Ratings for HDFC Bank Ltd",
+          url: "https://www.crisilratings.com/",
+          source: "CRISIL",
+        },
+      ],
+    ),
+  },
+};
+
+export const filingsBlockedResponse = {
+  ...filingsResponse,
+  categories: {
+    ...filingsResponse.categories,
+    announcements: filingsBlock(
+      "unavailable",
+      [],
+      filingsResponse.categories.announcements.links,
+    ),
+  },
+};
+
+export const filingsEmptyResponse = {
+  ...filingsResponse,
+  categories: {
+    ...filingsResponse.categories,
+    announcements: filingsBlock(
+      "live",
+      [],
+      filingsResponse.categories.announcements.links,
+    ),
+  },
+};

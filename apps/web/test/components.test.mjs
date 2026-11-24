@@ -8,6 +8,9 @@ import {
   budgets,
   currentMonth,
   fakeActivity,
+  filingsBlockedResponse,
+  filingsEmptyResponse,
+  filingsResponse,
   historyBars,
   historyDates,
   macdValues,
@@ -90,6 +93,8 @@ const { HoldingForm } =
   await import("../app/(module-two)/market/holding-form.tsx");
 const { StockNewsSection } =
   await import("../app/(module-two)/market/stock/[symbol]/stock-news.tsx");
+const { FilingsContent, StockFilingsSection } =
+  await import("../app/(module-two)/market/stock/[symbol]/stock-filings.tsx");
 const StockProfile = (
   await import("../app/(module-two)/market/stock/[symbol]/stock-profile.tsx")
 ).default;
@@ -843,6 +848,47 @@ test("StockNewsSection renders its loading state for the symbol", () => {
   assert.match(html, /Loading news…/);
 });
 
+test("StockFilingsSection renders its loading state for the symbol", () => {
+  const html = render(
+    createElement(StockFilingsSection, { symbol: "HDFCBANK" }),
+  );
+  assert.match(html, /Filings &amp; Reports/);
+  assert.match(html, /Loading filings…/);
+});
+
+test("FilingsContent renders announcement entries with source and date", () => {
+  const html = render(createElement(FilingsContent, { data: filingsResponse }));
+  assert.match(html, /Board meeting intimation\./);
+  assert.match(html, /Results declared\./);
+  assert.match(html, /NSE/);
+  assert.match(html, /BSE/);
+  assert.match(html, /24 Nov 2026/);
+  assert.match(html, /https:\/\/www\.nseindia\.com\/board\.pdf/);
+  assert.match(html, /Annual Reports/);
+  assert.match(html, /Quarterly Results/);
+  assert.match(html, /Investor Presentations/);
+  assert.match(html, /DRHP/);
+  assert.match(html, /Ratings/);
+  assert.match(html, /Documents: NSE, BSE, SEBI/);
+});
+
+test("FilingsContent shows the honest blocked-feed state with official links", () => {
+  const html = render(
+    createElement(FilingsContent, { data: filingsBlockedResponse }),
+  );
+  assert.match(html, /exchange feed is unavailable right now/);
+  assert.match(html, /NSE announcements for HDFCBANK/);
+  assert.doesNotMatch(html, /Board meeting intimation\./);
+});
+
+test("FilingsContent shows the live empty state when there are no announcements", () => {
+  const html = render(
+    createElement(FilingsContent, { data: filingsEmptyResponse }),
+  );
+  assert.match(html, /No announcements in the last 30 days\./);
+  assert.match(html, /Official links/);
+});
+
 test("StockProfile renders the loading states for a symbol", () => {
   const html = render(
     createElement(StockProfile, { symbol: "RELIANCE", user: stubUser }),
@@ -850,6 +896,7 @@ test("StockProfile renders the loading states for a symbol", () => {
   assert.match(html, /Loading RELIANCE…/);
   assert.match(html, /Loading price history…/);
   assert.match(html, /Loading fundamentals…/);
+  assert.match(html, /Loading filings…/);
 });
 
 test("Market renders the indices, search, watchlist and portfolio sections", () => {

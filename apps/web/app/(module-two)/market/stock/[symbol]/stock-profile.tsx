@@ -24,8 +24,9 @@ import { MiniStat, PanelHeading } from "../../../../(module-one)/dashboard/ui";
 import { MarketShell } from "../../market-shell";
 import { MacdChart, PriceChart, RsiChart } from "../../price-chart";
 import { HoldingForm, type HoldingFormData } from "../../holding-form";
-import { StockSnapshot } from "./stock-snapshot";
+import { StockFilingsSection } from "./stock-filings";
 import { StockNewsSection } from "./stock-news";
+import { StockSnapshot } from "./stock-snapshot";
 
 const volumeFormat = new Intl.NumberFormat("en-IN", {
   notation: "compact",
@@ -250,6 +251,7 @@ export default function StockProfile({
         <a href="#price-history">Price performance</a>
         <a href="#technicals">Technical indicators</a>
         <a href="#fundamentals">Fundamentals</a>
+        <a href="#filings">Filings & reports</a>
         <a href="#stock-news">News & sentiment</a>
       </nav>
       <section aria-label="Current price" className="dash-panel stock-quote">
@@ -612,6 +614,83 @@ export default function StockProfile({
                   }
                 />
               </div>
+              <h3 className="mt-6 text-xs font-medium tracking-widest text-dash-muted uppercase">
+                Deeper fundamentals
+              </h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <MiniStat
+                  label="Book value"
+                  value={
+                    fundamentals.bookValue !== null
+                      ? formatPrice(fundamentals.bookValue, currency)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Price / book"
+                  value={
+                    fundamentals.priceToBook !== null
+                      ? fundamentals.priceToBook.toFixed(2)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Return on equity"
+                  value={
+                    fundamentals.returnOnEquity !== null
+                      ? formatPercent(fundamentals.returnOnEquity * 100, false)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Debt / equity"
+                  value={
+                    fundamentals.debtToEquity !== null
+                      ? fundamentals.debtToEquity.toFixed(2)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Revenue growth"
+                  value={
+                    fundamentals.revenueGrowth !== null
+                      ? formatPercent(fundamentals.revenueGrowth * 100, false)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Earnings growth"
+                  value={
+                    fundamentals.earningsGrowth !== null
+                      ? formatPercent(fundamentals.earningsGrowth * 100, false)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Payout ratio"
+                  value={
+                    fundamentals.payoutRatio !== null
+                      ? formatPercent(fundamentals.payoutRatio * 100, false)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Beta"
+                  value={
+                    fundamentals.beta !== null
+                      ? fundamentals.beta.toFixed(2)
+                      : "—"
+                  }
+                />
+                <MiniStat
+                  label="Shares outstanding"
+                  value={
+                    fundamentals.sharesOutstanding !== null
+                      ? volumeFormat.format(fundamentals.sharesOutstanding)
+                      : "—"
+                  }
+                />
+              </div>
               {fundamentals.description && (
                 <details className="mt-5 border-t border-dash-border pt-4">
                   <summary className="cursor-pointer text-sm font-medium">
@@ -625,6 +704,8 @@ export default function StockProfile({
             </>
           )}
         </section>
+
+        <StockFilingsSection symbol={symbol} />
 
         <StockNewsSection symbol={symbol} />
       </div>
