@@ -1,5 +1,6 @@
 import { readinessTemplate } from '../ai/ai.guardrail-templates';
 import type { ChatCompletion, ChatOptions, LlmClient } from '../ai/ai.provider';
+import { LlmProviderError } from '../ai/ai.provider';
 import { scoreReadiness } from '../readiness/readiness.formula';
 import { EVAL_SCENARIOS } from './eval.scenarios';
 import { renderReportMarkdown, runEval } from './eval.runner';
@@ -15,6 +16,28 @@ function stubClient(
       calls.push(options);
       if (completion instanceof Error) throw completion;
       return completion;
+    },
+  };
+}
+
+/**
+ * A stub client playing a scripted sequence of outcomes, one per call
+ * (extra calls repeat the last outcome). For retry tests.
+ */
+function sequenceClient(
+  outcomes: Array<ChatCompletion | Error>,
+): LlmClient & { calls: ChatOptions[] } {
+  const calls: ChatOptions[] = [];
+  let index = 0;
+  return {
+    calls,
+    async chat(options: ChatOptions): Promise<ChatCompletion> {
+      calls.push(options);
+      const outcome = outcomes[Math.min(index, outcomes.length - 1)] as
+        ChatCompletion | Error;
+      index += 1;
+      if (outcome instanceof Error) throw outcome;
+      return outcome;
     },
   };
 }
@@ -201,6 +224,139 @@ describe('runEval — stub live client', () => {
     expect(scenario?.llm.runs[0]?.verification?.passed).toBe(true);
     expect(scenario?.llm.runs[0]?.conclusions?.score).toBeNull();
   });
+
+  it('sends the structured-output instructions with every live call (24 Nov 2026: the first live run never told the model the required shape)', async () => {
+    const client = stubClient(templateCompletionFor('healthy-saver'));
+    await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    expect(client.calls).toHaveLength(1);
+    const userMessages = (client.calls[0]?.messages ?? []).filter(
+      (message) => message.role === 'user',
+    );
+    const lastUser = userMessages[userMessages.length - 1];
+    expect(lastUser?.content).toContain(
+      'Now produce your final answer as ONE JSON object and nothing else,',
+    );
+    expect(lastUser?.content).toContain('"claims": [');
+  });
+
+  it('recovers a valid-JSON-missing-claims reply with one correction retry (the 24 Nov 2026 R1 failure mode)', async () => {
+    const client = sequenceClient([
+      {
+        content: JSON.stringify({
+          answer: 'Your readiness looks strong.',
+          refused: false,
+        }),
+        toolCalls: [],
+        model: 'deepseek/deepseek-r1-0528',
+        usage: { promptTokens: 1000, completionTokens: 100, totalTokens: 1100 },
+      },
+      templateCompletionFor('healthy-saver'),
+    ]);
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(client.calls).toHaveLength(2);
+    expect(scenario?.llm.runs[0]?.status).toBe('ok');
+    // The retry shows the malformed reply back with a correction prompt.
+    const retryMessages = client.calls[1]?.messages ?? [];
+    expect(
+      retryMessages.some(
+        (message) =>
+          message.role === 'user' &&
+          (message.content ?? '').includes(
+            'Your previous reply was not a valid JSON object',
+          ),
+      ),
+    ).toBe(true);
+    // Cost covers both calls: first (1000 prompt + 100 completion) +
+    // template (1000 + 500) at the pinned R1 prices.
+    expect(scenario?.llm.totalCostUsd).toBeCloseTo(0.0025136, 6);
+  });
+
+  it('still records a parse-error after the retry also fails (two calls, not a crash)', async () => {
+    const client = stubClient({
+      content: 'this is not JSON at all',
+      toolCalls: [],
+      model: 'deepseek/deepseek-r1-0528',
+      usage: null,
+    });
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(client.calls).toHaveLength(2);
+    expect(scenario?.llm.runs[0]?.status).toBe('parse-error');
+    expect(scenario?.llm.grounding?.answerRate).toBe(0);
+  });
+
+  it('retries a 429 once and recovers', async () => {
+    const client = sequenceClient([
+      new LlmProviderError('The AI provider returned an error.', 429),
+      templateCompletionFor('healthy-saver'),
+    ]);
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(client.calls).toHaveLength(2);
+    expect(scenario?.llm.runs[0]?.status).toBe('ok');
+  }, 10_000);
+
+  it('retries timeouts with backoff and recovers', async () => {
+    const client = sequenceClient([
+      new LlmProviderError(
+        'The AI provider took too long to respond.',
+        undefined,
+        true,
+      ),
+      new LlmProviderError(
+        'The AI provider took too long to respond.',
+        undefined,
+        true,
+      ),
+      templateCompletionFor('healthy-saver'),
+    ]);
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(client.calls).toHaveLength(3);
+    expect(scenario?.llm.runs[0]?.status).toBe('ok');
+  }, 15_000);
+
+  it('fails fast on a 401 (no retries) and records the HTTP status', async () => {
+    const client = stubClient(
+      new LlmProviderError('The AI provider returned an error.', 401),
+    );
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(client.calls).toHaveLength(1);
+    expect(scenario?.llm.runs[0]?.status).toBe('provider-error');
+    expect(scenario?.llm.runs[0]?.error).toContain('HTTP 401');
+  });
 });
 
 describe('renderReportMarkdown', () => {
@@ -220,4 +376,20 @@ describe('renderReportMarkdown', () => {
     expect(markdown).toContain('## Pending');
     expect(markdown).toContain('OPENROUTER_API_KEY');
   });
+
+  it('labels a key-present all-failed run "no successful runs", never "pending key" (24 Nov 2026 live run)', async () => {
+    const client = stubClient(
+      new LlmProviderError('The AI provider returned an error.', 429),
+    );
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 1,
+      mock: [],
+    });
+    expect(report.keyPresent).toBe(true);
+    const markdown = renderReportMarkdown(report);
+    expect(markdown).toContain('no successful runs');
+    expect(markdown).not.toContain('pending key');
+  }, 15_000);
 });

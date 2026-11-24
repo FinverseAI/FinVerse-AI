@@ -54,7 +54,18 @@ export const EVAL_MODEL_PRICES: Record<string, ModelPrice> = {
 export const EVAL_DEFAULT_REPEATS = 5;
 /** Max tokens for a reasoning-model explanation (same as production). */
 export const EVAL_REASONING_MAX_TOKENS = 4096;
-/** Per-call timeout for eval LLM calls (same as production default). */
-export const EVAL_TIMEOUT_MS = 30_000;
+/**
+ * Per-call timeout for eval LLM calls. Raised from 30s to 120s after the
+ * first live run (24 Nov 2026): DeepSeek R1 regularly needs 10–30s and
+ * several calls died at the 30s cap. The eval runs locally, so no
+ * function timeout binds it (production keeps its own 30s default).
+ */
+export const EVAL_TIMEOUT_MS = 120_000;
+/** Provider-error retries per repeat (24 Nov 2026 live run: instant rejections clustered late in the run — transient rate limiting). */
+export const EVAL_PROVIDER_MAX_RETRIES = 2;
+/** Base backoff between provider retries; doubled per attempt (2s, 4s). */
+export const EVAL_PROVIDER_RETRY_BASE_MS = 2_000;
+/** Pacing between live-system repeats, to stay under provider rate limits. Mocks are not paced. */
+export const EVAL_REPEAT_PACE_MS = 1_000;
 /** Seed for the rating-pack shuffle, so the pack is reproducible. */
 export const EVAL_RATING_PACK_SEED = 20261123;

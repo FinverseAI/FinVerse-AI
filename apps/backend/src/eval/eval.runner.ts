@@ -4,10 +4,18 @@ import {
   type GuardrailCheckRow,
   type GuardrailResult,
 } from '../ai/ai.guardrail';
-import type { LlmClient, TokenUsage } from '../ai/ai.provider';
+import type {
+  ChatCompletion,
+  ChatMessage,
+  LlmClient,
+  TokenUsage,
+} from '../ai/ai.provider';
+import { LlmProviderError } from '../ai/ai.provider';
 import {
   READINESS_EXPLANATION_MAX_DATA_CHARS,
+  STRUCTURED_OUTPUT_INSTRUCTIONS,
   buildReadinessExplanationMessages,
+  correctionPrompt,
 } from '../ai/ai.prompts';
 import {
   AiAnswerSchema,
@@ -25,8 +33,11 @@ import {
   EVAL_MODEL_PRICES,
   EVAL_PRICES_AS_OF,
   EVAL_PRIMARY_MODEL,
+  EVAL_PROVIDER_MAX_RETRIES,
+  EVAL_PROVIDER_RETRY_BASE_MS,
   EVAL_REASONING_MAX_TOKENS,
   EVAL_REASONING_MODEL,
+  EVAL_REPEAT_PACE_MS,
   EVAL_TIMEOUT_MS,
 } from './eval.config';
 import {
@@ -214,6 +225,58 @@ function emptySystemResult(
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Whether a provider failure is worth retrying: timeouts, rate limits
+ * (429) and server errors (5xx) are transient; other 4xx (bad key, no
+ * credit, unknown model) will fail the same way every time, so the run
+ * fails fast instead of burning retries. Unknown (non-provider) errors
+ * are client bugs, not transient failures — also fail fast.
+ */
+function isRetryableProviderError(error: unknown): boolean {
+  if (!(error instanceof LlmProviderError)) return false;
+  if (error.timedOut) return true;
+  if (error.status === 429) return true;
+  if (error.status !== undefined && error.status >= 500) return true;
+  return false;
+}
+
+/**
+ * The provider error message with its HTTP status attached, when the
+ * provider gave one. The first live run (24 Nov 2026) recorded bare
+ * "The AI provider returned an error." 54 times with no way to tell a
+ * 429 from a 500 — the status is the diagnosis.
+ */
+function providerErrorMessage(error: unknown): string {
+  const message =
+    error instanceof Error ? error.message : 'Unknown provider error.';
+  if (error instanceof LlmProviderError) {
+    if (error.timedOut) return `${message} (timed out)`;
+    if (error.status !== undefined) return `${message} (HTTP ${error.status})`;
+  }
+  return message;
+}
+
+/**
+ * Sum token usage across the calls of one repeat (a parse retry spends
+ * tokens twice; the run's cost must reflect both calls).
+ */
+function addUsage(
+  a: TokenUsage | null,
+  b: TokenUsage | null,
+): TokenUsage | null {
+  if (a === null) return b;
+  if (b === null) return a;
+  return {
+    promptTokens: a.promptTokens + b.promptTokens,
+    completionTokens: a.completionTokens + b.completionTokens,
+    totalTokens: a.totalTokens + b.totalTokens,
+  };
+}
+
 async function runModelSystem(
   system: EvalSystemName,
   client: LlmClient,
@@ -222,96 +285,63 @@ async function runModelSystem(
   question: string,
   repeats: number,
 ): Promise<EvalSystemResult> {
-  const messages = buildReadinessExplanationMessages(
-    assessment,
-    question,
-    READINESS_EXPLANATION_MAX_DATA_CHARS,
-  );
+  // The structured-output instructions are part of the prompt: the first
+  // live run (24 Nov 2026) never told the model the required shape, and
+  // 41/95 replies came back as valid JSON missing the claims array.
+  // Production's structuredAnswer appends the same instructions.
+  const messages: ChatMessage[] = [
+    ...buildReadinessExplanationMessages(
+      assessment,
+      question,
+      READINESS_EXPLANATION_MAX_DATA_CHARS,
+    ),
+    { role: 'user', content: STRUCTURED_OUTPUT_INSTRUCTIONS },
+  ];
   const price = EVAL_MODEL_PRICES[model];
   const runs: EvalRun[] = [];
   for (let repeat = 1; repeat <= repeats; repeat++) {
     const started = performance.now();
-    try {
-      const completion = await client.chat({
-        model,
-        messages,
-        responseFormatJson: true,
-        maxTokens: EVAL_REASONING_MAX_TOKENS,
-        timeoutMs: EVAL_TIMEOUT_MS,
-      });
-      const latencyMs = performance.now() - started;
-      const parsed = parseStructuredJson(completion.content, AiAnswerSchema);
-      if (!parsed.ok) {
-        runs.push({
-          repeat,
-          status: 'parse-error',
-          latencyMs,
-          usage: completion.usage,
-          costUsd: price ? costOfUsage(completion.usage, price) : null,
-          answer: null,
-          verification: syntheticFailure(
-            `The model reply could not be parsed as a structured answer: ${parsed.error}`,
-          ),
-          conclusions: null,
-          error: parsed.error,
-        });
-        continue;
+    // Pacing between live-system repeats only (mocks are fixtures; the
+    // live system fires ~100 real calls per run and hit rate limits).
+    const pace = async (): Promise<void> => {
+      if (system === 'llm' && repeat < repeats) {
+        await sleep(EVAL_REPEAT_PACE_MS);
       }
-      const answer = parsed.value;
-      if (answer.refused) {
-        runs.push({
-          repeat,
-          status: 'refused',
-          latencyMs,
-          usage: completion.usage,
-          costUsd: price ? costOfUsage(completion.usage, price) : null,
-          answer,
-          // A refusal is verified as vacuous by the guardrail
-          // (verifyAnswer passes refusals with zero checks).
-          verification: slimVerification(
-            verifyAnswer(
-              answer,
-              buildReadinessGuardrailContext(
-                `eval-${system}-${repeat}`,
-                'eval',
-                assessment,
-              ),
-            ),
-          ),
-          conclusions: extractConclusions(answer),
-          error: null,
+    };
+    // Provider call with retry on transient failures (24 Nov 2026:
+    // instant rejections clustered late in the run — rate limiting, not
+    // bad input). Non-retryable failures fail fast.
+    let completion: ChatCompletion | null = null;
+    let providerError: unknown = null;
+    for (let attempt = 0; attempt <= EVAL_PROVIDER_MAX_RETRIES; attempt++) {
+      try {
+        completion = await client.chat({
+          model,
+          messages,
+          responseFormatJson: true,
+          maxTokens: EVAL_REASONING_MAX_TOKENS,
+          timeoutMs: EVAL_TIMEOUT_MS,
         });
-        continue;
+        providerError = null;
+        break;
+      } catch (error) {
+        providerError = error;
+        if (
+          attempt < EVAL_PROVIDER_MAX_RETRIES &&
+          isRetryableProviderError(error)
+        ) {
+          await sleep(EVAL_PROVIDER_RETRY_BASE_MS * 2 ** attempt);
+          continue;
+        }
+        break;
       }
-      const verification = slimVerification(
-        verifyAnswer(
-          answer,
-          buildReadinessGuardrailContext(
-            `eval-${system}-${repeat}`,
-            'eval',
-            assessment,
-          ),
-        ),
-      );
-      runs.push({
-        repeat,
-        status: 'ok',
-        latencyMs,
-        usage: completion.usage,
-        costUsd: price ? costOfUsage(completion.usage, price) : null,
-        answer,
-        verification,
-        conclusions: extractConclusions(answer),
-        error: null,
-      });
-    } catch (error) {
-      const latencyMs = performance.now() - started;
-      const message =
-        error instanceof Error ? error.message : 'Unknown provider error.';
+    }
+    if (completion === null) {
+      const message = providerErrorMessage(providerError);
       runs.push({
         repeat,
         status: 'provider-error',
-        latencyMs,
+        latencyMs: performance.now() - started,
         usage: null,
         costUsd: null,
         answer: null,
@@ -319,7 +349,107 @@ async function runModelSystem(
         conclusions: null,
         error: message,
       });
+      await pace();
+      continue;
     }
+    // One parse retry with a correction prompt, mirroring production's
+    // structuredAnswer: the malformed reply is shown back to the model
+    // with the required shape restated. A failed retry keeps the
+    // original parse error.
+    let parsed = parseStructuredJson(completion.content, AiAnswerSchema);
+    let totalUsage = completion.usage;
+    if (!parsed.ok) {
+      try {
+        const retry = await client.chat({
+          model,
+          messages: [
+            ...messages,
+            { role: 'assistant', content: completion.content },
+            {
+              role: 'user',
+              content: correctionPrompt(completion.content ?? ''),
+            },
+          ],
+          responseFormatJson: true,
+          maxTokens: EVAL_REASONING_MAX_TOKENS,
+          timeoutMs: EVAL_TIMEOUT_MS,
+        });
+        const reparsed = parseStructuredJson(retry.content, AiAnswerSchema);
+        totalUsage = addUsage(totalUsage, retry.usage);
+        if (reparsed.ok) parsed = reparsed;
+      } catch {
+        // The retry itself failed; the original parse error stands.
+      }
+    }
+    // Latency covers the whole repeat, retries included.
+    const latencyMs = performance.now() - started;
+    const costUsd = price ? costOfUsage(totalUsage, price) : null;
+    if (!parsed.ok) {
+      runs.push({
+        repeat,
+        status: 'parse-error',
+        latencyMs,
+        usage: totalUsage,
+        costUsd,
+        answer: null,
+        verification: syntheticFailure(
+          `The model reply could not be parsed as a structured answer: ${parsed.error}`,
+        ),
+        conclusions: null,
+        error: parsed.error,
+      });
+      await pace();
+      continue;
+    }
+    const answer = parsed.value;
+    if (answer.refused) {
+      runs.push({
+        repeat,
+        status: 'refused',
+        latencyMs,
+        usage: totalUsage,
+        costUsd,
+        answer,
+        // A refusal is verified as vacuous by the guardrail
+        // (verifyAnswer passes refusals with zero checks).
+        verification: slimVerification(
+          verifyAnswer(
+            answer,
+            buildReadinessGuardrailContext(
+              `eval-${system}-${repeat}`,
+              'eval',
+              assessment,
+            ),
+          ),
+        ),
+        conclusions: extractConclusions(answer),
+        error: null,
+      });
+      await pace();
+      continue;
+    }
+    const verification = slimVerification(
+      verifyAnswer(
+        answer,
+        buildReadinessGuardrailContext(
+          `eval-${system}-${repeat}`,
+          'eval',
+          assessment,
+        ),
+      ),
+    );
+    runs.push({
+      repeat,
+      status: 'ok',
+      latencyMs,
+      usage: totalUsage,
+      costUsd,
+      answer,
+      verification,
+      conclusions: extractConclusions(answer),
+      error: null,
+    });
+    await pace();
   }
   const verifications = runs
     .map((run) => run.verification)
@@ -638,11 +768,20 @@ export function renderReportMarkdown(report: EvalReport): string {
     const grounding = report.grounding[system];
     const consistency = report.consistency[system];
     const cost = report.totalCostUsd[system];
-    // A null is only 'pending key' for the live system. The baseline
-    // and the mocks run without a key, so their nulls mean something
-    // else: the baseline is deterministic (no consistency to measure),
-    // the mocks run once (no pairs to agree), and neither spends tokens.
-    const notRun = system === 'llm' ? 'pending key' : 'not run';
+    // A null is only 'pending key' for the live system when the key was
+    // actually missing. When the key was present but no run succeeded
+    // (the 24 Nov 2026 live run: 0/95 parseable), the honest label is
+    // 'no successful runs' — 'pending key' would hide a real failure.
+    // The baseline and the mocks run without a key, so their nulls mean
+    // something else: the baseline is deterministic (no consistency to
+    // measure), the mocks run once (no pairs to agree), and neither
+    // spends tokens.
+    const notRun =
+      system === 'llm'
+        ? report.keyPresent
+          ? 'no successful runs'
+          : 'pending key'
+        : 'not run';
     const answers =
       grounding === null
         ? notRun
@@ -656,13 +795,13 @@ export function renderReportMarkdown(report: EvalReport): string {
         ? system === 'baseline'
           ? 'n/a (deterministic)'
           : system === 'llm'
-            ? 'pending key'
+            ? notRun
             : 'n/a (1 run)'
         : pct(consistency);
     const costText =
       cost === null
         ? system === 'llm'
-          ? 'pending key'
+          ? notRun
           : 'n/a (no tokens)'
         : cost === 0
           ? '$0 (no model calls)'

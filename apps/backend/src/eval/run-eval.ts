@@ -101,8 +101,11 @@ function parseArgs(argv: string[]): CliOptions | null {
   return options;
 }
 
-function pct(rate: number | null): string {
-  return rate === null ? 'pending key' : `${(rate * 100).toFixed(1)}%`;
+function pct(rate: number | null, keyPresent: boolean): string {
+  if (rate !== null) return `${(rate * 100).toFixed(1)}%`;
+  // A null with the key present means no run succeeded — 'pending key'
+  // would hide a real failure (24 Nov 2026 live run: 0/95 parseable).
+  return keyPresent ? 'no successful runs' : 'pending key';
 }
 
 async function main(): Promise<void> {
@@ -146,14 +149,16 @@ async function main(): Promise<void> {
     `Scenarios: ${report.scenariosMeasured} measured, ${report.scenariosUnavailable} unavailable.`,
   );
   console.log(
-    `Baseline grounding: ${pct(report.grounding.baseline?.answerRate ?? null)} (answers), ${pct(report.grounding.baseline?.checkRate ?? null)} (checks).`,
+    `Baseline grounding: ${pct(report.grounding.baseline?.answerRate ?? null, false)} (answers), ${pct(report.grounding.baseline?.checkRate ?? null, false)} (checks).`,
   );
   console.log(
-    `LLM grounding: ${pct(report.grounding.llm?.answerRate ?? null)} (answers).`,
+    `LLM grounding: ${pct(report.grounding.llm?.answerRate ?? null, report.keyPresent)} (answers).`,
   );
-  console.log(`LLM self-consistency: ${pct(report.consistency.llm)}.`);
   console.log(
-    `Mock correct grounding: ${pct(report.grounding['mock-correct']?.answerRate ?? null)}; mock corrupt grounding: ${pct(report.grounding['mock-corrupt']?.answerRate ?? null)}.`,
+    `LLM self-consistency: ${pct(report.consistency.llm, report.keyPresent)}.`,
+  );
+  console.log(
+    `Mock correct grounding: ${pct(report.grounding['mock-correct']?.answerRate ?? null, false)}; mock corrupt grounding: ${pct(report.grounding['mock-corrupt']?.answerRate ?? null, false)}.`,
   );
   if (report.pending.length > 0) {
     console.log('Pending:');
