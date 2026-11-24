@@ -387,7 +387,7 @@ describe('AiService', () => {
         { symbol: 'RELIANCE' },
       );
       expect(calls[0]?.model).toBe(REASONING);
-      expect(calls[0]?.maxTokens).toBe(4096);
+      expect(calls[0]?.maxTokens).toBe(16384);
       expect(JSON.stringify(calls[0]?.messages)).toContain('Why is it up?');
     });
 

@@ -125,8 +125,15 @@ export interface ExpenseExtractionResult extends ExpenseExtraction {
 /** Tool results are capped so one large result cannot flood the prompt. */
 const MAX_TOOL_RESULT_CHARS = 6000;
 const MAX_EXPLAIN_DATA_CHARS = 8000;
-/** The reasoning model needs room for its chain of thought. */
-const REASONING_MAX_TOKENS = 4096;
+/**
+ * The reasoning model needs room for its chain of thought. Raised from
+ * 4096 to 16384 after the 24 Nov 2026 eval re-run: R1 burned 4096 tokens
+ * on reasoning alone and returned empty content — it never got room to
+ * emit its answer. The cap is a ceiling, not a spend: typical answers
+ * use 300–1500 tokens. (The 30s production timeout still binds slow
+ * calls; see the eval writeup — that limit is a product decision.)
+ */
+const REASONING_MAX_TOKENS = 16384;
 
 function truncate(value: string, max = MAX_TOOL_RESULT_CHARS): string {
   return value.length > max ? `${value.slice(0, max)}\u2026[truncated]` : value;

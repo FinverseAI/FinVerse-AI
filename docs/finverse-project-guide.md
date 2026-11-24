@@ -669,7 +669,7 @@ Still open: a background-job system and a second price source. Voice input and r
 | End-to-end tests | 6 of 6 passed. |
 | Type checks and lint | Backend `tsc`, Oxlint, Prettier, web `tsc` and ESLint all clean. |
 | Evaluation harness (no API key) | Baseline grounding 100.0% (19/19 answers, 1,355/1,355 checks); corrupted-output fixture caught on every answer (0/19 passed) — see §12A. |
-| First live eval run (24 Nov 2026, key provided) | 0/95 LLM runs parseable — harness defects, not a model score (see `eval/results/eval-results.md` and the fix in the eval runner: structured-output instructions, correction retry, 120s timeout, provider backoff). Baseline re-confirmed 100%. Re-run pending. |
+| First live eval run (24 Nov 2026, key provided) | Run 1: 0/95 parseable — harness defects (see `docs/evaluation-writeup.md` §4; fixed in `b98cb67`). Run 2 (20:51 IST): 0/95 again — 94× HTTP 402, OpenRouter account out of credits; the 1 call that reached R1 burned 2×4096 reasoning tokens and returned empty (max tokens raised to 16384, eval timeout to 300s). Baseline 100% both runs. Re-run blocked on a ~$5 account top-up. |
 | Live user journey and deployed service | The public site (Netlify, `https://finverseaii.netlify.app`) was checked on 23 November 2026: homepage, health, auth-guard and origin-check responses all behaved as expected. Google login and end-to-end persistence against a live account were not tested. |
 
 Counts re-run independently on 24 November 2026 at HEAD `f5ac221` (after the Filings & Reports rebase onto Sarthak's market-workspace commits); the 23 November figures were 648/648 backend (48 suites), 92/92 web and 5/5 end-to-end.

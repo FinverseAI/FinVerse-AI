@@ -130,19 +130,56 @@ explain). Per-scenario results are in
   would cost on the order of a few US cents — the exact figure
   awaits the provider's reported token counts.
 
-## 4. What is pending (and what unblocks it)
+## 4. Live runs (24 November 2026) — what happened, honestly
+
+Two live runs have been made. Neither produced LLM metrics yet — both
+failed for reasons outside the model, and both are recorded here
+because the report must not present a 0% as a model score.
+
+**Run 1 (~19:45–20:01 IST).** Key provided; 0 of 95 LLM runs
+parseable: 54 provider-errors + 41 parse-errors. Diagnosis: the
+harness never sent the structured-output instructions to the model
+(production does), so R1 returned valid JSON missing the `claims`
+array (40 of 41 parse errors); there was no parse retry, and the 30s
+timeout killed several slow calls. Baseline grounding re-confirmed
+100% (19/19). Cost: $0.0617. Fix (commit `b98cb67`): instructions
+appended, one correction retry mirroring production, timeout 30s →
+120s, provider retry with backoff (timeouts/429/5xx only), 1s pacing
+between live repeats, HTTP status recorded in errors, and the
+misleading `pending key` label replaced with `no successful runs`
+when the key was present but no run succeeded. Seven tests added.
+
+**Run 2 (20:51–20:56 IST).** 0 of 95 parseable again — a different
+cause: 94 calls rejected instantly with **HTTP 402 (Payment
+Required)** — the OpenRouter account was out of credits (about $0.02
+remained; the first call consumed it, cost $0.0202). The one call
+that reached the model burned 4096 tokens on reasoning alone, twice
+(first call + correction retry = 8192 completion tokens), and
+returned empty content both times: the 4096-token cap left R1 no
+room to emit its answer. Baseline grounding re-confirmed 100%
+(19/19) again. Fix: reasoning max tokens 4096 → 16384 (eval and
+production — the cap is a ceiling, typical answers use 300–1500
+tokens), eval timeout 120s → 300s (at the observed ~48 tokens/s, a
+16K-token call can take over 5 minutes; the eval runs unattended).
+
+## 5. What is pending (and what unblocks it)
 
 | Pending item | Blocked on | How to complete |
 | --- | --- | --- |
-| LLM grounding rate | `OPENROUTER_API_KEY` | Set the key, re-run `node dist/eval/run-eval.js` |
-| LLM self-consistency | Same key | Same run (5 repeats per scenario) |
-| LLM latency + cost | Same key | Same run (usage reported by the provider) |
+| LLM grounding rate | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key |
+| LLM self-consistency | Same top-up | Same run (5 repeats per scenario) |
+| LLM latency + cost | Same top-up | Same run (usage reported by the provider) |
 | Explanation-quality ratings | Live LLM outputs + human raters | Re-generate the rating pack from the live report; the team rates blind, then unblinds with `key.json` |
 
-The live run needs no code changes: the harness, the prompts, and
-the metrics are already in place. The only input is the key.
+**Production note.** Production's reasoning timeout is still 30s
+(`DEFAULT_TIMEOUT_MS`), while the live R1 calls took 8.5s (median,
+run 1) to ~85s (run 2, long reasoning). Slow production R1 calls
+fail into the template fallback — the user gets a correct but
+template answer instead of an LLM one. Raising the production
+timeout (Netlify AI routes allow 120s) is a product decision, not
+yet taken.
 
-## 5. Observations (for the report discussion)
+## 6. Observations (for the report discussion)
 
 - **The formula is generous to strong cash flow.** The
   no-emergency-fund scenario (no buffer at all) still scores 74
@@ -163,7 +200,7 @@ the metrics are already in place. The only input is the key.
   refused honestly, and the eval recorded the scenario as
   unavailable rather than scoring it zero.
 
-## 6. Limitations and future work
+## 7. Limitations and future work
 
 - The eval covers one feature (explain-readiness). Chat, stock
   explanations, news explanations, and the screener need a seeded
@@ -179,7 +216,7 @@ the metrics are already in place. The only input is the key.
 - The FinBERT sentiment baseline from the plan is optional extra
   credit and was not built (plan §2: "only if time permits").
 
-## 7. Reproduction
+## 8. Reproduction
 
 From `apps/backend` (Node 24, dependencies installed):
 

@@ -52,15 +52,23 @@ export const EVAL_MODEL_PRICES: Record<string, ModelPrice> = {
 
 /** Self-consistency repeats per scenario (plan §2, metric 2). */
 export const EVAL_DEFAULT_REPEATS = 5;
-/** Max tokens for a reasoning-model explanation (same as production). */
-export const EVAL_REASONING_MAX_TOKENS = 4096;
+/**
+ * Max tokens for a reasoning-model explanation (same as production).
+ * Raised from 4096 to 16384 after the 24 Nov 2026 re-run: the one call
+ * that reached the model burned 4096 tokens on reasoning alone, twice
+ * (first call + correction retry = 8192 completion tokens), and returned
+ * empty content both times — R1 never got room to emit its answer.
+ * The cap is a ceiling, not a spend: typical calls use 300–1500 tokens.
+ */
+export const EVAL_REASONING_MAX_TOKENS = 16384;
 /**
  * Per-call timeout for eval LLM calls. Raised from 30s to 120s after the
- * first live run (24 Nov 2026): DeepSeek R1 regularly needs 10–30s and
- * several calls died at the 30s cap. The eval runs locally, so no
- * function timeout binds it (production keeps its own 30s default).
+ * first live run (24 Nov 2026), then to 300s after the re-run the same
+ * day: at the observed ~48 tokens/s, a 16K-token reasoning call can take
+ * over 5 minutes. The eval runs locally and unattended, so no function
+ * timeout binds it (production keeps its own 30s default).
  */
-export const EVAL_TIMEOUT_MS = 120_000;
+export const EVAL_TIMEOUT_MS = 300_000;
 /** Provider-error retries per repeat (24 Nov 2026 live run: instant rejections clustered late in the run — transient rate limiting). */
 export const EVAL_PROVIDER_MAX_RETRIES = 2;
 /** Base backoff between provider retries; doubled per attempt (2s, 4s). */

@@ -155,7 +155,7 @@ describe('runEval — stub live client', () => {
     // The request used the production prompt shape: JSON mode, reasoning tokens.
     expect(client.calls).toHaveLength(3);
     expect(client.calls[0]?.responseFormatJson).toBe(true);
-    expect(client.calls[0]?.maxTokens).toBe(4096);
+    expect(client.calls[0]?.maxTokens).toBe(16384);
     expect(client.calls[0]?.model).toBe('deepseek/deepseek-r1-0528');
     const userMessage = client.calls[0]?.messages.find(
       (message) => message.role === 'user',
