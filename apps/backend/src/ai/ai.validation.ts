@@ -191,6 +191,26 @@ export type AiAnswer = z.infer<typeof AiAnswerSchema>;
 export type AiClaim = z.infer<typeof AiClaimSchema>;
 
 /** The first readable message from a Zod failure, for 400 responses. */
+/**
+ * The first validation issue as a readable message, WITH the field
+ * path — a bare "Invalid input" tells the model (and the operator)
+ * nothing about what to fix. Paths render as claims[0].source.values.x.
+ * Shared by request validation (ai.service) and model-reply parsing
+ * (parseStructuredJson), so both get actionable errors.
+ */
 export function firstIssueMessage(error: z.ZodError): string {
-  return error.issues[0]?.message ?? 'The request was invalid.';
+  const issue = error.issues[0];
+  if (!issue) return 'The request was invalid.';
+  const path = formatIssuePath(issue.path);
+  return path ? `${path}: ${issue.message}` : issue.message;
+}
+
+function formatIssuePath(path: PropertyKey[]): string {
+  let out = '';
+  for (const segment of path) {
+    if (typeof segment === 'number') out += `[${segment}]`;
+    else if (typeof segment === 'symbol') out += `.${segment.toString()}`;
+    else out += out ? `.${segment}` : segment;
+  }
+  return out;
 }

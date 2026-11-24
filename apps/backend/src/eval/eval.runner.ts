@@ -367,7 +367,7 @@ async function runModelSystem(
             { role: 'assistant', content: completion.content },
             {
               role: 'user',
-              content: correctionPrompt(completion.content ?? ''),
+              content: correctionPrompt(completion.content ?? '', parsed.error),
             },
           ],
           responseFormatJson: true,

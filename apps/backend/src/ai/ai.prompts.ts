@@ -75,6 +75,9 @@ export const STRUCTURED_OUTPUT_INSTRUCTIONS = [
   'provide), set "refused" to true, put the refusal text in "answer",',
   'leave "claims" empty, and put a one-sentence reason in',
   '"refusalReason".',
+  'Each entry in a claim\u2019s "values" must be a single string, number,',
+  'true/false, or null — never a list or an object. If a claim cannot',
+  'be cited that way, leave the claim out.',
 ].join('\n');
 
 export const STOCK_EXPLANATION_INTRO = [
@@ -216,10 +219,17 @@ export function buildExtractionMessages(
   ];
 }
 
-export function correctionPrompt(invalidOutput: string): string {
+export function correctionPrompt(
+  invalidOutput: string,
+  error?: string,
+): string {
   return [
     'Your previous reply was not a valid JSON object in the required',
     'shape. Reply again with ONLY the JSON object, nothing else.',
+    ...(error ? [`The problem was: ${error}.`] : []),
+    'Each "values" entry must be a single string, number, true/false,',
+    'or null — never a list or an object. If a claim cannot be cited',
+    'that way, drop the claim.',
     'The invalid reply was:',
     invalidOutput.slice(0, 1000),
   ].join('\n');

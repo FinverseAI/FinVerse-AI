@@ -1052,7 +1052,10 @@ export class AiService {
       messages: [
         ...withInstructions,
         { role: 'assistant', content: first.content },
-        { role: 'user', content: correctionPrompt(first.content ?? '') },
+        {
+          role: 'user',
+          content: correctionPrompt(first.content ?? '', parsed.error),
+        },
       ],
       responseFormatJson: true,
       timeoutMs: this.config.timeoutMs,

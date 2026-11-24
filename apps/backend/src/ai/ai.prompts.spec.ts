@@ -2,7 +2,9 @@ import {
   AI_DISCLAIMER,
   READINESS_EXPLANATION_INTRO,
   STOCK_EXPLANATION_INTRO,
+  STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
+  correctionPrompt,
   guardrailCorrectionPrompt,
 } from './ai.prompts';
 
@@ -56,6 +58,26 @@ describe('ai prompts', () => {
     expect(STOCK_EXPLANATION_INTRO).toContain(
       'use the exact field names from the figures below',
     );
+  });
+
+  it('forbids lists/objects in claim values (24 Nov 2026: ERNIE emitted "suggestions": [] and the reply failed the schema)', () => {
+    expect(STRUCTURED_OUTPUT_INSTRUCTIONS).toContain(
+      'never a list or an object',
+    );
+    // The sentence spans two joined lines; assert the tail.
+    expect(STRUCTURED_OUTPUT_INSTRUCTIONS).toContain('leave the claim out.');
+  });
+
+  it('names the parse problem in the correction prompt so the retry can fix it', () => {
+    const prompt = correctionPrompt(
+      '{"answer": 1}',
+      'The model reply did not match the required shape: claims[0].source.values.suggestions: Invalid input',
+    );
+    expect(prompt).toContain(
+      'claims[0].source.values.suggestions: Invalid input',
+    );
+    expect(prompt).toContain('never a list or an object');
+    expect(prompt).toContain('{"answer": 1}');
   });
 
   it('names the failed claims and correct values in the guardrail retry', () => {

@@ -259,5 +259,29 @@ describe('ai validation', () => {
         false,
       );
     });
+
+    it('names the failing field path in the error (24 Nov 2026: ERNIE emitted "suggestions": [] and the bare "Invalid input" told the retry nothing)', () => {
+      const result = parseStructuredJson(
+        JSON.stringify({
+          answer: 'No suggestions.',
+          claims: [
+            {
+              text: 'The assessment contains no suggestions.',
+              source: {
+                tool: 'getReadinessScore',
+                values: { suggestions: [] },
+              },
+            },
+          ],
+          refused: false,
+          refusalReason: null,
+        }),
+        AiAnswerSchema,
+      );
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toContain('claims[0].source.values.suggestions');
+      }
+    });
   });
 });
