@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-24T14:31:31.584Z",
+  "generatedAt": "2026-11-24T15:26:21.191Z",
   "models": {
     "primary": "qwen/qwen-2.5-72b-instruct",
     "reasoning": "deepseek/deepseek-r1-0528",
@@ -108,7 +108,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 5.419801000000007,
+            "latencyMs": 10.312599999999748,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -225,11 +225,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 5.419801000000007,
-          "medianMs": 5.419801000000007,
-          "p95Ms": 5.419801000000007,
-          "maxMs": 5.419801000000007,
-          "meanMs": 5.419801000000007
+          "minMs": 10.312599999999748,
+          "medianMs": 10.312599999999748,
+          "p95Ms": 10.312599999999748,
+          "maxMs": 10.312599999999748,
+          "meanMs": 10.312599999999748
         },
         "totalCostUsd": 0,
         "answer": {
@@ -322,8 +322,39 @@
         "runs": [
           {
             "repeat": 1,
+            "status": "parse-error",
+            "latencyMs": 170995.603554,
+            "usage": {
+              "promptTokens": 2643,
+              "completionTokens": 8192,
+              "totalTokens": 10835
+            },
+            "costUsd": 0.020236064999999998,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model reply could not be parsed as a structured answer: The model returned an empty reply."
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The model returned an empty reply."
+          },
+          {
+            "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 30007.82604,
+            "latencyMs": 502.67049300001236,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -340,48 +371,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
-          },
-          {
-            "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 6856.143929999995,
-            "usage": {
-              "promptTokens": 1108,
-              "completionTokens": 261,
-              "totalTokens": 1369
-            },
-            "costUsd": 0.001229314,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 30001.085294999997,
+            "latencyMs": 206.74177500000224,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -398,23 +398,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 7058.476230999993,
-            "usage": {
-              "promptTokens": 1108,
-              "completionTokens": 286,
-              "totalTokens": 1394
-            },
-            "costUsd": 0.001286464,
+            "status": "provider-error",
+            "latencyMs": 411.69592500000726,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -429,23 +425,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 14522.874775000004,
-            "usage": {
-              "promptTokens": 1108,
-              "completionTokens": 255,
-              "totalTokens": 1363
-            },
-            "costUsd": 0.001215598,
+            "status": "provider-error",
+            "latencyMs": 239.54511700000148,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -460,12 +452,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -479,13 +471,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 6856.143929999995,
-          "medianMs": 14522.874775000004,
-          "p95Ms": 30007.82604,
-          "maxMs": 30007.82604,
-          "meanMs": 17689.281254199996
+          "minMs": 206.74177500000224,
+          "medianMs": 411.69592500000726,
+          "p95Ms": 170995.603554,
+          "maxMs": 170995.603554,
+          "meanMs": 34471.251372800005
         },
-        "totalCostUsd": 0.003731376,
+        "totalCostUsd": 0.020236064999999998,
         "answer": null
       },
       "mockCorrect": null,
@@ -608,7 +600,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.7775700000056531,
+            "latencyMs": 4.399477999977535,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -759,11 +751,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.7775700000056531,
-          "medianMs": 1.7775700000056531,
-          "p95Ms": 1.7775700000056531,
-          "maxMs": 1.7775700000056531,
-          "meanMs": 1.7775700000056531
+          "minMs": 4.399477999977535,
+          "medianMs": 4.399477999977535,
+          "p95Ms": 4.399477999977535,
+          "maxMs": 4.399477999977535,
+          "meanMs": 4.399477999977535
         },
         "totalCostUsd": 0,
         "answer": {
@@ -890,132 +882,8 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 7868.0888140000025,
-            "usage": {
-              "promptTokens": 1302,
-              "completionTokens": 365,
-              "totalTokens": 1667
-            },
-            "costUsd": 0.001577832,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 6809.174278999999,
-            "usage": {
-              "promptTokens": 1302,
-              "completionTokens": 309,
-              "totalTokens": 1611
-            },
-            "costUsd": 0.001449816,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 5704.491870000013,
-            "usage": {
-              "promptTokens": 1302,
-              "completionTokens": 263,
-              "totalTokens": 1565
-            },
-            "costUsd": 0.0013446600000000001,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 11974.838837000003,
-            "usage": {
-              "promptTokens": 1302,
-              "completionTokens": 314,
-              "totalTokens": 1616
-            },
-            "costUsd": 0.0014612459999999998,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 30002.019147999992,
+            "latencyMs": 967.3611469999887,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -1032,12 +900,120 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 2,
+            "status": "provider-error",
+            "latencyMs": 390.64393399999244,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 3,
+            "status": "provider-error",
+            "latencyMs": 701.6453409999958,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 4,
+            "status": "provider-error",
+            "latencyMs": 398.44798600001377,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 5,
+            "status": "provider-error",
+            "latencyMs": 238.39093399999547,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -1051,13 +1027,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 5704.491870000013,
-          "medianMs": 7868.0888140000025,
-          "p95Ms": 30002.019147999992,
-          "maxMs": 30002.019147999992,
-          "meanMs": 12471.722589600002
+          "minMs": 238.39093399999547,
+          "medianMs": 398.44798600001377,
+          "p95Ms": 967.3611469999887,
+          "maxMs": 967.3611469999887,
+          "meanMs": 539.2978683999972
         },
-        "totalCostUsd": 0.0058335539999999995,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -1179,7 +1155,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 2.66175800000201,
+            "latencyMs": 83.42503800001577,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -1329,11 +1305,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 2.66175800000201,
-          "medianMs": 2.66175800000201,
-          "p95Ms": 2.66175800000201,
-          "maxMs": 2.66175800000201,
-          "meanMs": 2.66175800000201
+          "minMs": 83.42503800001577,
+          "medianMs": 83.42503800001577,
+          "p95Ms": 83.42503800001577,
+          "maxMs": 83.42503800001577,
+          "meanMs": 83.42503800001577
         },
         "totalCostUsd": 0,
         "answer": {
@@ -1459,14 +1435,10 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 26074.026366000006,
-            "usage": {
-              "promptTokens": 1253,
-              "completionTokens": 1182,
-              "totalTokens": 2435
-            },
-            "costUsd": 0.0034175150000000003,
+            "status": "provider-error",
+            "latencyMs": 604.7378819999867,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -1481,23 +1453,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 6736.180920000013,
-            "usage": {
-              "promptTokens": 1251,
-              "completionTokens": 301,
-              "totalTokens": 1552
-            },
-            "costUsd": 0.0014024069999999998,
+            "status": "provider-error",
+            "latencyMs": 266.9622490000038,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -1512,23 +1480,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 5500.953686000023,
-            "usage": {
-              "promptTokens": 1251,
-              "completionTokens": 295,
-              "totalTokens": 1546
-            },
-            "costUsd": 0.001388691,
+            "status": "provider-error",
+            "latencyMs": 222.2848809999996,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -1543,23 +1507,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 6730.000776999979,
-            "usage": {
-              "promptTokens": 1251,
-              "completionTokens": 298,
-              "totalTokens": 1549
-            },
-            "costUsd": 0.0013955489999999998,
+            "status": "provider-error",
+            "latencyMs": 195.57824600001913,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -1574,23 +1534,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 20724.561031999998,
-            "usage": {
-              "promptTokens": 1253,
-              "completionTokens": 1069,
-              "totalTokens": 2322
-            },
-            "costUsd": 0.0031591970000000003,
+            "status": "provider-error",
+            "latencyMs": 280.27007699999376,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -1605,12 +1561,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -1624,13 +1580,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 5500.953686000023,
-          "medianMs": 6736.180920000013,
-          "p95Ms": 26074.026366000006,
-          "maxMs": 26074.026366000006,
-          "meanMs": 13153.144556200004
+          "minMs": 195.57824600001913,
+          "medianMs": 266.9622490000038,
+          "p95Ms": 604.7378819999867,
+          "maxMs": 604.7378819999867,
+          "meanMs": 313.9666670000006
         },
-        "totalCostUsd": 0.010763359,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -1739,7 +1695,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 11.312261000013677,
+            "latencyMs": 9.67758699998376,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -1867,11 +1823,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 11.312261000013677,
-          "medianMs": 11.312261000013677,
-          "p95Ms": 11.312261000013677,
-          "maxMs": 11.312261000013677,
-          "meanMs": 11.312261000013677
+          "minMs": 9.67758699998376,
+          "medianMs": 9.67758699998376,
+          "p95Ms": 9.67758699998376,
+          "maxMs": 9.67758699998376,
+          "meanMs": 9.67758699998376
         },
         "totalCostUsd": 0,
         "answer": {
@@ -1975,39 +1931,8 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 25588.310670000006,
-            "usage": {
-              "promptTokens": 1170,
-              "completionTokens": 1369,
-              "totalTokens": 2539
-            },
-            "costUsd": 0.0037976040000000004,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 30000.898865000025,
+            "latencyMs": 590.7174829999858,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -2024,23 +1949,46 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 2,
+            "status": "provider-error",
+            "latencyMs": 211.67267099997844,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 29661.92314899998,
-            "usage": {
-              "promptTokens": 1168,
-              "completionTokens": 256,
-              "totalTokens": 1424
-            },
-            "costUsd": 0.0012521439999999997,
+            "status": "provider-error",
+            "latencyMs": 284.8637480000034,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -2055,23 +2003,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 29617.12116499996,
-            "usage": {
-              "promptTokens": 1168,
-              "completionTokens": 224,
-              "totalTokens": 1392
-            },
-            "costUsd": 0.0011789919999999998,
+            "status": "provider-error",
+            "latencyMs": 404.18738600000506,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -2086,23 +2030,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 8545.20373899996,
-            "usage": {
-              "promptTokens": 1168,
-              "completionTokens": 266,
-              "totalTokens": 1434
-            },
-            "costUsd": 0.001275004,
+            "status": "provider-error",
+            "latencyMs": 217.8952280000085,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -2117,12 +2057,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -2136,13 +2076,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 8545.20373899996,
-          "medianMs": 29617.12116499996,
-          "p95Ms": 30000.898865000025,
-          "maxMs": 30000.898865000025,
-          "meanMs": 24682.691517599986
+          "minMs": 211.67267099997844,
+          "medianMs": 284.8637480000034,
+          "p95Ms": 590.7174829999858,
+          "maxMs": 590.7174829999858,
+          "meanMs": 341.86730319999623
         },
-        "totalCostUsd": 0.007503744,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -2264,7 +2204,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.8390929999877699,
+            "latencyMs": 15.829756999999518,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -2415,11 +2355,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.8390929999877699,
-          "medianMs": 1.8390929999877699,
-          "p95Ms": 1.8390929999877699,
-          "maxMs": 1.8390929999877699,
-          "meanMs": 1.8390929999877699
+          "minMs": 15.829756999999518,
+          "medianMs": 15.829756999999518,
+          "p95Ms": 15.829756999999518,
+          "maxMs": 15.829756999999518,
+          "meanMs": 15.829756999999518
         },
         "totalCostUsd": 0,
         "answer": {
@@ -2546,132 +2486,8 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 8143.681616000016,
-            "usage": {
-              "promptTokens": 1266,
-              "completionTokens": 318,
-              "totalTokens": 1584
-            },
-            "costUsd": 0.0014498339999999999,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 8484.632699000009,
-            "usage": {
-              "promptTokens": 1266,
-              "completionTokens": 322,
-              "totalTokens": 1588
-            },
-            "costUsd": 0.001458978,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 8815.687868000008,
-            "usage": {
-              "promptTokens": 1266,
-              "completionTokens": 342,
-              "totalTokens": 1608
-            },
-            "costUsd": 0.001504698,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 9158.219295000017,
-            "usage": {
-              "promptTokens": 1266,
-              "completionTokens": 329,
-              "totalTokens": 1595
-            },
-            "costUsd": 0.0014749799999999999,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 30001.536433,
+            "latencyMs": 660.4130789999908,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -2688,12 +2504,120 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 2,
+            "status": "provider-error",
+            "latencyMs": 227.89925400001812,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 3,
+            "status": "provider-error",
+            "latencyMs": 233.33867500000633,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 4,
+            "status": "provider-error",
+            "latencyMs": 290.2143240000005,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 5,
+            "status": "provider-error",
+            "latencyMs": 299.65880999999354,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -2707,13 +2631,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 8143.681616000016,
-          "medianMs": 8815.687868000008,
-          "p95Ms": 30001.536433,
-          "maxMs": 30001.536433,
-          "meanMs": 12920.75158220001
+          "minMs": 227.89925400001812,
+          "medianMs": 290.2143240000005,
+          "p95Ms": 660.4130789999908,
+          "maxMs": 660.4130789999908,
+          "meanMs": 342.30482840000184
         },
-        "totalCostUsd": 0.0058884900000000006,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -2835,7 +2759,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.7624479999649338,
+            "latencyMs": 3.665605999995023,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -2985,11 +2909,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.7624479999649338,
-          "medianMs": 1.7624479999649338,
-          "p95Ms": 1.7624479999649338,
-          "maxMs": 1.7624479999649338,
-          "meanMs": 1.7624479999649338
+          "minMs": 3.665605999995023,
+          "medianMs": 3.665605999995023,
+          "p95Ms": 3.665605999995023,
+          "maxMs": 3.665605999995023,
+          "meanMs": 3.665605999995023
         },
         "totalCostUsd": 0,
         "answer": {
@@ -3115,39 +3039,8 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 12500.409956999996,
-            "usage": {
-              "promptTokens": 1242,
-              "completionTokens": 299,
-              "totalTokens": 1541
-            },
-            "costUsd": 0.001392696,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 30001.99215799995,
+            "latencyMs": 694.9258280000067,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -3164,23 +3057,46 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 2,
+            "status": "provider-error",
+            "latencyMs": 201.05203900000197,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 8582.287080000038,
-            "usage": {
-              "promptTokens": 1242,
-              "completionTokens": 296,
-              "totalTokens": 1538
-            },
-            "costUsd": 0.001385838,
+            "status": "provider-error",
+            "latencyMs": 203.87776299999678,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -3195,23 +3111,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 6541.855575000052,
-            "usage": {
-              "promptTokens": 1242,
-              "completionTokens": 288,
-              "totalTokens": 1530
-            },
-            "costUsd": 0.00136755,
+            "status": "provider-error",
+            "latencyMs": 812.8632849999995,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -3226,23 +3138,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 5628.132062999997,
-            "usage": {
-              "promptTokens": 1242,
-              "completionTokens": 263,
-              "totalTokens": 1505
-            },
-            "costUsd": 0.0013104,
+            "status": "provider-error",
+            "latencyMs": 318.5674220000219,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -3257,12 +3165,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -3276,13 +3184,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 5628.132062999997,
-          "medianMs": 8582.287080000038,
-          "p95Ms": 30001.99215799995,
-          "maxMs": 30001.99215799995,
-          "meanMs": 12650.935366600006
+          "minMs": 201.05203900000197,
+          "medianMs": 318.5674220000219,
+          "p95Ms": 812.8632849999995,
+          "maxMs": 812.8632849999995,
+          "meanMs": 446.2572674000054
         },
-        "totalCostUsd": 0.005456483999999999,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -3404,7 +3312,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 2.197401000012178,
+            "latencyMs": 4.664155999984359,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -3554,11 +3462,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 2.197401000012178,
-          "medianMs": 2.197401000012178,
-          "p95Ms": 2.197401000012178,
-          "maxMs": 2.197401000012178,
-          "meanMs": 2.197401000012178
+          "minMs": 4.664155999984359,
+          "medianMs": 4.664155999984359,
+          "p95Ms": 4.664155999984359,
+          "maxMs": 4.664155999984359,
+          "meanMs": 4.664155999984359
         },
         "totalCostUsd": 0,
         "answer": {
@@ -3685,7 +3593,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 30000.878293999995,
+            "latencyMs": 628.6857329999912,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -3702,17 +3610,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 30001.319397000014,
+            "latencyMs": 298.7205210000102,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -3729,23 +3637,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 10895.004629999981,
-            "usage": {
-              "promptTokens": 1300,
-              "completionTokens": 360,
-              "totalTokens": 1660
-            },
-            "costUsd": 0.00156526,
+            "status": "provider-error",
+            "latencyMs": 223.96732799999882,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -3760,17 +3664,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 30002.710206000018,
+            "latencyMs": 190.88384500000393,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -3787,23 +3691,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 6770.696033000015,
-            "usage": {
-              "promptTokens": 1300,
-              "completionTokens": 274,
-              "totalTokens": 1574
-            },
-            "costUsd": 0.001368664,
+            "status": "provider-error",
+            "latencyMs": 452.94213799998397,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -3818,12 +3718,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -3837,13 +3737,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 6770.696033000015,
-          "medianMs": 30000.878293999995,
-          "p95Ms": 30002.710206000018,
-          "maxMs": 30002.710206000018,
-          "meanMs": 21534.121712000004
+          "minMs": 190.88384500000393,
+          "medianMs": 298.7205210000102,
+          "p95Ms": 628.6857329999912,
+          "maxMs": 628.6857329999912,
+          "meanMs": 359.0399129999976
         },
-        "totalCostUsd": 0.002933924,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -3944,7 +3844,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.4693869999609888,
+            "latencyMs": 1.135195000009844,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -4064,11 +3964,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.4693869999609888,
-          "medianMs": 1.4693869999609888,
-          "p95Ms": 1.4693869999609888,
-          "maxMs": 1.4693869999609888,
-          "meanMs": 1.4693869999609888
+          "minMs": 1.135195000009844,
+          "medianMs": 1.135195000009844,
+          "p95Ms": 1.135195000009844,
+          "maxMs": 1.135195000009844,
+          "meanMs": 1.135195000009844
         },
         "totalCostUsd": 0,
         "answer": {
@@ -4164,101 +4064,8 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 9456.914787999936,
-            "usage": {
-              "promptTokens": 1075,
-              "completionTokens": 230,
-              "totalTokens": 1305
-            },
-            "costUsd": 0.001139605,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 14041.105456999969,
-            "usage": {
-              "promptTokens": 1075,
-              "completionTokens": 221,
-              "totalTokens": 1296
-            },
-            "costUsd": 0.001119031,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 5842.190567999962,
-            "usage": {
-              "promptTokens": 1075,
-              "completionTokens": 269,
-              "totalTokens": 1344
-            },
-            "costUsd": 0.0012287589999999998,
-            "answer": null,
-            "verification": {
-              "passed": false,
-              "checksPassed": 0,
-              "checksFailed": 1,
-              "failures": [
-                {
-                  "claimIndex": -1,
-                  "claimText": "",
-                  "sourceTool": "",
-                  "checkType": "source",
-                  "expected": null,
-                  "actual": null,
-                  "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
-                }
-              ]
-            },
-            "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
-          },
-          {
-            "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 30002.206088999985,
+            "latencyMs": 517.1906230000022,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -4275,23 +4082,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
-            "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 9648.251373999985,
-            "usage": {
-              "promptTokens": 1075,
-              "completionTokens": 281,
-              "totalTokens": 1356
-            },
-            "costUsd": 0.0012561909999999998,
+            "repeat": 2,
+            "status": "provider-error",
+            "latencyMs": 248.2577839999867,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -4306,12 +4109,93 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 3,
+            "status": "provider-error",
+            "latencyMs": 262.51816300000064,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 4,
+            "status": "provider-error",
+            "latencyMs": 247.07434600000852,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
+          },
+          {
+            "repeat": 5,
+            "status": "provider-error",
+            "latencyMs": 315.48782599999686,
+            "usage": null,
+            "costUsd": null,
+            "answer": null,
+            "verification": {
+              "passed": false,
+              "checksPassed": 0,
+              "checksFailed": 1,
+              "failures": [
+                {
+                  "claimIndex": -1,
+                  "claimText": "",
+                  "sourceTool": "",
+                  "checkType": "source",
+                  "expected": null,
+                  "actual": null,
+                  "passed": false,
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
+                }
+              ]
+            },
+            "conclusions": null,
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -4325,13 +4209,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 5842.190567999962,
-          "medianMs": 9648.251373999985,
-          "p95Ms": 30002.206088999985,
-          "maxMs": 30002.206088999985,
-          "meanMs": 13798.133655199967
+          "minMs": 247.07434600000852,
+          "medianMs": 262.51816300000064,
+          "p95Ms": 517.1906230000022,
+          "maxMs": 517.1906230000022,
+          "meanMs": 318.105748399999
         },
-        "totalCostUsd": 0.004743585999999999,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -4477,7 +4361,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.7851810000138357,
+            "latencyMs": 1.5290359999926295,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -4627,11 +4511,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.7851810000138357,
-          "medianMs": 1.7851810000138357,
-          "p95Ms": 1.7851810000138357,
-          "maxMs": 1.7851810000138357,
-          "meanMs": 1.7851810000138357
+          "minMs": 1.5290359999926295,
+          "medianMs": 1.5290359999926295,
+          "p95Ms": 1.5290359999926295,
+          "maxMs": 1.5290359999926295,
+          "meanMs": 1.5290359999926295
         },
         "totalCostUsd": 0,
         "answer": {
@@ -4757,14 +4641,10 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 10626.6059330001,
-            "usage": {
-              "promptTokens": 1286,
-              "completionTokens": 355,
-              "totalTokens": 1641
-            },
-            "costUsd": 0.001545836,
+            "status": "provider-error",
+            "latencyMs": 583.168273999996,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -4779,23 +4659,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 8250.032047999906,
-            "usage": {
-              "promptTokens": 1286,
-              "completionTokens": 354,
-              "totalTokens": 1640
-            },
-            "costUsd": 0.0015435499999999999,
+            "status": "provider-error",
+            "latencyMs": 271.80477300001075,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -4810,23 +4686,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 12726.322247000062,
-            "usage": {
-              "promptTokens": 1286,
-              "completionTokens": 361,
-              "totalTokens": 1647
-            },
-            "costUsd": 0.001559552,
+            "status": "provider-error",
+            "latencyMs": 230.04798200001824,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -4841,17 +4713,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 30001.142380999983,
+            "latencyMs": 269.58663099998375,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -4868,17 +4740,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 30004.188036000007,
+            "latencyMs": 238.25992699997732,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -4895,12 +4767,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -4914,13 +4786,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 8250.032047999906,
-          "medianMs": 12726.322247000062,
-          "p95Ms": 30004.188036000007,
-          "maxMs": 30004.188036000007,
-          "meanMs": 18321.65812900001
+          "minMs": 230.04798200001824,
+          "medianMs": 269.58663099998375,
+          "p95Ms": 583.168273999996,
+          "maxMs": 583.168273999996,
+          "meanMs": 318.57351739999723
         },
-        "totalCostUsd": 0.004648938,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -5042,7 +4914,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 3.870253000059165,
+            "latencyMs": 2.0761789999960456,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -5193,11 +5065,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 3.870253000059165,
-          "medianMs": 3.870253000059165,
-          "p95Ms": 3.870253000059165,
-          "maxMs": 3.870253000059165,
-          "meanMs": 3.870253000059165
+          "minMs": 2.0761789999960456,
+          "medianMs": 2.0761789999960456,
+          "p95Ms": 2.0761789999960456,
+          "maxMs": 2.0761789999960456,
+          "meanMs": 2.0761789999960456
         },
         "totalCostUsd": 0,
         "answer": {
@@ -5325,7 +5197,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 30002.301422000048,
+            "latencyMs": 591.5296019999951,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5342,23 +5214,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 8814.088476000004,
-            "usage": {
-              "promptTokens": 1286,
-              "completionTokens": 313,
-              "totalTokens": 1599
-            },
-            "costUsd": 0.0014498240000000002,
+            "status": "provider-error",
+            "latencyMs": 203.82224999999744,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -5373,17 +5241,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 30000.595769999898,
+            "latencyMs": 272.78078800000367,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5400,23 +5268,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
-            "status": "parse-error",
-            "latencyMs": 9651.215595999965,
-            "usage": {
-              "promptTokens": 1286,
-              "completionTokens": 315,
-              "totalTokens": 1601
-            },
-            "costUsd": 0.0014543960000000002,
+            "status": "provider-error",
+            "latencyMs": 312.8850569999777,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -5431,17 +5295,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 30001.41978799994,
+            "latencyMs": 287.63127499999246,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5458,12 +5322,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -5477,13 +5341,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 8814.088476000004,
-          "medianMs": 30000.595769999898,
-          "p95Ms": 30002.301422000048,
-          "maxMs": 30002.301422000048,
-          "meanMs": 21693.92421039997
+          "minMs": 203.82224999999744,
+          "medianMs": 287.63127499999246,
+          "p95Ms": 591.5296019999951,
+          "maxMs": 591.5296019999951,
+          "meanMs": 333.72979439999324
         },
-        "totalCostUsd": 0.0029042200000000003,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -5605,7 +5469,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.6981709999963641,
+            "latencyMs": 1.867694999993546,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -5755,11 +5619,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.6981709999963641,
-          "medianMs": 1.6981709999963641,
-          "p95Ms": 1.6981709999963641,
-          "maxMs": 1.6981709999963641,
-          "meanMs": 1.6981709999963641
+          "minMs": 1.867694999993546,
+          "medianMs": 1.867694999993546,
+          "p95Ms": 1.867694999993546,
+          "maxMs": 1.867694999993546,
+          "meanMs": 1.867694999993546
         },
         "totalCostUsd": 0,
         "answer": {
@@ -5886,7 +5750,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 30000.912185000023,
+            "latencyMs": 505.3807129999914,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5903,17 +5767,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 30001.791876000003,
+            "latencyMs": 233.855951000005,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5930,23 +5794,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an invalid response."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an invalid response."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 8145.469902000041,
-            "usage": {
-              "promptTokens": 1254,
-              "completionTokens": 313,
-              "totalTokens": 1567
-            },
-            "costUsd": 0.001431552,
+            "status": "provider-error",
+            "latencyMs": 255.33576499999617,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -5961,17 +5821,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 567.6228840000695,
+            "latencyMs": 258.7598279999802,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -5988,23 +5848,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
-            "status": "parse-error",
-            "latencyMs": 6956.872197999968,
-            "usage": {
-              "promptTokens": 1254,
-              "completionTokens": 300,
-              "totalTokens": 1554
-            },
-            "costUsd": 0.0014018339999999998,
+            "status": "provider-error",
+            "latencyMs": 201.6645289999724,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -6019,12 +5875,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -6038,13 +5894,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 567.6228840000695,
-          "medianMs": 8145.469902000041,
-          "p95Ms": 30001.791876000003,
-          "maxMs": 30001.791876000003,
-          "meanMs": 15134.53380900002
+          "minMs": 201.6645289999724,
+          "medianMs": 255.33576499999617,
+          "p95Ms": 505.3807129999914,
+          "maxMs": 505.3807129999914,
+          "meanMs": 290.99935719998905
         },
-        "totalCostUsd": 0.002833386,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -6166,7 +6022,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.7207950000884011,
+            "latencyMs": 6.194684000016423,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -6316,11 +6172,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.7207950000884011,
-          "medianMs": 1.7207950000884011,
-          "p95Ms": 1.7207950000884011,
-          "maxMs": 1.7207950000884011,
-          "meanMs": 1.7207950000884011
+          "minMs": 6.194684000016423,
+          "medianMs": 6.194684000016423,
+          "p95Ms": 6.194684000016423,
+          "maxMs": 6.194684000016423,
+          "meanMs": 6.194684000016423
         },
         "totalCostUsd": 0,
         "answer": {
@@ -6446,14 +6302,10 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 9342.157206999953,
-            "usage": {
-              "promptTokens": 1268,
-              "completionTokens": 308,
-              "totalTokens": 1576
-            },
-            "costUsd": 0.001428116,
+            "status": "provider-error",
+            "latencyMs": 525.7017959999794,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -6468,17 +6320,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 132.14719000004698,
+            "latencyMs": 268.300098000007,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -6495,23 +6347,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
-            "status": "parse-error",
-            "latencyMs": 2082.1384700000053,
-            "usage": {
-              "promptTokens": 1268,
-              "completionTokens": 2,
-              "totalTokens": 1270
-            },
-            "costUsd": 0.0007285999999999999,
+            "status": "provider-error",
+            "latencyMs": 314.5386310000031,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -6526,17 +6374,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected string, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected string, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 108.73620700009633,
+            "latencyMs": 219.78029899997637,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -6553,17 +6401,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 303.7402810000349,
+            "latencyMs": 211.6067219999968,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -6580,12 +6428,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -6599,13 +6447,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 108.73620700009633,
-          "medianMs": 303.7402810000349,
-          "p95Ms": 9342.157206999953,
-          "maxMs": 9342.157206999953,
-          "meanMs": 2393.7838710000274
+          "minMs": 211.6067219999968,
+          "medianMs": 268.300098000007,
+          "p95Ms": 525.7017959999794,
+          "maxMs": 525.7017959999794,
+          "meanMs": 307.9855091999925
         },
-        "totalCostUsd": 0.002156716,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -6715,7 +6563,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.7316509999800473,
+            "latencyMs": 11.936809000006178,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -6844,11 +6692,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.7316509999800473,
-          "medianMs": 1.7316509999800473,
-          "p95Ms": 1.7316509999800473,
-          "maxMs": 1.7316509999800473,
-          "meanMs": 1.7316509999800473
+          "minMs": 11.936809000006178,
+          "medianMs": 11.936809000006178,
+          "p95Ms": 11.936809000006178,
+          "maxMs": 11.936809000006178,
+          "meanMs": 11.936809000006178
         },
         "totalCostUsd": 0,
         "answer": {
@@ -6953,14 +6801,10 @@
         "runs": [
           {
             "repeat": 1,
-            "status": "parse-error",
-            "latencyMs": 5478.581180999987,
-            "usage": {
-              "promptTokens": 1152,
-              "completionTokens": 220,
-              "totalTokens": 1372
-            },
-            "costUsd": 0.001160712,
+            "status": "provider-error",
+            "latencyMs": 633.4902989999973,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -6975,23 +6819,19 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
-            "status": "parse-error",
-            "latencyMs": 4633.4401739999885,
-            "usage": {
-              "promptTokens": 1152,
-              "completionTokens": 231,
-              "totalTokens": 1383
-            },
-            "costUsd": 0.001185858,
+            "status": "provider-error",
+            "latencyMs": 215.54529800001183,
+            "usage": null,
+            "costUsd": null,
             "answer": null,
             "verification": {
               "passed": false,
@@ -7006,17 +6846,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model reply could not be parsed as a structured answer: The model reply did not match the required shape: Invalid input: expected array, received undefined"
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The model reply did not match the required shape: Invalid input: expected array, received undefined"
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 302.7840439999709,
+            "latencyMs": 283.090704000002,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7033,17 +6873,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 529.0700059999945,
+            "latencyMs": 197.55579700000817,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7060,17 +6900,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 115.25146300008055,
+            "latencyMs": 209.80816100002266,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7087,12 +6927,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -7106,13 +6946,13 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 115.25146300008055,
-          "medianMs": 529.0700059999945,
-          "p95Ms": 5478.581180999987,
-          "maxMs": 5478.581180999987,
-          "meanMs": 2211.8253736000042
+          "minMs": 197.55579700000817,
+          "medianMs": 215.54529800001183,
+          "p95Ms": 633.4902989999973,
+          "maxMs": 633.4902989999973,
+          "meanMs": 307.8980518000084
         },
-        "totalCostUsd": 0.00234657,
+        "totalCostUsd": null,
         "answer": null
       },
       "mockCorrect": null,
@@ -7234,7 +7074,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.6815259999129921,
+            "latencyMs": 1.4958669999905396,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -7385,11 +7225,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.6815259999129921,
-          "medianMs": 1.6815259999129921,
-          "p95Ms": 1.6815259999129921,
-          "maxMs": 1.6815259999129921,
-          "meanMs": 1.6815259999129921
+          "minMs": 1.4958669999905396,
+          "medianMs": 1.4958669999905396,
+          "p95Ms": 1.4958669999905396,
+          "maxMs": 1.4958669999905396,
+          "meanMs": 1.4958669999905396
         },
         "totalCostUsd": 0,
         "answer": {
@@ -7517,7 +7357,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 321.7243629998993,
+            "latencyMs": 490.73442400002386,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7534,17 +7374,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 164.2535660000285,
+            "latencyMs": 221.62153500001295,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7561,17 +7401,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 390.52335299993865,
+            "latencyMs": 198.53737100001308,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7588,17 +7428,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 123.77800000004936,
+            "latencyMs": 275.2436779999989,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7615,17 +7455,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 480.16709100001026,
+            "latencyMs": 247.19182299997192,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -7642,12 +7482,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -7661,11 +7501,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 123.77800000004936,
-          "medianMs": 321.7243629998993,
-          "p95Ms": 480.16709100001026,
-          "maxMs": 480.16709100001026,
-          "meanMs": 296.08927459998523
+          "minMs": 198.53737100001308,
+          "medianMs": 247.19182299997192,
+          "p95Ms": 490.73442400002386,
+          "maxMs": 490.73442400002386,
+          "meanMs": 286.66576620000416
         },
         "totalCostUsd": null,
         "answer": null
@@ -7789,7 +7629,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 7.061075999983586,
+            "latencyMs": 3.4592959999863524,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -7939,11 +7779,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 7.061075999983586,
-          "medianMs": 7.061075999983586,
-          "p95Ms": 7.061075999983586,
-          "maxMs": 7.061075999983586,
-          "meanMs": 7.061075999983586
+          "minMs": 3.4592959999863524,
+          "medianMs": 3.4592959999863524,
+          "p95Ms": 3.4592959999863524,
+          "maxMs": 3.4592959999863524,
+          "meanMs": 3.4592959999863524
         },
         "totalCostUsd": 0,
         "answer": {
@@ -8070,7 +7910,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 178.85335499991197,
+            "latencyMs": 497.5321639999747,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8087,17 +7927,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 171.04619899997488,
+            "latencyMs": 205.81525399998645,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8114,17 +7954,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 130.27012200001627,
+            "latencyMs": 200.33858700000565,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8141,17 +7981,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 135.2897809999995,
+            "latencyMs": 200.88481699998374,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8168,17 +8008,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 182.81972299993504,
+            "latencyMs": 236.656398000021,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8195,12 +8035,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -8214,11 +8054,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 130.27012200001627,
-          "medianMs": 171.04619899997488,
-          "p95Ms": 182.81972299993504,
-          "maxMs": 182.81972299993504,
-          "meanMs": 159.65583599996754
+          "minMs": 200.33858700000565,
+          "medianMs": 205.81525399998645,
+          "p95Ms": 497.5321639999747,
+          "maxMs": 497.5321639999747,
+          "meanMs": 268.24544399999434
         },
         "totalCostUsd": null,
         "answer": null
@@ -8328,7 +8168,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.9885660000145435,
+            "latencyMs": 0.8347240000148304,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -8460,11 +8300,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.9885660000145435,
-          "medianMs": 1.9885660000145435,
-          "p95Ms": 1.9885660000145435,
-          "maxMs": 1.9885660000145435,
-          "meanMs": 1.9885660000145435
+          "minMs": 0.8347240000148304,
+          "medianMs": 0.8347240000148304,
+          "p95Ms": 0.8347240000148304,
+          "maxMs": 0.8347240000148304,
+          "meanMs": 0.8347240000148304
         },
         "totalCostUsd": 0,
         "answer": {
@@ -8573,7 +8413,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 154.1337249999633,
+            "latencyMs": 470.86131400000886,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8590,17 +8430,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 194.0241930000484,
+            "latencyMs": 276.6329839999962,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8617,17 +8457,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 146.10469599999487,
+            "latencyMs": 199.1032220000052,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8644,17 +8484,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 143.69979300000705,
+            "latencyMs": 700.083695999987,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8671,17 +8511,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 138.54501100000925,
+            "latencyMs": 200.7349319999921,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -8698,12 +8538,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -8717,11 +8557,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 138.54501100000925,
-          "medianMs": 146.10469599999487,
-          "p95Ms": 194.0241930000484,
-          "maxMs": 194.0241930000484,
-          "meanMs": 155.3014836000046
+          "minMs": 199.1032220000052,
+          "medianMs": 276.6329839999962,
+          "p95Ms": 700.083695999987,
+          "maxMs": 700.083695999987,
+          "meanMs": 369.48322959999786
         },
         "totalCostUsd": null,
         "answer": null
@@ -8845,7 +8685,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 1.81281300005503,
+            "latencyMs": 1.6629579999716952,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -8996,11 +8836,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 1.81281300005503,
-          "medianMs": 1.81281300005503,
-          "p95Ms": 1.81281300005503,
-          "maxMs": 1.81281300005503,
-          "meanMs": 1.81281300005503
+          "minMs": 1.6629579999716952,
+          "medianMs": 1.6629579999716952,
+          "p95Ms": 1.6629579999716952,
+          "maxMs": 1.6629579999716952,
+          "meanMs": 1.6629579999716952
         },
         "totalCostUsd": 0,
         "answer": {
@@ -9128,7 +8968,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 186.09798699989915,
+            "latencyMs": 421.2457290000166,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9145,17 +8985,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 140.0152680000756,
+            "latencyMs": 273.6689330000081,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9172,17 +9012,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 96.93077400000766,
+            "latencyMs": 215.08585800003493,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9199,17 +9039,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 220.77590499992948,
+            "latencyMs": 235.6195009999792,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9226,17 +9066,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 117.31658500002231,
+            "latencyMs": 214.7363829999813,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9253,12 +9093,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -9272,11 +9112,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 96.93077400000766,
-          "medianMs": 140.0152680000756,
-          "p95Ms": 220.77590499992948,
-          "maxMs": 220.77590499992948,
-          "meanMs": 152.22730379998683
+          "minMs": 214.7363829999813,
+          "medianMs": 235.6195009999792,
+          "p95Ms": 421.2457290000166,
+          "maxMs": 421.2457290000166,
+          "meanMs": 272.07128080000405
         },
         "totalCostUsd": null,
         "answer": null
@@ -9380,7 +9220,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 0.6151140000438318,
+            "latencyMs": 0.8344330000109039,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -9497,11 +9337,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 0.6151140000438318,
-          "medianMs": 0.6151140000438318,
-          "p95Ms": 0.6151140000438318,
-          "maxMs": 0.6151140000438318,
-          "meanMs": 0.6151140000438318
+          "minMs": 0.8344330000109039,
+          "medianMs": 0.8344330000109039,
+          "p95Ms": 0.8344330000109039,
+          "maxMs": 0.8344330000109039,
+          "meanMs": 0.8344330000109039
         },
         "totalCostUsd": 0,
         "answer": {
@@ -9595,7 +9435,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 141.51259800000116,
+            "latencyMs": 459.8752819999936,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9612,17 +9452,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 108.8185710000107,
+            "latencyMs": 245.43877000000793,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9639,17 +9479,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 141.90443600004073,
+            "latencyMs": 300.61913300002925,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9666,17 +9506,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 118.05205900000874,
+            "latencyMs": 217.5930839999928,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9693,17 +9533,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 133.60493999999017,
+            "latencyMs": 189.61530000000494,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -9720,12 +9560,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -9739,11 +9579,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 108.8185710000107,
-          "medianMs": 133.60493999999017,
-          "p95Ms": 141.90443600004073,
-          "maxMs": 141.90443600004073,
-          "meanMs": 128.7785208000103
+          "minMs": 189.61530000000494,
+          "medianMs": 245.43877000000793,
+          "p95Ms": 459.8752819999936,
+          "maxMs": 459.8752819999936,
+          "meanMs": 282.6283138000057
         },
         "totalCostUsd": null,
         "answer": null
@@ -9865,7 +9705,7 @@
           {
             "repeat": 1,
             "status": "ok",
-            "latencyMs": 0.8817239999771118,
+            "latencyMs": 4.151475000020582,
             "usage": null,
             "costUsd": 0,
             "answer": {
@@ -10011,11 +9851,11 @@
         "consistency": null,
         "latency": {
           "count": 1,
-          "minMs": 0.8817239999771118,
-          "medianMs": 0.8817239999771118,
-          "p95Ms": 0.8817239999771118,
-          "maxMs": 0.8817239999771118,
-          "meanMs": 0.8817239999771118
+          "minMs": 4.151475000020582,
+          "medianMs": 4.151475000020582,
+          "p95Ms": 4.151475000020582,
+          "maxMs": 4.151475000020582,
+          "meanMs": 4.151475000020582
         },
         "totalCostUsd": 0,
         "answer": {
@@ -10138,7 +9978,7 @@
           {
             "repeat": 1,
             "status": "provider-error",
-            "latencyMs": 111.22491500002798,
+            "latencyMs": 485.66138399997726,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -10155,17 +9995,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 2,
             "status": "provider-error",
-            "latencyMs": 141.1472889999859,
+            "latencyMs": 218.68229099997552,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -10182,17 +10022,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 3,
             "status": "provider-error",
-            "latencyMs": 110.6711330000544,
+            "latencyMs": 205.83371099998476,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -10209,17 +10049,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 4,
             "status": "provider-error",
-            "latencyMs": 126.01745399995707,
+            "latencyMs": 334.7260119999992,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -10236,17 +10076,17 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           },
           {
             "repeat": 5,
             "status": "provider-error",
-            "latencyMs": 164.25880299997516,
+            "latencyMs": 293.7819330000202,
             "usage": null,
             "costUsd": null,
             "answer": null,
@@ -10263,12 +10103,12 @@
                   "expected": null,
                   "actual": null,
                   "passed": false,
-                  "detail": "The model call failed: The AI provider returned an error."
+                  "detail": "The model call failed: The AI provider returned an error. (HTTP 402)"
                 }
               ]
             },
             "conclusions": null,
-            "error": "The AI provider returned an error."
+            "error": "The AI provider returned an error. (HTTP 402)"
           }
         ],
         "grounding": {
@@ -10282,11 +10122,11 @@
         "consistency": null,
         "latency": {
           "count": 5,
-          "minMs": 110.6711330000544,
-          "medianMs": 126.01745399995707,
-          "p95Ms": 164.25880299997516,
-          "maxMs": 164.25880299997516,
-          "meanMs": 130.6639188000001
+          "minMs": 205.83371099998476,
+          "medianMs": 293.7819330000202,
+          "p95Ms": 485.66138399997726,
+          "maxMs": 485.66138399997726,
+          "meanMs": 307.7370661999914
         },
         "totalCostUsd": null,
         "answer": null
@@ -10323,7 +10163,7 @@
   },
   "totalCostUsd": {
     "baseline": 0,
-    "llm": 0.061744347,
+    "llm": 0.020236064999999998,
     "mock-correct": null,
     "mock-corrupt": null
   },
