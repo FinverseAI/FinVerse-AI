@@ -1,15 +1,43 @@
-﻿import { profileTotals, type FinancialProfile } from "../../../lib/profile";
-import { money, type Tone } from "./data";
+import { profileTotals, type FinancialProfile } from "../../../lib/profile";
+import { money, type Transaction, type Tone } from "./data";
+import { planVsActual } from "./spending-data";
 import { MiniStat, ProgressBar } from "./ui";
+import { ActivityError } from "./recent-transactions";
+
+function monthLabelOf(month: string) {
+  return new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function differenceLabel(difference: number) {
+  if (difference === 0) return "Exactly on plan";
+  const amount = money(Math.abs(difference), 2);
+  return difference > 0 ? `${amount} above plan` : `${amount} below plan`;
+}
 
 export default function SummaryCards({
   onReport,
   profile,
+  transactions,
+  month,
+  loading,
+  error,
+  onRetry,
 }: {
   onReport: () => void;
   profile: FinancialProfile;
+  transactions: Transaction[];
+  month: string;
+  loading: boolean;
+  error: string;
+  onRetry: () => void;
 }) {
   const totals = profileTotals(profile);
+  const actuals = planVsActual(profile, transactions, month);
+  const monthLabel = monthLabelOf(month);
+  const showActuals = !loading && !error && actuals.count > 0;
   const cards = [
     {
       label: "Monthly income",
@@ -26,6 +54,8 @@ export default function SummaryCards({
         ? (Number(profile.monthly_income) / totals.income) * 100
         : 0,
       ratioLabel: "Primary income share",
+      actual: actuals.income,
+      actualLabel: "Recorded income",
     },
     {
       label: "Savings target",
@@ -37,6 +67,8 @@ export default function SummaryCards({
       ],
       ratio: totals.income ? (totals.target / totals.income) * 100 : 0,
       ratioLabel: "Income to savings",
+      actual: actuals.savings,
+      actualLabel: "Actually kept",
     },
     {
       label: "Monthly surplus",
@@ -48,17 +80,38 @@ export default function SummaryCards({
       ],
       ratio: totals.income ? (totals.surplus / totals.income) * 100 : 0,
       ratioLabel: "Income remaining after savings",
+      actual: actuals.surplus,
+      actualLabel: "Recorded surplus",
     },
   ];
   return (
     <section
-      aria-label="Account overview — monthly plan"
+      aria-label="Account overview — monthly plan and recorded activity"
       className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4"
     >
       <p className="text-xs leading-5 text-dash-muted md:col-span-2 xl:col-span-4">
-        Monthly plan — from your saved financial profile. What you actually
-        spent is shown separately in the recorded activity below.
+        Monthly plan — from your saved financial profile — with what you
+        actually recorded in {monthLabel} alongside it.
       </p>
+      {loading && (
+        <p
+          role="status"
+          className="text-xs leading-5 text-dash-muted md:col-span-2 xl:col-span-4"
+        >
+          Loading recorded activity…
+        </p>
+      )}
+      {error && !loading && (
+        <div className="md:col-span-2 xl:col-span-4">
+          <ActivityError error={error} onRetry={onRetry} />
+        </div>
+      )}
+      {!loading && !error && actuals.count === 0 && (
+        <p className="text-xs leading-5 text-dash-muted md:col-span-2 xl:col-span-4">
+          No transactions recorded in {monthLabel} yet — actuals will appear
+          here once you record activity.
+        </p>
+      )}
       <article className="dash-panel summary-card savings-card flex flex-col">
         <h2 className="dash-eyebrow">Current savings</h2>
         <p className="mt-4 text-3xl leading-9 font-medium tracking-tight break-words">
@@ -108,6 +161,17 @@ export default function SummaryCards({
               {card.ratioLabel}
             </span>
           </div>
+          {showActuals && (
+            <div className="mt-3 border-t border-dash-border pt-3">
+              <MiniStat
+                label={`${card.actualLabel} · ${monthLabel}`}
+                value={money(card.actual.actual, 2)}
+              />
+              <p className="mt-1.5 text-xs text-dash-muted">
+                {differenceLabel(card.actual.difference)}
+              </p>
+            </div>
+          )}
         </article>
       ))}
     </section>

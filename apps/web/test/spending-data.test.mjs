@@ -10,8 +10,10 @@ import {
   spendingBreakdown,
   spendingSummary,
   monthlyCashFlow,
+  planVsActual,
   shiftMonth,
 } from "../app/(module-one)/dashboard/spending-data.ts";
+import { stubProfile } from "./fixtures.mjs";
 
 test("cash flow uses recorded amounts and month navigation crosses years", () => {
   assert.equal(shiftMonth("2026-01", -1), "2025-12");
@@ -239,4 +241,56 @@ test("long custom ranges aggregate without losing amounts, and invalid ranges st
     0,
   );
   assert.equal(spendingBreakdown([], "", "").bars.length, 0);
+});
+
+test("plan vs actual pairs each summary card with its recorded month", () => {
+  // stubProfile plan: income 90000, expenses 50000, target 20000,
+  // surplus 20000. The October expense must not leak into November.
+  assert.deepEqual(
+    planVsActual(
+      stubProfile,
+      [
+        expense("2026-11-05", 85000, "Income"),
+        expense("2026-11-10", 5000, "Income"),
+        expense("2026-11-12", -25000, "Rent"),
+        expense("2026-11-20", -15000, "Groceries"),
+        expense("2026-10-31", -9999, "Rent"),
+      ],
+      "2026-11",
+    ),
+    {
+      income: { plan: 90000, actual: 90000, difference: 0 },
+      savings: { plan: 20000, actual: 50000, difference: 30000 },
+      surplus: { plan: 20000, actual: 30000, difference: 10000 },
+      count: 4,
+    },
+  );
+});
+
+test("plan vs actual reports zero actuals for a month with no transactions", () => {
+  assert.deepEqual(planVsActual(stubProfile, [], "2026-11"), {
+    income: { plan: 90000, actual: 0, difference: -90000 },
+    savings: { plan: 20000, actual: 0, difference: -20000 },
+    surplus: { plan: 20000, actual: -20000, difference: -40000 },
+    count: 0,
+  });
+});
+
+test("plan vs actual shows a negative recorded surplus when spending exceeds income", () => {
+  assert.deepEqual(
+    planVsActual(
+      stubProfile,
+      [
+        expense("2026-11-05", 50000, "Income"),
+        expense("2026-11-12", -60000, "Rent"),
+      ],
+      "2026-11",
+    ),
+    {
+      income: { plan: 90000, actual: 50000, difference: -40000 },
+      savings: { plan: 20000, actual: -10000, difference: -30000 },
+      surplus: { plan: 20000, actual: -30000, difference: -50000 },
+      count: 2,
+    },
+  );
 });

@@ -133,7 +133,15 @@ test("ui primitives render their content", () => {
 
 test("SummaryCards shows income, expenses and savings from the profile", () => {
   const html = render(
-    createElement(SummaryCards, { onReport: noop, profile: stubProfile }),
+    createElement(SummaryCards, {
+      onReport: noop,
+      profile: stubProfile,
+      transactions: [],
+      month: "2026-11",
+      loading: false,
+      error: "",
+      onRetry: noop,
+    }),
   );
   assert.match(html, /Monthly income/);
   assert.match(
@@ -143,6 +151,80 @@ test("SummaryCards shows income, expenses and savings from the profile", () => {
   assert.match(html, /Savings target/);
   assert.match(html, /Monthly surplus/);
   assert.match(html, /Current savings/);
+});
+
+const summaryTransactions = [
+  {
+    id: "s1",
+    name: "Monthly salary",
+    category: "Income",
+    amount: 85000,
+    date: "2026-11-05",
+  },
+  {
+    id: "s2",
+    name: "Swiggy dinner",
+    category: "Food & Dining",
+    amount: -850,
+    date: "2026-11-06",
+  },
+  {
+    id: "s3",
+    name: "Metro recharge",
+    category: "Transport",
+    amount: -500,
+    date: "2026-11-06",
+  },
+];
+
+function renderSummaryCards(overrides = {}) {
+  return render(
+    createElement(SummaryCards, {
+      onReport: noop,
+      profile: stubProfile,
+      transactions: summaryTransactions,
+      month: "2026-11",
+      loading: false,
+      error: "",
+      onRetry: noop,
+      ...overrides,
+    }),
+  );
+}
+
+test("SummaryCards shows recorded actuals beside the plan", () => {
+  const html = renderSummaryCards();
+  // Plan headlines stay: income ₹90,000, target ₹20,000, surplus ₹20,000.
+  assert.match(html, /₹90,000\.00/);
+  // Recorded November: income ₹85,000 (₹5,000 below plan), kept
+  // ₹83,650 (₹63,650 above the ₹20,000 target), surplus ₹63,650.
+  assert.match(html, /Recorded income · November 2026/);
+  assert.match(html, /₹85,000\.00/);
+  assert.match(html, /₹5,000\.00 below plan/);
+  assert.match(html, /Actually kept · November 2026/);
+  assert.match(html, /₹83,650\.00/);
+  assert.match(html, /₹63,650\.00 above plan/);
+  assert.match(html, /Recorded surplus · November 2026/);
+  // The current-savings snapshot stays a snapshot: no actuals row.
+  assert.match(html, /A snapshot you entered in your financial profile/);
+});
+
+test("SummaryCards shows the loading and error states for recorded activity", () => {
+  const loading = renderSummaryCards({ loading: true });
+  assert.match(loading, /Loading recorded activity/);
+  assert.doesNotMatch(loading, /Recorded income/);
+  const failed = renderSummaryCards({
+    error: "Could not load your activity.",
+  });
+  assert.match(failed, /Could not load your activity\./);
+  assert.match(failed, /Try again/);
+  assert.doesNotMatch(failed, /Recorded income/);
+});
+
+test("SummaryCards notes a month with no recorded transactions", () => {
+  const html = renderSummaryCards({ transactions: [] });
+  assert.match(html, /No transactions recorded in November 2026 yet/);
+  assert.doesNotMatch(html, /Recorded income/);
 });
 
 test("RecentTransactions lists the newest first with edit and remove actions", () => {

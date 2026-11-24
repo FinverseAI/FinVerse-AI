@@ -248,6 +248,11 @@ export default function Dashboard({
           <SummaryCards
             onReport={() => setDialog("report")}
             profile={data.profile!}
+            transactions={transactions}
+            month={month}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.retry}
           />
           <section
             aria-label="Financial breakdown"

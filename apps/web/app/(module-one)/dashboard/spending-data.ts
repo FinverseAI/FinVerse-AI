@@ -1,4 +1,5 @@
 import { normalizeCategory, type Budget, type Transaction } from "./data.ts";
+import { profileTotals, type FinancialProfile } from "../../../lib/profile.ts";
 
 export function monthlyCashFlow(transactions: Transaction[], month: string) {
   const records = transactions.filter((item) =>
@@ -17,6 +18,49 @@ export function monthlyCashFlow(transactions: Transaction[], month: string) {
     income: income / 100,
     expenses: expenses / 100,
     net: (income - expenses) / 100,
+  };
+}
+
+/**
+ * Plan vs actual for the summary cards: the plan comes from the saved
+ * financial profile, the actuals from recorded transactions in the
+ * selected month — the same split the account report uses, side by
+ * side, never mixed.
+ *
+ * - Income: recorded income (positive transactions) vs planned income.
+ * - Savings: the amount actually kept this month (recorded income
+ *   minus recorded expenses) vs the savings target. This is not goal
+ *   contributions — those are tracked per goal in PlanningCards.
+ * - Surplus: what is left after the month's actual spending AND the
+ *   savings target (recorded net minus target), the exact counterpart
+ *   of the plan surplus formula (income − expenses − target).
+ */
+export function planVsActual(
+  profile: FinancialProfile,
+  transactions: Transaction[],
+  month: string,
+) {
+  const plan = profileTotals(profile);
+  const recorded = monthlyCashFlow(transactions, month);
+  const savedActual = recorded.net;
+  const surplusActual = recorded.net - plan.target;
+  return {
+    income: {
+      plan: plan.income,
+      actual: recorded.income,
+      difference: recorded.income - plan.income,
+    },
+    savings: {
+      plan: plan.target,
+      actual: savedActual,
+      difference: savedActual - plan.target,
+    },
+    surplus: {
+      plan: plan.surplus,
+      actual: surplusActual,
+      difference: surplusActual - plan.surplus,
+    },
+    count: recorded.count,
   };
 }
 
