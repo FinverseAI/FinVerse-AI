@@ -106,6 +106,15 @@ export class MarketController {
     return this.portfolio.removeWatchlistItem(request.userId, id);
   }
 
+  @Put('watchlist/:id')
+  updateWatchSettings(
+    @Req() request: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.portfolio.updateWatchSettings(request.userId, id, body);
+  }
+
   @Get('portfolio/summary')
   @Header('Cache-Control', 'private, no-store')
   portfolioSummary(@Req() request: AuthenticatedRequest) {

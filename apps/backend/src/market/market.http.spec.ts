@@ -438,7 +438,7 @@ describe('market data endpoints', () => {
       where: { user_id: 'owner' },
       orderBy: [{ created_at: 'asc' }, { id: 'asc' }],
     });
-    expect(result.body.indices).toHaveLength(2);
+    expect(result.body.indices).toHaveLength(5);
     expect(result.body.indices[0]).toMatchObject({
       symbol: '^NSEI',
       name: 'NIFTY 50',
@@ -459,7 +459,12 @@ describe('market data endpoints', () => {
       symbol: 'TCS.NS',
       price: 4200,
     });
-    expect(result.body.unavailable).toEqual(['RELIANCE.NS']);
+    expect(result.body.unavailable).toEqual([
+      '^NSEBANK',
+      'GC=F',
+      'SI=F',
+      'RELIANCE.NS',
+    ]);
   });
 
   it('reports an index as unavailable instead of failing the overview', async () => {
@@ -472,6 +477,12 @@ describe('market data endpoints', () => {
       name: 'NIFTY 50',
       price: null,
     });
-    expect(result.body.unavailable).toEqual(['^NSEI', '^BSESN']);
+    expect(result.body.unavailable).toEqual([
+      '^NSEI',
+      '^BSESN',
+      '^NSEBANK',
+      'GC=F',
+      'SI=F',
+    ]);
   });
 });

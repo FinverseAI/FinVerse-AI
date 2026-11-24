@@ -1,5 +1,6 @@
 "use client";
 
+import { AnalysisText } from "../../../../../components/analysis-text";
 import { useEffect, useState } from "react";
 import { aiRequest } from "../../../../(module-one)/dashboard/ai-chat";
 import {
@@ -107,7 +108,11 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
   }
 
   return (
-    <section aria-label="News and sentiment" className="dash-panel">
+    <section
+      id="stock-news"
+      aria-label="News and sentiment"
+      className="dash-panel"
+    >
       <PanelHeading icon="file" title="News & sentiment" />
       {loading ? (
         <p role="status" className="mt-4 text-sm text-dash-muted">
@@ -148,7 +153,7 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
               hours; check back later.
             </p>
           ) : (
-            <ul className="mt-4 divide-y divide-dash-border">
+            <ul className="market-news-list">
               {news.articles.map((article) => (
                 <li key={article.url} className="py-3">
                   <a
@@ -240,12 +245,13 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
                       </p>
                     )}
                     {explanation.answer && (
-                      <p className="mt-1 text-sm leading-6 text-dash-text">
-                        {explanation.answer}
-                      </p>
+                      <AnalysisText text={explanation.answer} />
                     )}
                     {explanation.claims.length > 0 && (
-                      <div className="mt-4">
+                      <details className="mt-4">
+                        <summary className="cursor-pointer text-sm font-medium">
+                          View supporting sources ({explanation.claims.length})
+                        </summary>
                         <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
                           Sources
                         </h4>
@@ -266,7 +272,7 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
                             </li>
                           ))}
                         </ul>
-                      </div>
+                      </details>
                     )}
                   </div>
                 )}

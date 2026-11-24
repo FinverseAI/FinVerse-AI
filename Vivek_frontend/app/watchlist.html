@@ -33,7 +33,7 @@
           <div class="card-head">
             <div>
               <h2 id="watch-heading">Watched stocks</h2>
-              <p id="watch-count">5 stocks on your watchlist.</p>
+              <p id="watch-count"></p>
             </div>
             <a class="card-link" href="market.html">Browse the market →</a>
           </div>
@@ -74,7 +74,7 @@
       <form id="add-watch-form">
         <div class="field">
           <label for="watch-symbol">Stock</label>
-          <select id="watch-symbol" name="symbol" required></select>
+          <input id="watch-symbol" name="symbol" type="text" required>
           <p class="hint">Only stocks not already on your watchlist are listed.</p>
         </div>
         <div class="field">

@@ -14,6 +14,12 @@
   }
 
   function renderStats() {
+    if (!FV_DATA.NEWS.length) {
+      ["stat-positive", "stat-neutral", "stat-negative", "stat-avg"].forEach(function (id) {
+        document.getElementById(id).textContent = "";
+      });
+      return;
+    }
     var counts = { positive: 0, neutral: 0, negative: 0 };
     var total = 0;
     FV_DATA.NEWS.forEach(function (n) {

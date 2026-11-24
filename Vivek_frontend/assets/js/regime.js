@@ -17,6 +17,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var r = FV_DATA.REGIME;
+    if (!r) return;
 
     document.getElementById("regime-current").textContent = r.current;
     document.getElementById("regime-badge").textContent = r.current;

@@ -24,6 +24,12 @@ export class RagController {
     return this.rag.newsForSymbol(symbol);
   }
 
+  @Get('screen')
+  @Header('Cache-Control', 'private, no-store')
+  marketSnapshot(@Req() request: AuthenticatedRequest) {
+    return this.rag.marketSnapshot(request.userId);
+  }
+
   @Post('screen')
   @HttpCode(200)
   @Header('Cache-Control', 'private, no-store')

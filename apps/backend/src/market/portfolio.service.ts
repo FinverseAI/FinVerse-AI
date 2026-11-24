@@ -7,7 +7,11 @@ import { Prisma } from '@prisma/client';
 import type { UserHolding, WatchlistItem } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MarketService } from './market.service';
-import { validateHolding, validateWatchlistItem } from './market.validation';
+import {
+  validateHolding,
+  validateWatchlistItem,
+  validateWatchSettings,
+} from './market.validation';
 
 /**
  * All portfolio money is computed in integer paise. Quantities carry up to
@@ -145,6 +149,16 @@ export class PortfolioService {
     }
   }
 
+  async updateWatchSettings(userId: string, id: string, input: unknown) {
+    const result = await this.prisma.watchlistItem.updateMany({
+      where: { id, user_id: userId },
+      data: validateWatchSettings(input),
+    });
+    if (!result.count)
+      throw new NotFoundException('This watchlist item no longer exists.');
+    return { updated: true };
+  }
+
   async removeWatchlistItem(userId: string, id: string) {
     const result = await this.prisma.watchlistItem.deleteMany({
       where: { id, user_id: userId },
@@ -185,6 +199,24 @@ export class PortfolioService {
       holdings.map((holding) => holding.symbol),
     );
     const bySymbol = new Map(quotes.map((quote) => [quote.symbol, quote]));
+    const sectorsBySymbol = new Map<string, string>();
+    await Promise.all(
+      holdings.map(async (holding) => {
+        const quote = bySymbol.get(holding.symbol);
+        if (
+          holding.sector ||
+          !quote ||
+          quote.currency !== 'INR' ||
+          quote.sector
+        )
+          return;
+        const profile = await this.market
+          .profile(holding.symbol)
+          .catch(() => null);
+        const sector = profile?.fundamentals?.sector;
+        if (sector) sectorsBySymbol.set(holding.symbol, sector);
+      }),
+    );
     let totalValuePaise = 0;
     let totalInvestedPaise = 0;
     let stale = false;
@@ -194,7 +226,10 @@ export class PortfolioService {
       const buyPrice = Number(holding.buy_price);
       const investedPaise = valuePaise(quantity, buyPrice);
       const quote = bySymbol.get(holding.symbol);
-      if (!quote) {
+      // Holding costs are entered in INR. A foreign quote cannot value them
+      // until an INR conversion is available.
+      if (quote && quote.currency !== 'INR') unavailable.push(holding.symbol);
+      if (!quote || quote.currency !== 'INR') {
         return {
           ...holdingResponse(holding),
           currentPrice: null,
@@ -223,7 +258,11 @@ export class PortfolioService {
         gainLoss: gainPaise / 100,
         gainLossPercent:
           investedPaise === 0 ? 0 : round2((gainPaise / investedPaise) * 100),
-        sector: holding.sector ?? quote.sector ?? 'Unknown',
+        sector:
+          holding.sector ??
+          quote.sector ??
+          sectorsBySymbol.get(holding.symbol) ??
+          'Unknown',
         fetchedAt: quote.fetchedAt,
         stale: quote.stale,
         priced: true,

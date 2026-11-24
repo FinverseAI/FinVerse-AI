@@ -111,6 +111,20 @@ This verifies activity persistence and account isolation inside a rolled-back tr
 
 The health route reports process liveness, not database readiness. Before public launch, configure backups and restore testing, monitoring, request throttling at the ingress, and a privacy/deletion policy. Transactions and bill lists currently load all records; add pagination when real account sizes warrant it. Concurrent profile edits use last-write-wins semantics.
 
+### Render deployment
+
+Create separate Node web services for the backend and frontend. For both services, leave **Root Directory** empty so npm runs from the repository root and can resolve the workspaces.
+
+| Render setting | Backend service | Frontend service |
+| --- | --- | --- |
+| Build Command | `npm ci --include=dev && npm run db:generate --workspace backend && npm run db:migrate --workspace backend && npm run build --workspace backend` | `npm ci --include=dev && npm run db:generate --workspace backend && npm run build --workspace web` |
+| Start Command | `npm run start:prod --workspace backend` | `npm run start --workspace web -- --hostname 0.0.0.0` |
+| Health Check Path | `/api/health` | `/` |
+
+Set each service's environment variables from the Environment table above in Render. Use the frontend's public HTTPS origin for `BETTER_AUTH_URL` on both services, and the backend's reachable URL for `BACKEND_URL` on the frontend. Both services need the same database; the backend migration command also needs `DIRECT_URL`. Supply the frontend auth secret before building. Let Render supply `PORT`.
+
+If deployment reports **Could not find a production build in the '.next' directory**, compare the Build Command and Start Command in **Settings → Build & Deploy**. Building only `backend` and then starting `web` produces this error. For that backend service, keep the backend Build Command above and change Start Command to `npm run start:prod --workspace backend`, then redeploy. For a frontend service, use the frontend command pair so `next build` creates `.next` before `next start`. Changes to this README do not update existing Render dashboard settings.
+
 ## Design and review
 
 Design tokens live in `apps/web/app/globals.css`. Coral is the primary accent; warning/error colors are semantic. Glass is limited to cards, navigation, and dialogs, with opaque defaults and reduced-motion support.

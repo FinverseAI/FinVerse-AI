@@ -22,32 +22,13 @@ import { ScreenFiltersSchema, type ScreenFilters } from './rag.validation';
  * these features live in the AI service (commit 6), which reads the
  * same data.
  *
- * The screener's universe is the user's holdings + watchlist plus a
- * curated list of liquid NIFTY names; the caller may also pass an
+ * The screener's universe is the user's holdings + watchlist plus symbols
+ * currently returned by the market-data provider; the caller may also pass an
  * explicit symbol list. Quotes and history come from the market
  * service's Postgres cache when fresh, so a repeat screen is mostly
  * cached reads; live fetches are batched 5 at a time so Yahoo is not
  * hammered with 20 concurrent requests.
  */
-
-/** Liquid NIFTY names screened when the caller gives no universe. */
-export const DEFAULT_SCREENER_UNIVERSE = [
-  'RELIANCE.NS',
-  'HDFCBANK.NS',
-  'ICICIBANK.NS',
-  'INFY.NS',
-  'TCS.NS',
-  'SBIN.NS',
-  'ITC.NS',
-  'HINDUNILVR.NS',
-  'LT.NS',
-  'BHARTIARTL.NS',
-  'KOTAKBANK.NS',
-  'AXISBANK.NS',
-  'MARUTI.NS',
-  'TITAN.NS',
-  'SUNPHARMA.NS',
-] as const;
 
 const SCREENER_BATCH_SIZE = 5;
 const NEWS_LIST_LIMIT = 10;
@@ -83,6 +64,10 @@ export interface ScreenedStock {
   sma20: number | null;
   sma50: number | null;
   change1moPercent: number | null;
+  fiftyTwoWeekHigh?: number | null;
+  fiftyTwoWeekLow?: number | null;
+  fetchedAt?: string | null;
+  currency?: string;
   stale: boolean;
 }
 
@@ -176,13 +161,14 @@ export class RagService {
     };
   }
 
-  /** The screener universe: holdings + watchlist + the curated list. */
+  /** The screener universe: holdings + watchlist + provider-reported active Indian equities. */
   async screenerUniverse(userId: string): Promise<string[]> {
-    const [holdings, watchlist] = await Promise.all([
+    const [active, holdings, watchlist] = await Promise.all([
+      this.market.activeIndianSymbols().catch(() => []),
       this.portfolio.holdings(userId).catch(() => []),
       this.portfolio.watchlist(userId).catch(() => []),
     ]);
-    const symbols = new Set<string>(DEFAULT_SCREENER_UNIVERSE);
+    const symbols = new Set<string>(active);
     for (const holding of holdings) symbols.add(holding.symbol);
     for (const item of watchlist) symbols.add(item.symbol);
     return [...symbols];
@@ -202,6 +188,21 @@ export class RagService {
       filters.symbols && filters.symbols.length > 0
         ? [...new Set(filters.symbols.map((symbol) => normalizeSymbol(symbol)))]
         : await this.screenerUniverse(userId);
+    const snapshot = await this.snapshot(universe);
+    return {
+      ...snapshot,
+      filters,
+      matches: snapshot.matches
+        .filter((stock) => passesFilters(stock, filters))
+        .slice(0, filters.limit ?? 20),
+    };
+  }
+
+  async marketSnapshot(userId: string) {
+    return this.snapshot(await this.screenerUniverse(userId));
+  }
+
+  private async snapshot(universe: string[]): Promise<ScreenResponse> {
     const evaluated = await mapInBatches(
       universe,
       SCREENER_BATCH_SIZE,
@@ -214,16 +215,13 @@ export class RagService {
       if (result === null) unavailable.push(universe[index]);
       else candidates.push(result);
     });
-    const matches = candidates
-      .filter((stock) => passesFilters(stock, filters))
-      .sort((a, b) => {
-        const aChange = a.change1moPercent ?? Number.NEGATIVE_INFINITY;
-        const bChange = b.change1moPercent ?? Number.NEGATIVE_INFINITY;
-        return bChange - aChange || a.symbol.localeCompare(b.symbol);
-      })
-      .slice(0, filters.limit ?? 20);
+    const matches = candidates.sort((a, b) => {
+      const aChange = a.change1moPercent ?? Number.NEGATIVE_INFINITY;
+      const bChange = b.change1moPercent ?? Number.NEGATIVE_INFINITY;
+      return bChange - aChange || a.symbol.localeCompare(b.symbol);
+    });
     return {
-      filters,
+      filters: {},
       universe,
       matches,
       unavailable,
@@ -234,16 +232,16 @@ export class RagService {
   /** One symbol's metrics, or null when neither price nor history loads. */
   private async evaluateSymbol(symbol: string): Promise<ScreenedStock | null> {
     let profile: Awaited<ReturnType<MarketService['profile']>>;
-    let history: Awaited<ReturnType<MarketService['history']>>;
+    let history: Awaited<ReturnType<MarketService['history']>> | null;
     try {
       [profile, history] = await Promise.all([
         this.market.profile(symbol),
-        this.market.history(symbol, '3mo'),
+        this.market.history(symbol, '3mo').catch(() => null),
       ]);
     } catch {
       return null;
     }
-    const closes = history.bars.map((bar) => bar.close);
+    const closes = history?.bars.map((bar) => bar.close) ?? [];
     const rsiValues = closes.length > 1 ? rsi(closes) : [];
     const sma20Values = closes.length > 1 ? sma(closes, 20) : [];
     const sma50Values = closes.length > 1 ? sma(closes, 50) : [];
@@ -252,7 +250,7 @@ export class RagService {
     const latestSma50 = last(sma50Values);
     const latest = closes[closes.length - 1];
     const monthAgo =
-      closes.length > 21 ? closes[closes.length - 22] : closes[0];
+      closes.length > 21 ? closes[closes.length - 22] : undefined;
     const fundamentals = profile.fundamentals;
     return {
       symbol,
@@ -269,7 +267,11 @@ export class RagService {
         monthAgo !== undefined && latest !== undefined && monthAgo !== 0
           ? round2(((latest - monthAgo) / monthAgo) * 100)
           : null,
-      stale: profile.stale || history.stale,
+      fiftyTwoWeekHigh: fundamentals?.fiftyTwoWeekHigh ?? null,
+      fiftyTwoWeekLow: fundamentals?.fiftyTwoWeekLow ?? null,
+      fetchedAt: profile.fetchedAt,
+      currency: profile.currency,
+      stale: profile.stale || (history?.stale ?? false),
     };
   }
 }
@@ -281,6 +283,17 @@ export class RagService {
  */
 function passesFilters(stock: ScreenedStock, filters: ScreenFilters): boolean {
   const { price, marketCap, trailingPE, rsi14, change1moPercent } = stock;
+  if (
+    stock.currency &&
+    stock.currency !== 'INR' &&
+    [
+      filters.minPrice,
+      filters.maxPrice,
+      filters.minMarketCapCr,
+      filters.maxMarketCapCr,
+    ].some((bound) => bound !== undefined)
+  )
+    return false;
   if (
     filters.minPrice !== undefined &&
     (price === null || price < filters.minPrice)

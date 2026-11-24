@@ -1,18 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { StockTable } from "./market-board";
 import { aiRequest } from "../../(module-one)/dashboard/ai-chat";
 import {
   activityError,
   ActivityApiError,
 } from "../../(module-one)/dashboard/use-activity";
 import { PanelHeading } from "../../(module-one)/dashboard/ui";
-import {
-  formatFetchedAt,
-  formatPercent,
-  formatPrice,
-} from "../../../lib/market";
+import { formatFetchedAt } from "../../../lib/market";
 import {
   claimToolLabel,
   formatClaimValues,
@@ -22,10 +18,9 @@ import {
 import {
   buildScreenFilters,
   EMPTY_SCREENER_FORM,
-  formatMarketCapCrore,
+  filterSnapshot,
   isScreenResponse,
   TREND_OPTIONS,
-  type ScreenedStock,
   type ScreenResponse,
   type ScreenerFormState,
 } from "../../../lib/rag";
@@ -41,35 +36,37 @@ import {
 const NUMBER_FIELDS: Array<{
   key: Exclude<keyof ScreenerFormState, "trend" | "sector">;
   label: string;
-  placeholder: string;
 }> = [
-  { key: "minPrice", label: "Min price (₹)", placeholder: "e.g. 500" },
-  { key: "maxPrice", label: "Max price (₹)", placeholder: "e.g. 5,000" },
+  { key: "minPrice", label: "Min price (₹)" },
+  { key: "maxPrice", label: "Max price (₹)" },
   {
-    key: "minMarketCapCrore",
+    key: "minMarketCapCr",
     label: "Min market cap (₹ crore)",
-    placeholder: "e.g. 100,000",
   },
   {
-    key: "maxMarketCapCrore",
+    key: "maxMarketCapCr",
     label: "Max market cap (₹ crore)",
-    placeholder: "e.g. 10,00,000",
   },
-  { key: "minRsi", label: "Min RSI (0–100)", placeholder: "e.g. 30" },
-  { key: "maxRsi", label: "Max RSI (0–100)", placeholder: "e.g. 70" },
-  { key: "minPe", label: "Min P/E", placeholder: "e.g. 10" },
-  { key: "maxPe", label: "Max P/E", placeholder: "e.g. 30" },
+  { key: "minRsi", label: "Min RSI (0–100)" },
+  { key: "maxRsi", label: "Max RSI (0–100)" },
+  { key: "minPe", label: "Min P/E" },
+  { key: "maxPe", label: "Max P/E" },
   {
     key: "minChange1mo",
     label: "Min 1-month change (%)",
-    placeholder: "e.g. 0",
   },
   {
     key: "maxChange1mo",
     label: "Max 1-month change (%)",
-    placeholder: "e.g. 20",
   },
 ];
+
+const advancedFields = new Set([
+  "minPe",
+  "maxMarketCapCr",
+  "minChange1mo",
+  "maxChange1mo",
+]);
 
 const NL_SUGGESTIONS = [
   "Overbought stocks",
@@ -82,88 +79,21 @@ function ScreenTable({ screen }: { screen: ScreenResponse }) {
     <div>
       <p className="text-sm text-dash-muted">
         {screen.matches.length} of {screen.universe.length} stocks matched ·
-        evaluated {formatFetchedAt(screen.evaluatedAt)}
+        checked {formatFetchedAt(screen.evaluatedAt)}
       </p>
       {screen.matches.length === 0 ? (
         <p className="mt-4 text-sm text-dash-muted">
-          No stocks matched these filters. Loosen a bound or two and try again.
+          {screen.unavailable.length === screen.universe.length &&
+          screen.universe.length > 0
+            ? "Stock quotes are unavailable for this screen."
+            : "No stocks match these rules. Adjust a filter to broaden the results."}
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
-            <thead>
-              <tr className="border-b border-dash-border text-left text-xs text-dash-muted">
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Stock
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Price
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  RSI
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  P/E
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  1-month
-                </th>
-                <th scope="col" className="py-2 font-medium">
-                  Market cap
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-dash-border">
-              {screen.matches.map((stock: ScreenedStock) => (
-                <tr key={stock.symbol}>
-                  <td className="py-3 pr-4">
-                    <Link
-                      href={`/market/stock/${encodeURIComponent(stock.symbol)}`}
-                      className="font-medium text-dash-text hover:text-dash-accent"
-                    >
-                      {stock.name}
-                    </Link>
-                    <p className="mt-0.5 font-mono text-xs text-dash-muted">
-                      {stock.symbol}
-                      {stock.sector ? ` · ${stock.sector}` : ""}
-                    </p>
-                  </td>
-                  <td className="py-3 pr-4 font-mono">
-                    {stock.price !== null
-                      ? formatPrice(stock.price, "INR")
-                      : "—"}
-                    {stock.stale && stock.price !== null && (
-                      <span className="block font-sans text-xs text-dash-warning">
-                        last known
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 font-mono">
-                    {stock.rsi14 !== null ? stock.rsi14.toFixed(1) : "—"}
-                  </td>
-                  <td className="py-3 pr-4 font-mono">
-                    {stock.trailingPE !== null
-                      ? stock.trailingPE.toFixed(2)
-                      : "—"}
-                  </td>
-                  <td className="py-3 pr-4 font-mono">
-                    {stock.change1moPercent !== null
-                      ? formatPercent(stock.change1moPercent)
-                      : "—"}
-                  </td>
-                  <td className="py-3 font-mono">
-                    {formatMarketCapCrore(stock.marketCap)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <StockTable stocks={screen.matches} screening />
       )}
       {screen.unavailable.length > 0 && (
         <p className="mt-4 text-xs text-dash-muted">
-          Could not fetch data for {screen.unavailable.join(", ")} — those
-          stocks were left out of the screen rather than guessed.
+          Quotes unavailable for {screen.unavailable.join(", ")}.
         </p>
       )}
     </div>
@@ -180,7 +110,15 @@ function screenErrorMessage(error: unknown): string {
   return activityError(error);
 }
 
-export function ScreenerSection() {
+export function ScreenerSection({
+  snapshot,
+  snapshotError,
+  onRetry,
+}: {
+  snapshot: ScreenResponse | null;
+  snapshotError: string;
+  onRetry: () => void;
+}) {
   const [mode, setMode] = useState<"filters" | "nl">("filters");
   const [form, setForm] = useState<ScreenerFormState>(EMPTY_SCREENER_FORM);
   const [query, setQuery] = useState("");
@@ -193,28 +131,65 @@ export function ScreenerSection() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  async function runFilters() {
-    if (loading) return;
-    setError("");
+  function numericField(field: (typeof NUMBER_FIELDS)[number]) {
+    return (
+      <label key={field.key}>
+        {field.label}
+        <input
+          className="dash-input"
+          value={form[field.key]}
+          type="number"
+          step="any"
+          onChange={(event) => setField(field.key, event.target.value)}
+          placeholder="Any"
+        />
+      </label>
+    );
+  }
+
+  const filters = buildScreenFilters(form);
+  const manual = snapshot ? filterSnapshot(snapshot, filters) : null;
+  const sectors = [
+    ...new Set(
+      snapshot?.matches.flatMap((stock) =>
+        stock.sector ? [stock.sector] : [],
+      ) ?? [],
+    ),
+  ].sort();
+  const invalid =
+    [
+      [filters.minPrice, filters.maxPrice],
+      [filters.minMarketCapCr, filters.maxMarketCapCr],
+      [filters.minRsi, filters.maxRsi],
+      [filters.minPe, filters.maxPe],
+      [filters.minChange1mo, filters.maxChange1mo],
+    ].some(
+      ([min, max]) => min !== undefined && max !== undefined && min > max,
+    ) ||
+    [filters.minRsi, filters.maxRsi].some(
+      (value) => value !== undefined && (value < 0 || value > 100),
+    ) ||
+    [
+      filters.minPrice,
+      filters.maxPrice,
+      filters.minMarketCapCr,
+      filters.maxMarketCapCr,
+      filters.minPe,
+      filters.maxPe,
+    ].some((value) => value !== undefined && value < 0) ||
+    [filters.minChange1mo, filters.maxChange1mo].some(
+      (value) => value !== undefined && (value < -100 || value > 1000),
+    ) ||
+    (filters.limit !== undefined &&
+      (!Number.isInteger(filters.limit) ||
+        filters.limit < 1 ||
+        filters.limit > 50));
+  function reset() {
+    setForm(EMPTY_SCREENER_FORM);
+    setQuery("");
     setScreen(null);
     setAiResponse(null);
-    setLoading(true);
-    try {
-      const data = await aiRequest<unknown>(
-        "/api/rag/screen",
-        buildScreenFilters(form),
-      );
-      if (!isScreenResponse(data)) {
-        throw new Error(
-          "The screener returned an unexpected response. Please try again.",
-        );
-      }
-      setScreen(data);
-    } catch (caught: unknown) {
-      setError(screenErrorMessage(caught));
-    } finally {
-      setLoading(false);
-    }
+    setError("");
   }
 
   async function runQuery(queryText: string) {
@@ -262,7 +237,7 @@ export function ScreenerSection() {
       aria-busy={loading}
       className="dash-panel scroll-mt-24"
     >
-      <PanelHeading icon="filter" title="Smart stock screener">
+      <PanelHeading icon="filter" title="Screening rules">
         <div
           className="surface-inset flex gap-1 rounded-full border p-1"
           role="group"
@@ -293,50 +268,33 @@ export function ScreenerSection() {
         </div>
       </PanelHeading>
       <p className="mt-3 text-sm leading-6 text-dash-muted">
-        Screen your holdings, your watchlist and 15 large NIFTY names by price,
-        market cap, RSI, P/E, momentum and trend. Every filter is computed from
-        stored prices — a stock with a missing number never passes a filter that
-        constrains it.
+        Screen active Indian equities plus the symbols in your portfolio and
+        watchlist.
       </p>
 
       {mode === "filters" ? (
-        <form
-          className="mt-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void runFilters();
-          }}
-        >
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {NUMBER_FIELDS.map((field) => (
-              <div key={field.key}>
-                <label
-                  htmlFor={`screen-${field.key}`}
-                  className="text-sm font-medium text-dash-text"
-                >
-                  {field.label}
-                </label>
-                <input
-                  id={`screen-${field.key}`}
-                  className="dash-input mt-1.5 w-full"
-                  value={form[field.key]}
-                  onChange={(event) => setField(field.key, event.target.value)}
-                  placeholder={field.placeholder}
-                  inputMode="decimal"
-                  autoComplete="off"
-                />
-              </div>
-            ))}
-            <div>
-              <label
-                htmlFor="screen-trend"
-                className="text-sm font-medium text-dash-text"
-              >
-                Trend
-              </label>
+        <div className="mt-4">
+          <div className="screen-fields">
+            {NUMBER_FIELDS.filter(
+              (field) => !advancedFields.has(field.key),
+            ).map(numericField)}
+            <label>
+              Sector
               <select
-                id="screen-trend"
-                className="dash-input mt-1.5 w-full"
+                className="dash-input"
+                value={form.sector}
+                onChange={(event) => setField("sector", event.target.value)}
+              >
+                <option value="">All sectors</option>
+                {sectors.map((sector) => (
+                  <option key={sector}>{sector}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Moving-average trend
+              <select
+                className="dash-input"
                 value={form.trend}
                 onChange={(event) => setField("trend", event.target.value)}
               >
@@ -347,54 +305,44 @@ export function ScreenerSection() {
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label
-                htmlFor="screen-sector"
-                className="text-sm font-medium text-dash-text"
-              >
-                Sector
-              </label>
-              <input
-                id="screen-sector"
-                className="dash-input mt-1.5 w-full"
-                value={form.sector}
-                onChange={(event) => setField("sector", event.target.value)}
-                placeholder="e.g. Energy"
-                autoComplete="off"
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="screen-limit"
-                className="text-sm font-medium text-dash-text"
-              >
-                Max results
-              </label>
-              <input
-                id="screen-limit"
-                className="dash-input mt-1.5 w-full"
-                value={form.limit}
-                onChange={(event) => setField("limit", event.target.value)}
-                placeholder="10"
-                inputMode="numeric"
-                autoComplete="off"
-              />
-            </div>
+            </label>
           </div>
-          <p className="mt-3 text-xs text-dash-muted">
-            Leave everything blank to list the whole universe. A bound outside
-            its range (RSI above 100, a negative price) is rejected, not
-            silently clamped.
-          </p>
+          <details className="advanced-screen mt-4">
+            <summary>Additional rules</summary>
+            <div className="screen-fields mt-4">
+              {NUMBER_FIELDS.filter((field) =>
+                advancedFields.has(field.key),
+              ).map(numericField)}
+              <label>
+                Maximum results
+                <input
+                  className="dash-input"
+                  type="number"
+                  min="1"
+                  max="50"
+                  step="1"
+                  placeholder="All"
+                  value={form.limit}
+                  onChange={(event) => setField("limit", event.target.value)}
+                />
+              </label>
+            </div>
+          </details>
+          {invalid && (
+            <p className="market-negative mt-3" role="alert">
+              Check your bounds. RSI ranges from 0 to 100 and result limits from
+              1 to 50. Minimums must be at or below maximums.
+            </p>
+          )}
           <button
-            type="submit"
-            className="dash-small-button mt-3"
+            type="button"
+            className="dash-small-button mt-4"
+            onClick={reset}
             disabled={loading}
           >
-            {loading ? "Screening…" : "Run screen"}
+            Reset filters
           </button>
-        </form>
+        </div>
       ) : (
         <form
           className="mt-4"
@@ -450,18 +398,19 @@ export function ScreenerSection() {
         </form>
       )}
 
-      <div className="mt-5" aria-live="polite">
-        {loading && (
+      <div className="screen-results" aria-live="polite">
+        <h3>Results</h3>
+        {loading && mode === "nl" && (
           <p role="status" className="text-sm text-dash-muted">
             Screening stocks…
           </p>
         )}
-        {error && (
+        {mode === "nl" && error && (
           <p role="alert" className="text-sm text-red-500">
             {error}
           </p>
         )}
-        {aiResponse && !loading && (
+        {mode === "nl" && aiResponse && !loading && (
           <div className="mb-5 space-y-4">
             {note && (
               <p
@@ -520,7 +469,26 @@ export function ScreenerSection() {
             </p>
           </div>
         )}
-        {screen && !loading && <ScreenTable screen={screen} />}
+        {mode === "nl" && screen && !loading && <ScreenTable screen={screen} />}
+        {mode === "filters" &&
+          !invalid &&
+          (manual ? (
+            <ScreenTable screen={manual} />
+          ) : (
+            !snapshotError && (
+              <p role="status" className="desk-muted">
+                Loading the stock universe…
+              </p>
+            )
+          ))}
+        {mode === "filters" && snapshotError && (
+          <p role="alert" className="desk-muted">
+            {snapshotError}{" "}
+            <button className="desk-link" onClick={onRetry}>
+              Retry
+            </button>
+          </p>
+        )}
       </div>
     </section>
   );

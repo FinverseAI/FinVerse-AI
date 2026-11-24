@@ -20,17 +20,13 @@
         <div class="page-head">
           <div>
             <div class="title-row">
-              <h1 id="stock-name">Reliance Industries</h1>
-              <span class="chip" id="stock-sector">Energy</span>
+              <h1 id="stock-name"></h1>
+              <span class="chip" id="stock-sector"></span>
             </div>
-            <p class="lede"><a href="market.html">← Back to Market</a> · <span id="stock-symbol-line">NSE: RELIANCE</span></p>
+            <p class="lede"><a href="market.html">← Back to Market</a> · <span id="stock-symbol-line"></span></p>
           </div>
           <div class="page-head-actions">
             <div class="pill-switch" id="stock-switch" role="group" aria-label="Quick switch stock">
-              <button type="button" data-symbol="RELIANCE" class="active">RELIANCE</button>
-              <button type="button" data-symbol="TCS">TCS</button>
-              <button type="button" data-symbol="INFY">INFY</button>
-              <button type="button" data-symbol="HDFCBANK">HDFCBANK</button>
             </div>
             <label class="sr-only" for="stock-select">Choose a stock</label>
             <select id="stock-select" style="width:auto;min-width:190px"></select>
@@ -40,16 +36,16 @@
         <div class="grid grid-3" style="margin-bottom:1.25rem">
           <div class="stat-card">
             <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
-            <div><div class="stat-label">Current price</div><div class="stat-value" id="stock-price">₹2,987.40</div><div class="stat-sub" id="stock-price-sub">NSE · 21 Nov 2026</div></div>
+            <div><div class="stat-label">Current price</div><div class="stat-value" id="stock-price"></div><div class="stat-sub" id="stock-price-sub"></div></div>
           </div>
           <div class="stat-card">
             <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg></div>
-            <div><div class="stat-label">Today's change</div><div class="stat-value"><span class="badge badge-up" id="stock-change-badge">+1.84%</span></div><div class="stat-sub" id="stock-trend-sub">Above SMA-20</div></div>
+            <div><div class="stat-label">Today's change</div><div class="stat-value"><span class="badge" id="stock-change-badge"></span></div><div class="stat-sub" id="stock-trend-sub"></div></div>
           </div>
           <div class="stat-card">
             <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 14a8 8 0 1 1 16 0"/><path d="M12 14l4-4"/><path d="M4 18h16"/></svg></div>
             <div style="flex:1;min-width:0"><div class="stat-label">52-week range</div>
-              <div class="stat-value" id="stock-range-text" style="font-size:1.05rem;margin:0.3rem 0 0.5rem">₹2,440.15 – ₹3,210.00</div>
+              <div class="stat-value" id="stock-range-text" style="font-size:1.05rem;margin:0.3rem 0 0.5rem"></div>
               <div class="progress"><i id="stock-range-bar" style="width:50%"></i></div>
               <div class="progress-labels"><span id="stock-range-low">52w low</span><span id="stock-range-pos">Price sits mid-range</span><span id="stock-range-high">52w high</span></div>
             </div>
@@ -58,8 +54,8 @@
 
         <div class="toolbar" style="margin-bottom:1.25rem">
           <button class="btn btn-primary" type="button" id="add-watchlist-btn">+ Add to watchlist</button>
-          <a class="btn btn-outline" id="why-moved-link" href="why-moved.html?symbol=RELIANCE">Why did it move? →</a>
-          <a class="btn btn-outline" id="ask-ai-link" href="ai-chat.html?stock=RELIANCE">Ask AI about this stock →</a>
+          <a class="btn btn-outline" id="why-moved-link" href="why-moved.html">Why did it move? →</a>
+          <a class="btn btn-outline" id="ask-ai-link" href="ai-chat.html">Ask AI about this stock →</a>
         </div>
 
         <section class="card" aria-labelledby="price-heading" style="margin-bottom:1.25rem">

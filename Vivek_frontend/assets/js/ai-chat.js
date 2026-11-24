@@ -9,23 +9,7 @@
   var input = null;
   var mode = "ask";
 
-  var NAME_TO_SYMBOL = {
-    reliance: "RELIANCE", "reliance industries": "RELIANCE",
-    tcs: "TCS", "tata consultancy": "TCS",
-    hdfc: "HDFCBANK", hdfcbank: "HDFCBANK", "hdfc bank": "HDFCBANK",
-    infosys: "INFY", infy: "INFY",
-    icici: "ICICIBANK", icicibank: "ICICIBANK", "icici bank": "ICICIBANK",
-    hul: "HINDUNILVR", hindunilvr: "HINDUNILVR", "hindustan unilever": "HINDUNILVR", unilever: "HINDUNILVR",
-    sbi: "SBIN", sbin: "SBIN", "state bank": "SBIN",
-    airtel: "BHARTIARTL", bhartiartl: "BHARTIARTL", "bharti airtel": "BHARTIARTL",
-    itc: "ITC",
-    kotak: "KOTAKBANK", kotakbank: "KOTAKBANK",
-    "l&t": "LT", lt: "LT", "larsen": "LT",
-    "tata motors": "TATAMOTORS", tatamotors: "TATAMOTORS",
-    sunpharma: "SUNPHARMA", "sun pharma": "SUNPHARMA",
-    maruti: "MARUTI", "maruti suzuki": "MARUTI",
-    titan: "TITAN",
-  };
+  var NAME_TO_SYMBOL = {};
 
   function findStock(text) {
     var lower = text.toLowerCase();
@@ -34,7 +18,7 @@
       if (lower.indexOf(key) !== -1) found = NAME_TO_SYMBOL[key];
     });
     if (found) return FV_DATA.stockBySymbol(found);
-    /* Bare symbol match, e.g. "RELIANCE" in any case. */
+    /* Match any symbols supplied by the active data source. */
     var upper = text.toUpperCase();
     return FV_DATA.STOCKS.find(function (s) {
       return upper.indexOf(s.symbol) !== -1;
@@ -168,14 +152,14 @@
       html: "<p>I can answer from your own data. Try asking about:</p>" +
         "<ul style=\"margin:0 0 0.6rem;padding-left:1.2rem\">" +
         "<li>Your <strong>budget</strong> — “How is my budget this month?”</li>" +
-        "<li>A <strong>stock</strong> — “Is INFY a good buy right now?”</li>" +
+        "<li>A <strong>stock</strong> — “What does this stock's RSI mean?”</li>" +
         "<li>Your <strong>readiness to invest</strong> — “Am I ready to invest?”</li>" +
         "<li><strong>Bills due soon</strong> or your <strong>goals</strong></li></ul>" +
         "<p>For stocks that pass your filters, the <a href=\"screener.html\">Smart Screener</a> is the fastest way to compare them.</p>",
       citations: [
         "Budget ledger — November 2026",
         "Market data — 15 NSE stocks",
-        "Readiness score — 72/100",
+        "Readiness score",
       ],
       link: "screener.html",
       linkLabel: "Open the Smart Screener →",
@@ -190,7 +174,7 @@
     if (/(goal|emergency fund|japan|laptop|trip)/.test(q)) return goalsAnswer();
     if (/(screener|rsi|screen|filter)/.test(q)) {
       var a = fallbackAnswer();
-      a.html = "<p>The <a href=\"screener.html\">Smart Screener</a> scans all 15 NSE stocks on RSI, P/E, trend and more — for example, TATAMOTORS has the highest RSI at 71.8 (overbought) and HINDUNILVR the lowest at 38.6. Open the screener, set your RSI range, and it lists every stock that passes.</p>" + a.html;
+      a.html = "<p>The <a href=\"screener.html\">Smart Screener</a> filters connected stock data by RSI, P/E, trend and more.</p>" + a.html;
       return a;
     }
     var stock = findStock(question);
@@ -331,11 +315,11 @@
 
     /* Welcome message */
     addAiMessage({
-      html: "<p>Hello, Vivek. I can explain your money in plain words — your November budget, any of the 15 stocks we track, your bills, goals and readiness to invest.</p><p>Pick a suggestion below, or ask anything in your own words.</p>",
+      html: "<p>Hello. I can explain connected financial and market data in plain words.</p>",
       citations: [
         "Budget ledger — November 2026",
         "Market data — 15 NSE stocks",
-        "Readiness score — 72/100",
+        "Readiness score",
       ],
       link: "dashboard.html",
       linkLabel: "Back to your dashboard →",

@@ -6,6 +6,12 @@
   "use strict";
 
   var OPT = FV_DATA.OPTIMIZER;
+  if (!OPT) {
+    document.addEventListener("DOMContentLoaded", function () {
+      document.getElementById("apply-optimal").disabled = true;
+    });
+    return;
+  }
   var allocation = OPT.allocation.map(function (a) {
     return { symbol: a.symbol, current: a.current, optimal: a.optimal };
   });
@@ -135,7 +141,7 @@
       var btn = document.getElementById("apply-optimal");
       btn.disabled = true;
       btn.textContent = "✓ Optimal allocation applied";
-      FV.toast("Optimal allocation applied — Sharpe improved to 1.86.");
+      FV.toast("Optimal allocation applied.");
     });
   }
 

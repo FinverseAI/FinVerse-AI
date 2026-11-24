@@ -91,6 +91,9 @@ describe('RagService', () => {
     };
     const ingest = { indexNews: jest.fn() };
     const market = {
+      activeIndianSymbols: jest
+        .fn()
+        .mockResolvedValue(['INFY.NS', 'RELIANCE.NS']),
       profile: jest.fn(async (symbol: string): Promise<unknown> =>
         profileFor(symbol),
       ),
@@ -197,7 +200,13 @@ describe('RagService', () => {
   });
 
   describe('screenerUniverse', () => {
-    it('merges holdings, watchlist and the curated list without duplicates', async () => {
+    it('leaves the universe empty when no symbols are available', async () => {
+      const { service, market } = makeService();
+      market.activeIndianSymbols.mockRejectedValue(new Error('offline'));
+      expect(await service.screenerUniverse('owner-1')).toEqual([]);
+    });
+
+    it('merges holdings, watchlist and provider symbols without duplicates', async () => {
       const { service, portfolio } = makeService();
       portfolio.holdings.mockResolvedValue([
         { symbol: 'RELIANCE.NS' },
@@ -215,12 +224,12 @@ describe('RagService', () => {
       expect(new Set(universe).size).toBe(universe.length);
     });
 
-    it('falls back to the curated list when portfolio reads fail', async () => {
+    it('falls back to provider symbols when portfolio reads fail', async () => {
       const { service, portfolio } = makeService();
       portfolio.holdings.mockRejectedValue(new Error('db down'));
       portfolio.watchlist.mockRejectedValue(new Error('db down'));
       const universe = await service.screenerUniverse('owner-1');
-      expect(universe.length).toBe(15);
+      expect(universe).toEqual(['INFY.NS', 'RELIANCE.NS']);
       expect(universe).toContain('RELIANCE.NS');
     });
   });

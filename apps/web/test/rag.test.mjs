@@ -3,6 +3,7 @@ import test from "node:test";
 import { claimToolLabel } from "../lib/ai.ts";
 import {
   buildScreenFilters,
+  filterSnapshot,
   EMPTY_SCREENER_FORM,
   formatMarketCapCrore,
   formatNewsDate,
@@ -68,7 +69,7 @@ test("formatNewsDate renders an ISO date and passes garbage through", () => {
 test("formatMarketCapCrore converts rupees to crore with Indian grouping", () => {
   assert.equal(formatMarketCapCrore(17_600_000_000_000), "₹17,60,000 crore");
   assert.equal(formatMarketCapCrore(500_000_000), "₹50 crore");
-  assert.equal(formatMarketCapCrore(null), "—");
+  assert.equal(formatMarketCapCrore(null), "");
 });
 
 test("sentimentTextClass maps each label to its colour", () => {
@@ -241,4 +242,28 @@ test("isScreenResponse rejects malformed responses", () => {
     false,
   );
   assert.equal(isScreenResponse({ ...validScreen, filters: [] }), false);
+});
+
+test("instant stock filters use crore units, actual trend data and available INR quotes", () => {
+  const usd = {
+    ...validScreen.matches[0],
+    symbol: "USD-STOCK",
+    currency: "USD",
+  };
+  const snapshot = { ...validScreen, matches: [...validScreen.matches, usd] };
+  const filters = buildScreenFilters({
+    ...EMPTY_SCREENER_FORM,
+    minMarketCapCr: "1700000",
+    maxPrice: "2600",
+    trend: "golden-cross",
+  });
+  assert.deepEqual(
+    filterSnapshot(snapshot, filters).matches.map((s) => s.symbol),
+    ["RELIANCE.NS"],
+  );
+  assert.equal(
+    filterSnapshot(snapshot, { minMarketCapCr: 2000000 }).matches.length,
+    0,
+  );
+  assert.equal(filterSnapshot(snapshot, {}).matches.length, 3);
 });

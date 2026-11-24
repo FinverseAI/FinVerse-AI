@@ -135,3 +135,19 @@ export function validateWatchlistItem(input: unknown) {
     name: optionalText(body.name, 120, 'company name'),
   };
 }
+
+export function validateWatchSettings(input: unknown) {
+  const body = record(input);
+  const note = optionalText(body.note, 500, 'watchlist note');
+  if (body.alertDirection == null && body.alertPrice == null) {
+    return { note, alert_direction: null, alert_price: null };
+  }
+  if (body.alertDirection !== 'above' && body.alertDirection !== 'below') {
+    throw new BadRequestException('Choose an above or below price alert.');
+  }
+  return {
+    note,
+    alert_direction: body.alertDirection,
+    alert_price: price(body.alertPrice),
+  };
+}

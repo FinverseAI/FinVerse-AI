@@ -26,6 +26,7 @@ describe('holdings, watchlist and portfolio summary', () => {
       deleteMany: jest.fn(),
     },
     watchlistItem: {
+      updateMany: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       deleteMany: jest.fn(),
@@ -316,6 +317,37 @@ describe('holdings, watchlist and portfolio summary', () => {
     expect(prisma.userHolding.deleteMany).toHaveBeenCalledWith({
       where: { id: 'holding-1', user_id: 'owner' },
     });
+  });
+
+  it('saves or clears watch settings for only the signed-in owner', async () => {
+    const save = (body: object) =>
+      session(
+        request(app.getHttpServer()).put('/api/watchlist/watch-1').send(body),
+      );
+    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
+    await save({
+      note: 'Watch earnings',
+      alertDirection: 'above',
+      alertPrice: 4200,
+    }).expect(200);
+    expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
+      data: {
+        note: 'Watch earnings',
+        alert_direction: 'above',
+        alert_price: '4200.00',
+      },
+    });
+    await save({ note: '', alertDirection: null, alertPrice: null }).expect(
+      200,
+    );
+    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
+      data: { note: null, alert_direction: null, alert_price: null },
+    });
+    await save({ alertDirection: 'below', alertPrice: -2 }).expect(400);
+    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 0 });
+    await save({ note: 'unowned item' }).expect(404);
   });
 
   it('manages the watchlist with duplicate protection', async () => {

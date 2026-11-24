@@ -14,11 +14,11 @@ import { HoldingForm, type HoldingFormData } from "./holding-form";
 
 function GainCell({ holding }: { holding: ValuedHolding }) {
   if (!holding.priced || holding.gainLoss === null) {
-    return <span className="text-dash-muted">—</span>;
+    return <span className="text-dash-muted"></span>;
   }
   const up = holding.gainLoss >= 0;
   return (
-    <span className={up ? "text-dash-accent" : "text-dash-red"}>
+    <span className={up ? "market-positive" : "market-negative"}>
       {up ? "+" : "−"}₹{Math.abs(holding.gainLoss).toFixed(2)}
       {holding.gainLossPercent !== null &&
         ` (${formatPercent(holding.gainLossPercent)})`}
@@ -119,7 +119,7 @@ export function HoldingsSection({
                   Quantity
                 </th>
                 <th scope="col" className="px-3 py-3 text-right font-medium">
-                  Buy price
+                  Average cost
                 </th>
                 <th scope="col" className="px-3 py-3 text-right font-medium">
                   Current price
@@ -166,15 +166,13 @@ export function HoldingsSection({
                         )}
                       </>
                     ) : (
-                      <span className="text-xs text-dash-muted">
-                        Unavailable
-                      </span>
+                      <span className="text-xs text-dash-muted"></span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
                     {holding.priced && holding.currentValue !== null
                       ? formatPrice(holding.currentValue)
-                      : "—"}
+                      : ""}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
                     <GainCell holding={holding} />
@@ -202,6 +200,25 @@ export function HoldingsSection({
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-dash-border font-medium">
+                <th className="px-5 py-3 text-left" scope="row">
+                  Priced total
+                </th>
+                <td colSpan={3} />
+                <td className="text-right">
+                  {holdings.some((h) => h.priced)
+                    ? formatPrice(summary!.totals.totalValue)
+                    : ""}
+                </td>
+                <td className="px-3 text-right">
+                  {holdings.some((h) => h.priced)
+                    ? formatPrice(summary!.totals.totalGainLoss)
+                    : ""}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         )}
       </div>

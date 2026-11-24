@@ -63,6 +63,9 @@ export type OverviewResponse = {
     id: string;
     symbol: string;
     name: string | null;
+    note: string | null;
+    alertDirection: "above" | "below" | null;
+    alertPrice: number | null;
     quote: MarketQuote | null;
   }[];
   unavailable: string[];
@@ -162,11 +165,9 @@ const fetchedAtFormat = new Intl.DateTimeFormat("en-IN", {
 });
 
 export function formatFetchedAt(iso: string | null) {
-  if (!iso) return "Unknown";
+  if (!iso) return "";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime())
-    ? "Unknown"
-    : fetchedAtFormat.format(date);
+  return Number.isNaN(date.getTime()) ? "" : fetchedAtFormat.format(date);
 }
 
 /**

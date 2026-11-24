@@ -60,6 +60,7 @@ export interface MarketNewsItem {
 }
 
 export interface MarketDataProvider {
+  activeIndianSymbols(): Promise<string[]>;
   quote(symbol: string): Promise<MarketQuoteData>;
   history(symbol: string, from: Date, to: Date): Promise<MarketHistoryBar[]>;
   search(query: string): Promise<MarketSearchResult[]>;
@@ -87,6 +88,28 @@ function text(value: unknown): string | undefined {
 export class YahooFinanceProvider implements MarketDataProvider {
   private readonly client = new YahooFinance();
 
+  async activeIndianSymbols(): Promise<string[]> {
+    const response = await fetch(
+      'https://query1.finance.yahoo.com/v1/finance/screener/predefined/saved?scrIds=most_actives_in&count=15',
+      { signal: AbortSignal.timeout(5000) },
+    );
+    if (!response.ok) return [];
+    const data = (await response.json()) as {
+      finance?: {
+        result?: { quotes?: { symbol?: string; quoteType?: string }[] }[];
+      };
+    };
+    const quotes = data.finance?.result?.[0]?.quotes;
+    if (!Array.isArray(quotes)) return [];
+    return quotes.flatMap(({ symbol, quoteType }) =>
+      quoteType === 'EQUITY' &&
+      typeof symbol === 'string' &&
+      /^[A-Z0-9&.-]{1,17}\.(NS|BO)$/.test(symbol)
+        ? [symbol]
+        : [],
+    );
+  }
+
   async quote(symbol: string): Promise<MarketQuoteData> {
     const result = await this.client.quote(symbol);
     const price = finite(result.regularMarketPrice);
@@ -107,13 +130,14 @@ export class YahooFinanceProvider implements MarketDataProvider {
     from: Date,
     to: Date,
   ): Promise<MarketHistoryBar[]> {
-    const rows = await this.client.historical(symbol, {
+    const { quotes: rows } = await this.client.chart(symbol, {
+      interval: '1d',
       period1: from,
       period2: to,
     });
     const bars: MarketHistoryBar[] = [];
     for (const row of rows) {
-      // Historical rows include dividend/split events, which carry no OHLC.
+      // A suspended or missing session can have null OHLC values.
       const open = finite(row.open);
       const high = finite(row.high);
       const low = finite(row.low);

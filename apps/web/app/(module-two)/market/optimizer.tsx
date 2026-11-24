@@ -242,7 +242,7 @@ function FrontierChart({
           <p className="mt-0.5 text-dash-muted">
             Sharpe{" "}
             <span className="text-dash-text">
-              {hovered.sharpe !== null ? hovered.sharpe.toFixed(2) : "—"}
+              {hovered.sharpe !== null ? hovered.sharpe.toFixed(2) : ""}
             </span>
           </p>
         </div>
@@ -559,7 +559,7 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
                     value={
                       result.suggested.sharpe !== null
                         ? result.suggested.sharpe.toFixed(2)
-                        : "—"
+                        : ""
                     }
                   />
                   <MiniStat
@@ -581,7 +581,7 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
                     value={
                       result.current.sharpe !== null
                         ? result.current.sharpe.toFixed(2)
-                        : "—"
+                        : ""
                     }
                   />
                 </div>

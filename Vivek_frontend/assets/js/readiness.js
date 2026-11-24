@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var BASE_SCORE = 72;
+  var BASE_SCORE = 0;
 
   function currentScore() {
     var bonus = 0;
@@ -23,6 +23,7 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     var r = FV_DATA.READINESS;
+    if (!r) return;
     BASE_SCORE = r.score;
 
     document.getElementById("score-num").textContent = r.score;

@@ -24,6 +24,7 @@ import { MiniStat, PanelHeading } from "../../../../(module-one)/dashboard/ui";
 import { MarketShell } from "../../market-shell";
 import { MacdChart, PriceChart, RsiChart } from "../../price-chart";
 import { HoldingForm, type HoldingFormData } from "../../holding-form";
+import { StockSnapshot } from "./stock-snapshot";
 import { StockNewsSection } from "./stock-news";
 
 const volumeFormat = new Intl.NumberFormat("en-IN", {
@@ -88,6 +89,7 @@ export default function StockProfile({
   }
 
   function selectRange(selected: HistoryRange) {
+    if (selected === range) return;
     setRange(selected);
     setLoadingHistory(true);
     setHistoryError("");
@@ -239,11 +241,18 @@ export default function StockProfile({
   return (
     <MarketShell
       user={user}
-      eyebrow="Stock profile"
+      eyebrow="Investments / Stock analysis"
       title={profile?.name ?? symbol}
-      description={`Price history, indicators and fundamentals for ${symbol}. Prices from Yahoo Finance, cached for up to 15 minutes.`}
+      description={`Explore ${symbol}: price performance, technical signals, and the stories behind the stock.`}
     >
-      <section aria-label="Current price" className="dash-panel">
+      <nav className="market-section-nav" aria-label="Stock analysis sections">
+        <a href="/market">All markets</a>
+        <a href="#price-history">Price performance</a>
+        <a href="#technicals">Technical indicators</a>
+        <a href="#fundamentals">Fundamentals</a>
+        <a href="#stock-news">News & sentiment</a>
+      </nav>
+      <section aria-label="Current price" className="dash-panel stock-quote">
         {loadingProfile ? (
           <p role="status" className="text-sm text-dash-muted">
             Loading {symbol}…
@@ -299,14 +308,17 @@ export default function StockProfile({
               </p>
             ) : (
               <div className="mt-4 flex flex-wrap items-baseline gap-3">
-                <p className="text-3xl font-medium tracking-tight">
+                <p className="text-4xl font-medium tracking-tight sm:text-5xl">
                   {formatPrice(profile.price, profile.currency)}
                 </p>
                 {profile.changePercent !== null && (
                   <span
-                    className={`font-mono text-sm font-medium ${profile.changePercent >= 0 ? "text-dash-accent" : "text-dash-red"}`}
+                    className={`font-mono text-sm font-medium ${profile.changePercent >= 0 ? "market-positive" : "market-negative"}`}
                   >
-                    {formatPercent(profile.changePercent)}
+                    {formatPercent(profile.changePercent)}{" "}
+                    <span className="text-xs text-dash-muted">
+                      vs. previous close
+                    </span>
                     {profile.change !== null &&
                       ` (${profile.change >= 0 ? "+" : ""}${formatPrice(profile.change, profile.currency)})`}
                   </span>
@@ -332,245 +344,290 @@ export default function StockProfile({
         )}
       </section>
 
-      <section aria-label="Price history" className="dash-panel">
-        <PanelHeading icon="chart" title="Price history">
-          <div className="flex gap-1" role="group" aria-label="History range">
-            {historyRanges.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={range === option.value}
-                onClick={() => selectRange(option.value)}
-                className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
-                  range === option.value
-                    ? "bg-dash-accent/15 text-dash-accent"
-                    : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </PanelHeading>
-        {loadingHistory ? (
-          <p role="status" className="mt-4 text-sm text-dash-muted">
-            Loading price history…
-          </p>
-        ) : historyError ? (
-          <div className="mt-4">
-            <p role="alert" className="text-sm text-dash-red">
-              {historyError}
-            </p>
-            <button className="dash-small-button mt-4" onClick={retryHistory}>
-              Try again
-            </button>
-          </div>
-        ) : history && history.bars.length > 0 ? (
-          <div className="mt-4">
-            <PriceChart
-              bars={history.bars}
-              currency={currency}
-              overlays={[
-                {
-                  label: "SMA 20",
-                  values: indicators.sma20,
-                  color: "#efd0a2",
-                },
-                {
-                  label: "SMA 50",
-                  values: indicators.sma50,
-                  color: "#c0cad5",
-                },
-              ]}
-            />
-            {history.stale && (
-              <p className="mt-3 text-xs text-dash-warning">
-                Showing the last cached history from{" "}
-                {formatFetchedAt(history.fetchedAt)} — the latest bars may be
-                missing.
-              </p>
-            )}
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              <MiniStat
-                label="Latest close"
-                value={latestBar ? formatPrice(latestBar.close, currency) : "—"}
-              />
-              <MiniStat
-                label="Latest volume"
-                value={
-                  latestBar?.volume !== null && latestBar?.volume !== undefined
-                    ? volumeFormat.format(latestBar.volume)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="SMA 20"
-                value={
-                  latestSma20 !== null
-                    ? formatPrice(latestSma20, currency)
-                    : "Needs 20 days"
-                }
-              />
-              <MiniStat
-                label="SMA 50"
-                value={
-                  latestSma50 !== null
-                    ? formatPrice(latestSma50, currency)
-                    : "Needs 50 days"
-                }
-              />
-              <MiniStat
-                label="EMA 12"
-                value={
-                  latestEma12 !== null
-                    ? formatPrice(latestEma12, currency)
-                    : "Needs 12 days"
-                }
-              />
-              <MiniStat
-                label="EMA 26"
-                value={
-                  latestEma26 !== null
-                    ? formatPrice(latestEma26, currency)
-                    : "Needs 26 days"
-                }
-              />
-            </div>
-          </div>
-        ) : (
-          <p className="mt-4 text-sm text-dash-muted">
-            No price history is available for this symbol in this range. It may
-            be newly listed.
-          </p>
-        )}
-      </section>
-
-      {history && history.bars.length > 0 && (
+      <div className="stock-analysis-grid">
         <section
-          aria-label="Technical indicators"
-          className="grid gap-4 xl:grid-cols-2"
+          id="price-history"
+          aria-label="Price history"
+          className="dash-panel"
         >
-          <article className="dash-panel">
-            <PanelHeading icon="target" title="RSI (14)" />
-            <div className="mt-4">
-              <RsiChart values={indicators.rsi14} dates={dates} />
+          <PanelHeading icon="chart" title="Price performance">
+            <div
+              className="flex flex-wrap gap-1"
+              role="group"
+              aria-label="History range"
+            >
+              {historyRanges.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={range === option.value}
+                  onClick={() => selectRange(option.value)}
+                  className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+                    range === option.value
+                      ? "bg-dash-accent/15 text-dash-accent"
+                      : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-              <MiniStat
-                label="Latest RSI"
-                value={latestRsi !== null ? latestRsi.toFixed(1) : "—"}
-              />
-              <MiniStat label="Reading" value={rsiReading(latestRsi)} />
-            </div>
-            <p className="mt-4 text-xs leading-5 text-dash-muted">
-              RSI compares recent gains to recent losses over 14 trading days.
-              The 30/70 bands are the standard textbook levels — they describe
-              momentum, not a buy or sell instruction.
+          </PanelHeading>
+          {loadingHistory ? (
+            <p role="status" className="mt-4 text-sm text-dash-muted">
+              Loading price history…
             </p>
-          </article>
-          <article className="dash-panel">
-            <PanelHeading icon="chart" title="MACD (12, 26, 9)" />
+          ) : historyError ? (
             <div className="mt-4">
-              <MacdChart values={indicators.macdValues} dates={dates} />
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-3">
-              <MiniStat
-                label="MACD"
-                value={latestMacd ? latestMacd.macd.toFixed(2) : "—"}
-              />
-              <MiniStat
-                label="Signal"
-                value={latestMacd ? latestMacd.signal.toFixed(2) : "—"}
-              />
-              <MiniStat
-                label="Histogram"
-                value={latestMacd ? latestMacd.histogram.toFixed(2) : "—"}
-              />
-            </div>
-            <p className="mt-4 text-xs leading-5 text-dash-muted">
-              MACD is the 12-day EMA minus the 26-day EMA; the signal line is
-              its 9-day EMA. The histogram shows MACD minus signal. EMAs are
-              seeded with the SMA of their first period.
-            </p>
-          </article>
-        </section>
-      )}
-
-      <section aria-label="Fundamentals" className="dash-panel">
-        <PanelHeading icon="file" title="Fundamentals" />
-        {loadingProfile ? (
-          <p role="status" className="mt-4 text-sm text-dash-muted">
-            Loading fundamentals…
-          </p>
-        ) : !profile?.fundamentalsAvailable || !fundamentals ? (
-          <p className="mt-4 text-sm text-dash-muted">
-            Fundamentals are unavailable right now. The price and history above
-            are still current.
-          </p>
-        ) : (
-          <>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <MiniStat label="Sector" value={fundamentals.sector ?? "—"} />
-              <MiniStat label="Industry" value={fundamentals.industry ?? "—"} />
-              <MiniStat
-                label="Market cap"
-                value={
-                  fundamentals.marketCap !== null
-                    ? formatCompact(fundamentals.marketCap, currency)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="Trailing P/E"
-                value={
-                  fundamentals.trailingPE !== null
-                    ? fundamentals.trailingPE.toFixed(2)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="Forward P/E"
-                value={
-                  fundamentals.forwardPE !== null
-                    ? fundamentals.forwardPE.toFixed(2)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="Dividend yield"
-                value={
-                  fundamentals.dividendYield !== null
-                    ? formatPercent(fundamentals.dividendYield * 100, false)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="52-week high"
-                value={
-                  fundamentals.fiftyTwoWeekHigh !== null
-                    ? formatPrice(fundamentals.fiftyTwoWeekHigh, currency)
-                    : "—"
-                }
-              />
-              <MiniStat
-                label="52-week low"
-                value={
-                  fundamentals.fiftyTwoWeekLow !== null
-                    ? formatPrice(fundamentals.fiftyTwoWeekLow, currency)
-                    : "—"
-                }
-              />
-            </div>
-            {fundamentals.description && (
-              <p className="mt-4 text-sm leading-6 text-dash-muted">
-                {fundamentals.description}
+              <p role="alert" className="text-sm text-dash-red">
+                {historyError}
               </p>
-            )}
-          </>
-        )}
-      </section>
+              <button className="dash-small-button mt-4" onClick={retryHistory}>
+                Try again
+              </button>
+            </div>
+          ) : history && history.bars.length > 0 ? (
+            <div className="mt-4">
+              <PriceChart
+                bars={history.bars}
+                currency={currency}
+                overlays={[
+                  {
+                    label: "SMA 20",
+                    values: indicators.sma20,
+                    color: "#efd0a2",
+                  },
+                  {
+                    label: "SMA 50",
+                    values: indicators.sma50,
+                    color: "#c0cad5",
+                  },
+                ]}
+              />
+              {history.stale && (
+                <p className="mt-3 text-xs text-dash-warning">
+                  Showing the last cached history from{" "}
+                  {formatFetchedAt(history.fetchedAt)} — the latest bars may be
+                  missing.
+                </p>
+              )}
+              <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <MiniStat
+                  label="Latest close"
+                  value={
+                    latestBar ? formatPrice(latestBar.close, currency) : ""
+                  }
+                />
+                <MiniStat
+                  label="Latest volume"
+                  value={
+                    latestBar?.volume !== null &&
+                    latestBar?.volume !== undefined
+                      ? volumeFormat.format(latestBar.volume)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="SMA 20"
+                  value={
+                    latestSma20 !== null
+                      ? formatPrice(latestSma20, currency)
+                      : "Needs 20 days"
+                  }
+                />
+                <MiniStat
+                  label="SMA 50"
+                  value={
+                    latestSma50 !== null
+                      ? formatPrice(latestSma50, currency)
+                      : "Needs 50 days"
+                  }
+                />
+                <MiniStat
+                  label="EMA 12"
+                  value={
+                    latestEma12 !== null
+                      ? formatPrice(latestEma12, currency)
+                      : "Needs 12 days"
+                  }
+                />
+                <MiniStat
+                  label="EMA 26"
+                  value={
+                    latestEma26 !== null
+                      ? formatPrice(latestEma26, currency)
+                      : "Needs 26 days"
+                  }
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-dash-muted">
+              No price history is available for this symbol in this range. It
+              may be newly listed.
+            </p>
+          )}
+        </section>
 
-      <StockNewsSection symbol={symbol} />
+        <StockSnapshot
+          profile={profile}
+          bars={history?.bars ?? []}
+          loading={loadingHistory}
+          unavailable={Boolean(historyError)}
+        />
+      </div>
+
+      <div id="technicals">
+        {!loadingHistory &&
+        !historyError &&
+        history &&
+        history.bars.length > 0 ? (
+          <section
+            aria-label="Technical indicators"
+            className="grid gap-4 xl:grid-cols-2"
+          >
+            <article className="dash-panel">
+              <PanelHeading icon="target" title="RSI (14)" />
+              <div className="mt-4">
+                <RsiChart values={indicators.rsi14} dates={dates} />
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <MiniStat
+                  label="Latest RSI"
+                  value={latestRsi !== null ? latestRsi.toFixed(1) : ""}
+                />
+                <MiniStat label="Reading" value={rsiReading(latestRsi)} />
+              </div>
+              <p className="mt-4 text-xs leading-5 text-dash-muted">
+                RSI compares recent gains to recent losses over 14 trading days.
+                The 30/70 bands are the standard textbook levels — they describe
+                momentum, not a buy or sell instruction.
+              </p>
+            </article>
+            <article className="dash-panel">
+              <PanelHeading icon="chart" title="MACD (12, 26, 9)" />
+              <div className="mt-4">
+                <MacdChart values={indicators.macdValues} dates={dates} />
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                <MiniStat
+                  label="MACD"
+                  value={latestMacd ? latestMacd.macd.toFixed(2) : ""}
+                />
+                <MiniStat
+                  label="Signal"
+                  value={latestMacd ? latestMacd.signal.toFixed(2) : ""}
+                />
+                <MiniStat
+                  label="Histogram"
+                  value={latestMacd ? latestMacd.histogram.toFixed(2) : ""}
+                />
+              </div>
+              <p className="mt-4 text-xs leading-5 text-dash-muted">
+                MACD is the 12-day EMA minus the 26-day EMA; the signal line is
+                its 9-day EMA. The histogram shows MACD minus signal. EMAs are
+                seeded with the SMA of their first period.
+              </p>
+            </article>
+          </section>
+        ) : (
+          <p className="dash-panel text-sm text-dash-muted">
+            {loadingHistory
+              ? "Updating technical indicators..."
+              : "Technical indicators need price history for the selected range."}
+          </p>
+        )}
+      </div>
+
+      <div className="stock-research-grid">
+        <section
+          id="fundamentals"
+          aria-label="Fundamentals"
+          className="dash-panel"
+        >
+          <PanelHeading icon="file" title="Fundamentals" />
+          {loadingProfile ? (
+            <p role="status" className="mt-4 text-sm text-dash-muted">
+              Loading fundamentals…
+            </p>
+          ) : !profile?.fundamentalsAvailable || !fundamentals ? (
+            <p className="mt-4 text-sm text-dash-muted">
+              Fundamentals are unavailable right now. Check the price and
+              history panels for their latest available data.
+            </p>
+          ) : (
+            <>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <MiniStat label="Sector" value={fundamentals.sector ?? ""} />
+                <MiniStat
+                  label="Industry"
+                  value={fundamentals.industry ?? ""}
+                />
+                <MiniStat
+                  label="Market cap"
+                  value={
+                    fundamentals.marketCap !== null
+                      ? formatCompact(fundamentals.marketCap, currency)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="Trailing P/E"
+                  value={
+                    fundamentals.trailingPE !== null
+                      ? fundamentals.trailingPE.toFixed(2)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="Forward P/E"
+                  value={
+                    fundamentals.forwardPE !== null
+                      ? fundamentals.forwardPE.toFixed(2)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="Dividend yield"
+                  value={
+                    fundamentals.dividendYield !== null
+                      ? formatPercent(fundamentals.dividendYield * 100, false)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="52-week high"
+                  value={
+                    fundamentals.fiftyTwoWeekHigh !== null
+                      ? formatPrice(fundamentals.fiftyTwoWeekHigh, currency)
+                      : ""
+                  }
+                />
+                <MiniStat
+                  label="52-week low"
+                  value={
+                    fundamentals.fiftyTwoWeekLow !== null
+                      ? formatPrice(fundamentals.fiftyTwoWeekLow, currency)
+                      : ""
+                  }
+                />
+              </div>
+              {fundamentals.description && (
+                <details className="mt-5 border-t border-dash-border pt-4">
+                  <summary className="cursor-pointer text-sm font-medium">
+                    About the company
+                  </summary>
+                  <p className="mt-3 text-base leading-7 text-dash-muted">
+                    {fundamentals.description}
+                  </p>
+                </details>
+              )}
+            </>
+          )}
+        </section>
+
+        <StockNewsSection symbol={symbol} />
+      </div>
 
       {showHoldingForm && (
         <HoldingForm

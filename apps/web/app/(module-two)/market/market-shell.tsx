@@ -1,5 +1,6 @@
 "use client";
 
+import "./market.css";
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "../../../auth/client";
@@ -7,13 +8,15 @@ import type { AuthUser } from "../../../auth/types";
 import { Icon } from "../../(module-one)/dashboard/ui";
 import { ProfileMenu } from "../../(module-one)/dashboard/navigation";
 
-function MarketSidebar({ active }: { active: "market" }) {
+import { sections, useMarketSection } from "./market-workspace";
+
+function MarketSidebar({ active }: { active: string }) {
   const items = [
     { label: "Dashboard", icon: "grid" as const, href: "/dashboard" },
-    { label: "Market", icon: "pie" as const, href: "/market" },
-    { label: "Portfolio", icon: "target" as const, href: "/market#portfolio" },
-    { label: "Holdings", icon: "wallet" as const, href: "/market#holdings" },
-    { label: "Screener", icon: "filter" as const, href: "/market#screener" },
+    ...sections.map((section) => ({
+      ...section,
+      href: `/market#${section.id}`,
+    })),
   ];
   return (
     <aside className="dashboard-sidebar fixed z-30 hidden flex-col items-center py-4 sm:flex">
@@ -26,7 +29,7 @@ function MarketSidebar({ active }: { active: "market" }) {
       </a>
       <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-1">
         {items.map((item) => {
-          const isActive = active === "market" && item.href === "/market";
+          const isActive = item.href === `/market#${active}`;
           const className = `grid size-9 place-items-center rounded-panel transition-colors ${isActive ? "bg-dash-accent/15 text-dash-accent" : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"}`;
           return (
             <a
@@ -60,6 +63,7 @@ export function MarketShell({
   children: ReactNode;
 }) {
   const router = useRouter();
+  const active = useMarketSection();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
 
@@ -85,46 +89,26 @@ export function MarketShell({
   }
 
   return (
-    <div className="dashboard min-h-screen bg-dash-bg font-sans text-dash-text">
+    <div className="dashboard market-workspace min-h-screen bg-dash-bg font-sans text-dash-text">
       <a
         href="#market-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-20 focus:z-50 focus:rounded-lg focus:bg-dash-accent focus:p-3 focus:text-dash-bg"
       >
         Skip to market
       </a>
-      <MarketSidebar active="market" />
+      <MarketSidebar active={active.id} />
       <div className="sm:pl-24">
         <header className="dashboard-header sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-dash-border px-7 py-3 max-sm:px-4">
-          <div className="flex items-center gap-6">
-            <h1 className="whitespace-nowrap text-sm font-semibold">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="whitespace-nowrap text-sm font-semibold">
               FinVerse
-            </h1>
-            <nav
-              aria-label="Market navigation"
-              className="hidden items-center gap-1 text-xs text-dash-muted xl:flex"
-            >
-              <a className="dash-nav" href="/dashboard">
-                Dashboard
-              </a>
-              <a
-                href="/market"
-                aria-current="page"
-                className="rounded-full bg-dash-accent/15 px-3 py-2 text-dash-accent"
-              >
-                Market
-              </a>
-              <a className="dash-nav" href="/market#portfolio">
-                Portfolio
-              </a>
-              <a className="dash-nav" href="/market#holdings">
-                Holdings
-              </a>
-              <a className="dash-nav" href="/market#screener">
-                Screener
-              </a>
-            </nav>
+            </span>
+            <span className="text-sm text-dash-muted">/ Investments</span>
+            <a className="dash-nav text-xs" href="/dashboard">
+              Dashboard
+            </a>
           </div>
-          <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+          <div className="flex items-center gap-2">
             <ProfileMenu
               user={user}
               onSignOut={signOut}
@@ -132,12 +116,24 @@ export function MarketShell({
               signOutError={signOutError}
             />
           </div>
+          <nav className="market-section-nav" aria-label="Investment tools">
+            {sections.map((section) => (
+              <a
+                key={section.id}
+                href={`/market#${section.id}`}
+                aria-current={active.id === section.id ? "page" : undefined}
+              >
+                <Icon name={section.icon} />
+                {section.label}
+              </a>
+            ))}
+          </nav>
         </header>
         <main id="market-content" className="dashboard-body space-y-5">
           <section className="dashboard-intro" aria-label="Market introduction">
             <div>
               <p className="dash-eyebrow">{eyebrow}</p>
-              <h2>{title}</h2>
+              <h1>{title}</h1>
               <p className="mt-3 text-sm leading-6 text-dash-muted">
                 {description}
               </p>

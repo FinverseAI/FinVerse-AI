@@ -54,8 +54,10 @@ export function formatScreenResults(screen: ScreenResponse): string {
     return 'No stocks matched the filters.';
   }
   const lines = screen.matches.slice(0, 10).map((stock) => {
+    const currency =
+      stock.currency && stock.currency !== 'INR' ? stock.currency + ' ' : '₹';
     const parts = [
-      `${stock.symbol}: price ${stock.price === null ? 'n/a' : `₹${stock.price}`}`,
+      `${stock.symbol}: price ${stock.price === null ? 'n/a' : `${currency}${stock.price}`}`,
     ];
     if (stock.rsi14 !== null) parts.push(`RSI ${stock.rsi14}`);
     if (stock.trailingPE !== null) parts.push(`P/E ${stock.trailingPE}`);
@@ -63,7 +65,9 @@ export function formatScreenResults(screen: ScreenResponse): string {
       parts.push(`1-month ${stock.change1moPercent}%`);
     if (stock.marketCap !== null)
       parts.push(
-        `market cap ₹${Math.round(stock.marketCap / 10_000_000)} crore`,
+        currency === '₹'
+          ? `market cap ₹${Math.round(stock.marketCap / 10_000_000)} crore`
+          : `market cap ${currency}${stock.marketCap}`,
       );
     return parts.join(', ');
   });

@@ -61,8 +61,8 @@ export interface ScreenFilters {
   symbols?: string[];
   minPrice?: number;
   maxPrice?: number;
-  minMarketCapCrore?: number;
-  maxMarketCapCrore?: number;
+  minMarketCapCr?: number;
+  maxMarketCapCr?: number;
   minRsi?: number;
   maxRsi?: number;
   minPe?: number;
@@ -76,7 +76,11 @@ export interface ScreenFilters {
 
 export interface ScreenedStock {
   symbol: string;
-  name: string;
+  name: string | null;
+  fiftyTwoWeekHigh?: number | null;
+  fiftyTwoWeekLow?: number | null;
+  currency?: string;
+  fetchedAt?: string | null;
   price: number | null;
   changePercent: number | null;
   marketCap: number | null;
@@ -101,8 +105,8 @@ export interface ScreenResponse {
 export interface ScreenerFormState {
   minPrice: string;
   maxPrice: string;
-  minMarketCapCrore: string;
-  maxMarketCapCrore: string;
+  minMarketCapCr: string;
+  maxMarketCapCr: string;
   minRsi: string;
   maxRsi: string;
   minPe: string;
@@ -117,8 +121,8 @@ export interface ScreenerFormState {
 export const EMPTY_SCREENER_FORM: ScreenerFormState = {
   minPrice: "",
   maxPrice: "",
-  minMarketCapCrore: "",
-  maxMarketCapCrore: "",
+  minMarketCapCr: "",
+  maxMarketCapCr: "",
   minRsi: "",
   maxRsi: "",
   minPe: "",
@@ -144,8 +148,8 @@ export function buildScreenFilters(form: ScreenerFormState): ScreenFilters {
   type NumericFilterKey =
     | "minPrice"
     | "maxPrice"
-    | "minMarketCapCrore"
-    | "maxMarketCapCrore"
+    | "minMarketCapCr"
+    | "maxMarketCapCr"
     | "minRsi"
     | "maxRsi"
     | "minPe"
@@ -156,8 +160,8 @@ export function buildScreenFilters(form: ScreenerFormState): ScreenFilters {
   const numeric: Array<[NumericFilterKey, string]> = [
     ["minPrice", form.minPrice],
     ["maxPrice", form.maxPrice],
-    ["minMarketCapCrore", form.minMarketCapCrore],
-    ["maxMarketCapCrore", form.maxMarketCapCrore],
+    ["minMarketCapCr", form.minMarketCapCr],
+    ["maxMarketCapCr", form.maxMarketCapCr],
     ["minRsi", form.minRsi],
     ["maxRsi", form.maxRsi],
     ["minPe", form.minPe],
@@ -195,7 +199,7 @@ const croreFormat = new Intl.NumberFormat("en-IN", {
 
 /** A market cap in rupees, shown in crore (₹17,60,000 crore). */
 export function formatMarketCapCrore(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return "—";
+  if (value === null || !Number.isFinite(value)) return "";
   return `₹${croreFormat.format(value / 10_000_000)} crore`;
 }
 
@@ -271,7 +275,7 @@ export function isScreenResponse(value: unknown): value is ScreenResponse {
   for (const match of value.matches) {
     if (!isRecord(match)) return false;
     if (typeof match.symbol !== "string") return false;
-    if (typeof match.name !== "string") return false;
+    if (match.name !== null && typeof match.name !== "string") return false;
     if (match.price !== null && typeof match.price !== "number") return false;
     if (match.changePercent !== null && typeof match.changePercent !== "number")
       return false;
@@ -291,4 +295,61 @@ export function isScreenResponse(value: unknown): value is ScreenResponse {
     if (typeof match.stale !== "boolean") return false;
   }
   return true;
+}
+
+export function filterSnapshot(
+  snapshot: ScreenResponse,
+  filters: ScreenFilters,
+) {
+  function inRange(value: number | null, min?: number, max?: number) {
+    if (min === undefined && max === undefined) return true;
+    return (
+      value !== null &&
+      value >= (min ?? -Infinity) &&
+      value <= (max ?? Infinity)
+    );
+  }
+  const matches = snapshot.matches.filter((stock) => {
+    const inRupees = !stock.currency || stock.currency === "INR";
+    const crore =
+      inRupees && stock.marketCap !== null
+        ? stock.marketCap / 10_000_000
+        : null;
+    if (
+      !inRange(
+        inRupees ? stock.price : null,
+        filters.minPrice,
+        filters.maxPrice,
+      ) ||
+      !inRange(crore, filters.minMarketCapCr, filters.maxMarketCapCr) ||
+      !inRange(stock.rsi14, filters.minRsi, filters.maxRsi) ||
+      !inRange(stock.trailingPE, filters.minPe, filters.maxPe) ||
+      !inRange(
+        stock.change1moPercent,
+        filters.minChange1mo,
+        filters.maxChange1mo,
+      ) ||
+      (filters.sector &&
+        filters.sector.toLowerCase() !== stock.sector?.toLowerCase())
+    )
+      return false;
+    const { price, sma20, sma50 } = stock;
+    switch (filters.trend) {
+      case "above-sma20":
+        return price !== null && sma20 !== null && price > sma20;
+      case "below-sma20":
+        return price !== null && sma20 !== null && price < sma20;
+      case "above-sma50":
+        return price !== null && sma50 !== null && price > sma50;
+      case "below-sma50":
+        return price !== null && sma50 !== null && price < sma50;
+      case "golden-cross":
+        return sma20 !== null && sma50 !== null && sma20 > sma50;
+      case "death-cross":
+        return sma20 !== null && sma50 !== null && sma20 < sma50;
+      default:
+        return true;
+    }
+  });
+  return { ...snapshot, filters, matches: matches.slice(0, filters.limit) };
 }

@@ -26,6 +26,9 @@ export const HISTORY_TTL_MS = 24 * 60 * 60 * 1000;
 const indexNames: Record<string, string> = {
   '^NSEI': 'NIFTY 50',
   '^BSESN': 'SENSEX',
+  '^NSEBANK': 'NIFTY Bank',
+  'GC=F': 'Gold futures',
+  'SI=F': 'Silver futures',
 };
 export const overviewIndices = Object.keys(indexNames);
 
@@ -289,6 +292,10 @@ export class MarketService {
   }
 
   /** NIFTY 50 + SENSEX plus live quotes for the user's watchlist. */
+  activeIndianSymbols() {
+    return this.provider.activeIndianSymbols();
+  }
+
   async overview(userId: string) {
     const items = await this.prisma.watchlistItem.findMany({
       where: { user_id: userId },
@@ -308,7 +315,7 @@ export class MarketService {
           previousClose: null,
           change: null,
           changePercent: null,
-          currency: 'INR',
+          currency: '',
           sector: null,
           fetchedAt: null,
           stale: false,
@@ -319,6 +326,9 @@ export class MarketService {
         id: item.id,
         symbol: item.symbol,
         name: item.name,
+        note: item.note ?? null,
+        alertDirection: item.alert_direction ?? null,
+        alertPrice: item.alert_price == null ? null : Number(item.alert_price),
         quote: bySymbol.get(item.symbol) ?? null,
       })),
       unavailable,

@@ -242,6 +242,9 @@ model WatchlistItem {
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   symbol     String   @db.VarChar(20)
   name       String?  @db.VarChar(120)
+  note       String?  @db.VarChar(500)
+  alert_direction String? @db.VarChar(5)
+  alert_price Decimal? @db.Decimal(14, 2)
   created_at DateTime @default(now())
 
   @@unique([user_id, symbol])

@@ -48,8 +48,7 @@
     var rows = FV_DATA.STOCKS.filter(matches);
     var tbody = document.querySelector("#results-table tbody");
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:1.5rem 0.75rem">' +
-        "No stocks match these filters. Try widening a range or resetting the filters.</td></tr>";
+      tbody.innerHTML = "";
     } else {
       tbody.innerHTML = rows.map(function (s) {
         return "<tr>" +
@@ -66,7 +65,7 @@
       }).join("");
     }
     document.getElementById("results-count").textContent =
-      rows.length + " of 15 stocks match.";
+      rows.length ? rows.length + " of " + FV_DATA.STOCKS.length + " stocks match." : "";
   }
 
   function resetFilters() {
@@ -147,7 +146,7 @@
     document.getElementById("reset-filters").addEventListener("click", function () {
       resetFilters();
       document.getElementById("nl-input").value = "";
-      FV.toast("Filters reset — showing all 15 stocks.");
+      FV.toast("Filters reset.");
     });
 
     document.getElementById("nl-apply").addEventListener("click", applyNaturalLanguage);

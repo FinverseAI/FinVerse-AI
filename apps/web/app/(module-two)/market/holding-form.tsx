@@ -38,7 +38,7 @@ export function HoldingForm({
   const [buyPrice, setBuyPrice] = useState(
     initial.buyPrice === undefined ? "" : String(initial.buyPrice),
   );
-  const [buyDate, setBuyDate] = useState(initial.buyDate ?? today);
+  const [buyDate, setBuyDate] = useState(initial.buyDate ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -89,7 +89,7 @@ export function HoldingForm({
             className="dash-input"
             value={symbol}
             onChange={(event) => setSymbol(event.target.value.toUpperCase())}
-            placeholder="RELIANCE.NS"
+
             maxLength={20}
             readOnly={lockSymbol}
             autoFocus={!lockSymbol}
@@ -111,11 +111,10 @@ export function HoldingForm({
               inputMode="decimal"
               value={quantity}
               onChange={(event) => setQuantity(event.target.value)}
-              placeholder="10"
             />
           </label>
           <label>
-            Buy price (₹)
+            Average purchase cost (₹)
             <input
               className="dash-input"
               type="number"
@@ -124,7 +123,6 @@ export function HoldingForm({
               inputMode="decimal"
               value={buyPrice}
               onChange={(event) => setBuyPrice(event.target.value)}
-              placeholder="2600.00"
             />
           </label>
         </div>
@@ -145,7 +143,7 @@ export function HoldingForm({
               className="dash-input"
               value={name}
               onChange={(event) => setName(event.target.value)}
-              placeholder="Reliance Industries"
+
               maxLength={120}
             />
           </label>
@@ -155,7 +153,7 @@ export function HoldingForm({
               className="dash-input"
               value={sector}
               onChange={(event) => setSector(event.target.value)}
-              placeholder="Energy"
+
               maxLength={80}
             />
           </label>

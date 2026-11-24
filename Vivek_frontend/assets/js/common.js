@@ -177,7 +177,7 @@
       '<button class="hamburger" id="hamburger" type="button" aria-label="Open navigation" aria-expanded="false">' +
       '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>' +
       '<span class="topbar-title">' + label + "</span>" +
-      '<div class="topbar-right"><span class="badge badge-demo">Demo data</span>' +
+      '<div class="topbar-right">' +
       '<a class="avatar-chip" href="settings.html"><span class="avatar" aria-hidden="true">VB</span><span class="avatar-name">Vivek</span></a></div>' +
       "</header>";
   }

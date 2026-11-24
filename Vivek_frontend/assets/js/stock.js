@@ -1,11 +1,11 @@
-/* FinVerse sample UI — stock detail page.
-   Reads ?symbol= (default RELIANCE). Switching stocks updates the
+/* FinVerse stock detail page.
+   Reads a supplied symbol. Switching stocks updates the
    header, chart, indicators and AI explanation, and rewrites the URL. */
 
 (function () {
   "use strict";
 
-  var currentSymbol = "RELIANCE";
+  var currentSymbol = "";
   var range = "3M";
   var priceChart = null;
 
@@ -177,10 +177,7 @@
 
   function loadSymbol(sym) {
     var s = FV_DATA.stockBySymbol(sym);
-    if (!s) {
-      FV.toast("Unknown symbol “" + sym + "” — showing RELIANCE instead.");
-      s = FV_DATA.stockBySymbol("RELIANCE");
-    }
+    if (!s) return;
     currentSymbol = s.symbol;
     try {
       window.history.replaceState(null, "", "stock.html?symbol=" + encodeURIComponent(s.symbol));
@@ -197,8 +194,8 @@
       select.appendChild(opt);
     });
 
-    var start = FV.getParam("symbol") || "RELIANCE";
-    loadSymbol(start);
+    var start = FV.getParam("symbol");
+    if (start) loadSymbol(start);
 
     document.querySelectorAll("#stock-switch button").forEach(function (btn) {
       btn.addEventListener("click", function () {
@@ -213,12 +210,13 @@
         document.querySelectorAll("#range-switch button").forEach(function (b) {
           b.classList.toggle("active", b === btn);
         });
-        renderChart(FV_DATA.stockBySymbol(currentSymbol));
+        var stock = FV_DATA.stockBySymbol(currentSymbol);
+        if (stock) renderChart(stock);
       });
     });
 
     document.getElementById("add-watchlist-btn").addEventListener("click", function () {
-      FV.toast(currentSymbol + " added to your watchlist.");
+      if (currentSymbol) FV.toast(currentSymbol + " added to your watchlist.");
     });
   }
 

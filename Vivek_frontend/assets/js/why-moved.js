@@ -4,13 +4,7 @@
 (function () {
   "use strict";
 
-  var FUNDAMENTALS = {
-    RELIANCE: "Reliance's retail and Jio arms keep growing — Jio added 3.1 million subscribers in October with ARPU up to ₹208 — so the earnings story supports the move.",
-    TCS: "TCS just won a $1.2 billion multi-year deal with a European bank, but IT spending stays cautious, so the market is pricing the win against a soft demand backdrop.",
-    INFY: "Infosys raised its FY27 revenue guidance to 4–5% after $3.1 billion of large-deal wins, giving the market a concrete reason to re-rate the stock.",
-    TATAMOTORS: "October sales jumped 18% on strong SUV demand, and the commercial-vehicle cycle is turning — the kind of operating beat that moves an auto stock quickly.",
-    HINDUNILVR: "HUL's Q2 volumes grew just 1% with soft rural demand and palm-oil cost pressure, so the market is marking down near-term earnings expectations.",
-  };
+  var FUNDAMENTALS = {};
 
   var runBtn = null;
   var timers = [];
@@ -83,8 +77,8 @@
       },
       {
         title: "Market mood",
-        text: "The Nifty is up 0.82% today, the India VIX sits at 12.8 (calm), and 68% of stocks are advancing. A rising, low-volatility market lifts most stocks a little — today's move should be read against that tailwind.",
-        evidence: "Regime signals — Nifty +0.82% · VIX 12.8 · breadth 68%",
+        text: "Market context is unavailable until market data is connected.",
+        evidence: "",
       },
     ];
   }
@@ -138,6 +132,7 @@
   function run() {
     var symbol = document.getElementById("stock-select").value;
     var s = FV_DATA.stockBySymbol(symbol);
+    if (!s) return;
     clearTimers();
     runBtn.disabled = true;
     runBtn.textContent = "Reasoning…";
@@ -180,6 +175,11 @@
   document.addEventListener("DOMContentLoaded", function () {
     runBtn = document.getElementById("run-btn");
     var select = document.getElementById("stock-select");
+
+    if (!select.value) {
+      runBtn.disabled = true;
+      return;
+    }
 
     updateMoveSummary(select.value);
 
