@@ -385,6 +385,17 @@ overlap (the formula, the guardrail tolerances, the eval results), the
 numbers are identical — I copied them from the same sources, not from each
 other.
 
+> **Correction (24 November 2026):** the claim above was too strong. The
+> two documents agreed with each other, but both carried the plan's draft
+> Readiness bands — Ready 80–100, monthly debt-to-income, concentration
+> zero at 80%, volatility 10–40% — which differ from the implemented
+> formula: Ready 70–100, total debt ÷ annual income, concentration zero
+> at a single holding (100%), volatility full ≤ 15% and zero ≥ 60%
+> (`readiness.formula.ts`, pinned by `readiness.formula.spec.ts`). The
+> guide (§08D) and the write-up (§8.1) were corrected to the code values
+> on 24 November 2026. The guardrail tolerances and the eval results were
+> identical and correct.
+
 ### 6.6 The venv, not `--break-system-packages`
 
 The system Python refuses `pip install` (PEP 668). The sanctioned override
@@ -562,7 +573,7 @@ Previously that knowledge lived only in chat and memory.
 | Human rubric ratings | Not collected | A rater (Sarthak or the guide) working through the blind rating pack (~30–45 min) |
 | Production migration state | Unverified from source | Whoever holds Neon access confirming the Phase 0/2/3 migrations are applied (the docs say so explicitly) |
 | Guide PDF visual review | Not done | A human opening the 36-page PDF and checking the layout (Edition 1.1 was visually reviewed; 1.2 has been text-verified only) |
-| Readiness dashboard card | Endpoint exists; card not built | A frontend task, outside this phase |
+| Readiness dashboard card | **Built in Phase 4** — `readiness-card.tsx` (`8b8388a`, 21 Nov 2026); this row was wrong when written, corrected 24 Nov 2026 | — |
 | Strategy-doc features (§3) | "Why Did My Stock Move?", Market Regime Detection, What-If Simulator not built | Future phases; listed in the write-up's §14 |
 | CI on this commit | Not run yet | The parent's re-verification + push |
 

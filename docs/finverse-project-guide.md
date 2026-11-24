@@ -397,7 +397,7 @@ The models are hosted by **OpenRouter** (an API that serves many models behind o
 | Reasoning | `deepseek/deepseek-r1-0528` | Multi-step analysis where the model shows its working (the reasoning is stripped before the answer is shown). |
 | Embeddings | `baai/bge-base-en-v1.5` | Turns text into 768-number meaning-vectors for retrieval. |
 
-These model IDs were verified against the live OpenRouter catalogue on 19 November 2026; the synopsis's original IDs no longer exist. Prices (Qwen $0.36/$0.40, R1 $0.571/$2.286 per million prompt/completion tokens, as of 23 November 2026) are recorded in the evaluation config for cost benchmarking. The API key comes from an environment variable, never from the source; without it the AI endpoints answer with the raw computed numbers and no narrative (a 503 for chat, where there is nothing to show without a model).
+These model IDs were verified against the live OpenRouter catalogue on 19 November 2026; the synopsis's original IDs no longer exist. Prices (Qwen $0.36/$0.40, R1 $0.571/$2.286 per million prompt/completion tokens, as of 23 November 2026) are recorded in the evaluation config for cost benchmarking. The API key comes from an environment variable, never from the source; without it the AI endpoints answer with the raw computed numbers and no narrative — chat included, which returns the computed metrics with `fallback: true` instead of failing. A 503 means the data itself is unavailable (for example no price at all for a symbol), never a missing key.
 
 ## Tools: what the model may ask for
 
@@ -405,15 +405,17 @@ The model cannot touch the database directly. It can only call nine typed **tool
 
 | Tool | What it returns |
 | --- | --- |
-| `getUserProfile` | The signed-in user's financial profile (income, expenses, savings, debt, risk tolerance). |
-| `getTransactions` | The user's transactions for a period, with category and amount. |
-| `getBudget` | The user's monthly budget and category splits. |
-| `getGoals` | The user's goals and contributions. |
-| `getQuote` | A stock's latest price, change and previous close. |
-| `getHistory` | Price history for a symbol. |
-| `getIndicators` | SMA/EMA/RSI/MACD for a symbol. |
-| `getPortfolioSummary` | The user's holdings valued at current prices, with gains and concentration. |
+| `getPortfolioSummary` | The user's holdings valued at current prices, with total value, total invested, gains and losses, and sector weights. |
+| `getBudgetStatus` | The user's monthly budget: income, and for each budget category the budgeted amount, what has been spent so far this month, and what remains. |
+| `getTransactions` | The user's transactions for a period, most recent first, with category and amount. |
+| `getStockQuote` | A stock's or index's latest price, previous close and change. |
+| `getStockFundamentals` | Everything known about one stock: price, fundamentals (sector, market cap, P/E, dividend yield, 52-week range) and technicals computed from price history (RSI, moving averages, MACD, one-month change). |
+| `getCategorySpending` | How much the user spent in one category over a period (week, month or 3 months), with the largest transactions. |
+| `getGoalProgress` | The user's savings goals: target amount, amount saved so far, progress percentage and deadline. |
+| `getReadinessScore` | The user's Investment Readiness score (0–100) with its five factors, each with its measured number and points (§08D). |
 | `searchKnowledge` | Relevant passages from the retrieval store (news, company profiles, the user's own notes). |
+
+These are the identifiers in the code (`apps/backend/src/ai/ai.tools.ts`); the strategy document names the same tools in snake_case (`get_category_spending`, `get_budget_status`, …). There is no separate profile, history or indicators tool: profile data reaches the model through `getBudgetStatus`, and price history and indicators are computed inside `getStockFundamentals`. The screener has one further tool, `applyScreenerFilters`, which translates a plain-language criterion into filter conditions — it runs in a dedicated translation round, not in the chat tool loop, so the chat tools number nine and the callable tools ten.
 
 Every tool result is scoped to the signed-in user; a tool call for another user's data is impossible by construction, not by trust. The model may also ask for a **reasoning** pass (DeepSeek R1) for complex questions, and every model reply is parsed as structured JSON against a Zod schema: a summary, claims (each a number with its unit and source), and citations. A reply that does not match the schema is retried once, then replaced by a template.
 
@@ -499,12 +501,12 @@ Five factors, each scored 0–100 and weighted:
 | Factor | Weight | What it measures | Full marks | Zero marks |
 | --- | --- | --- | --- | --- |
 | Emergency fund | 25 | Months of expenses covered by savings | ≥ 6 months | 0 months |
-| Debt-to-income | 20 | Monthly debt payments ÷ monthly income | ≤ 10% | ≥ 50% |
+| Debt-to-income | 20 | Total debt ÷ annual income | No debt (ratio 0) | Debt ≥ 1 year of income |
 | Surplus | 25 | Monthly surplus ÷ monthly income | ≥ 30% | ≤ 0% |
-| Concentration | 15 | Largest holding's share of the portfolio | ≤ 20% | ≥ 80% |
-| Volatility | 15 | Portfolio volatility (annualized) | ≤ 10% | ≥ 40% |
+| Concentration | 15 | Largest holding's share of the portfolio | ≤ 20% | Single holding (100%) |
+| Volatility | 15 | Portfolio volatility (annualized) | ≤ 15% | ≥ 60% |
 
-Each factor scales linearly between its full-marks and zero-marks thresholds. The bands are: **Ready** 80–100, **Building** 50–79, **Not ready** 0–49.
+Each factor scales linearly between its full-marks and zero-marks thresholds. The bands are: **Ready** 70–100, **Building** 40–69, **Not ready** 0–39. (These are the implemented values in `apps/backend/src/readiness/readiness.formula.ts`, pinned by `readiness.formula.spec.ts`. Editions 1.2–1.5 of this guide printed the plan's draft bands — Ready 80–100, monthly debt-to-income, concentration zero at 80%, volatility 10–40% — which were never implemented; corrected 24 November 2026, see §13.)
 
 ## Missing data is rescaled, not invented
 
@@ -660,14 +662,16 @@ Still open: a background-job system and a second price source. Voice input and r
 
 ## Verification record
 
-| Check | Result on 23 November 2026 |
+| Check | Result on 24 November 2026 |
 | --- | --- |
-| Backend tests | 648 of 648 passed (48 suites), covering the finance core, market module, AI layer, guardrails, readiness and the evaluation harness. |
-| Web tests | 92 of 92 passed (spending calculations, exports, expense extraction, receipt reading, notifications and related checks). |
-| End-to-end tests | 5 of 5 passed. |
+| Backend tests | 722 of 722 passed (53 suites), covering the finance core, market module, AI layer, guardrails, readiness, the evaluation harness and the Filings & Reports module. |
+| Web tests | 194 of 194 passed (spending calculations, exports, expense extraction, receipt reading, notifications, market pages and related checks). |
+| End-to-end tests | 6 of 6 passed. |
 | Type checks and lint | Backend `tsc`, Oxlint, Prettier, web `tsc` and ESLint all clean. |
 | Evaluation harness (no API key) | Baseline grounding 100.0% (19/19 answers, 1,355/1,355 checks); corrupted-output fixture caught on every answer (0/19 passed) — see §12A. |
 | Live user journey and deployed service | The public site (Netlify, `https://finverseaii.netlify.app`) was checked on 23 November 2026: homepage, health, auth-guard and origin-check responses all behaved as expected. Google login and end-to-end persistence against a live account were not tested. |
+
+Counts re-run independently on 24 November 2026 at HEAD `f5ac221` (after the Filings & Reports rebase onto Sarthak's market-workspace commits); the 23 November figures were 648/648 backend (48 suites), 92/92 web and 5/5 end-to-end.
 
 The earlier backend checks use mocked dependencies for several cases; passing them is not proof that the real database and sign-in provider are connected. A database-persistence test script exists, but was not run. [S9, S12]
 
@@ -754,6 +758,19 @@ The four remaining open questions from the integration plan were decided on 24 N
 | Profile consistency | The budget split is the single source of truth. Whenever a split exists — sent with the save or already stored — the server recomputes fixed expenses, variable expenses and the savings target from monthly income × split, so the totals can never silently diverge from the allocation. A save that omits the split inherits the stored one; a save that sends a new split replaces it. |
 | Auto-pay and recurring bills | Auto-pay now executes: when the dashboard loads, every auto-pay bill due today or overdue with an unpaid remainder is recorded as paid (payment + matching expense transaction), and paying a monthly bill generates its next occurrence (same amount, due date one month on, clamped to the last day of the month). Monthly is the only recurrence; bills default to one-off. This records the payment in FinVerse — it does not move real money or pay the provider. Limitation: the run happens when the dashboard loads, not on a background schedule, so a bill is recorded on the first visit on or after its due date. |
 | Money definitions | (a) Unpaid bills count as committed spending in forecasts: the month-end projection is the recorded daily spending rate plus the unpaid remainders of bills due on or before month-end (overdue bills count; bills due next month do not). Once a bill is paid it leaves the committed total and its payment transaction joins the recorded rate, so it is never counted twice. (b) Plan vs actual: the plan (saved profile) and the actuals (recorded transactions) are shown side by side and labelled, never silently mixed — actual activity does not rewrite the plan. The summary cards, the planned expense breakdown and the account report all label which figures are plan and which are actual. |
+
+## Corrections recorded 24 November 2026
+
+A case-file review on 24 November 2026 compared this guide and the architecture write-up against the code and found four values that had drifted. All four are corrected in this edition; the wrong values are recorded here so nobody reintroduces them:
+
+| What was wrong | Wrong value (Editions 1.2–1.5) | Correct value (the code) |
+| --- | --- | --- |
+| Readiness bands and factor thresholds (§08D) | Ready 80–100, Building 50–79, Not ready 0–49; monthly debt-to-income (full ≤ 10%, zero ≥ 50%); concentration zero at 80%; volatility full ≤ 10%, zero ≥ 40% | Ready 70–100, Building 40–69, Not ready 0–39; total debt ÷ annual income (full at no debt, zero at debt ≥ 1 year of income); concentration zero at a single holding (100%); volatility full ≤ 15%, zero ≥ 60% — `readiness.formula.ts`, pinned by `readiness.formula.spec.ts` |
+| AI behaviour without a key (§08B) | "A 503 for chat, where there is nothing to show without a model" | Every endpoint, chat included, returns the computed metrics with `fallback: true` and no narrative; a 503 means the data itself is unavailable — `ai.service.ts` |
+| AI tool names (§08B) | `getUserProfile`, `getBudget`, `getGoals`, `getQuote`, `getHistory`, `getIndicators` | The code identifiers: `getPortfolioSummary`, `getBudgetStatus`, `getTransactions`, `getStockQuote`, `getStockFundamentals`, `getCategorySpending`, `getGoalProgress`, `getReadinessScore`, `searchKnowledge` — plus the one-shot `applyScreenerFilters` (`ai.tools.ts`) |
+| Verification record (§12) | 648/648 backend, 92/92 web, 5/5 end-to-end (23 November 2026) | 722/722 backend (53 suites), 194/194 web, 6/6 end-to-end, re-run 24 November 2026 at HEAD `f5ac221` |
+
+The same four corrections were applied to the architecture write-up (`docs/architecture-methodology.md` §6.2, §8.1, §14), to the `ai.config.ts` header comment, and to the contribution log (`docs/vivek-bartwal-contributions/`), whose index also now records Phases 5–6 as complete and the live site as Netlify.
 
 ## Questions the reviewed material does not settle
 

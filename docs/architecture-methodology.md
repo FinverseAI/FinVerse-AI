@@ -137,15 +137,17 @@ The models are hosted by OpenRouter and called over HTTPS from the NestJS backen
 | Reasoning | `deepseek/deepseek-r1-0528` | Multi-step analysis; the reasoning trace is stripped before the answer is shown |
 | Embeddings | `baai/bge-base-en-v1.5` | 768-dimension vectors for retrieval |
 
-Prices as of 23 November 2026 (Qwen $0.36/$0.40, R1 $0.571/$2.286 per million prompt/completion tokens) are recorded in the evaluation config for cost benchmarking. The API key comes from an environment variable only; without it, AI endpoints answer with the raw computed numbers and no narrative (chat returns a 503, since there is nothing to show without a model).
+Prices as of 23 November 2026 (Qwen $0.36/$0.40, R1 $0.571/$2.286 per million prompt/completion tokens) are recorded in the evaluation config for cost benchmarking. The API key comes from an environment variable only; without it, AI endpoints answer with the raw computed numbers and no narrative — chat included, which returns the computed metrics with `fallback: true` instead of failing. A 503 means the data itself is unavailable (for example no price at all for a symbol), never a missing key.
 
 The strategy document proposed locally hosted 7B/14B models (Ollama/vLLM). The implemented system uses hosted 72B/full-size models instead, because the free hosting tier cannot run a 7B model and no team machine has a confirmed GPU; the synopsis (§5.2) explicitly allows hosted inference as a fallback. This is a documented deviation, not an oversight — and it is reversible: the provider is a single interface, so a local model can be swapped in later without changing the tools, prompts or guardrail.
 
 ### 6.2 Tools: the model's only access to data
 
-The model cannot touch the database. It can only call nine typed, owner-scoped **tools**, each returning facts for the signed-in user:
+The model cannot touch the database. It can only call nine typed, owner-scoped **tools**, each returning facts for the signed-in user (identifiers as in `apps/backend/src/ai/ai.tools.ts`; the strategy document names the same tools in snake_case):
 
-`getUserProfile`, `getTransactions`, `getBudget`, `getGoals`, `getQuote`, `getHistory`, `getIndicators`, `getPortfolioSummary`, `searchKnowledge`.
+`getPortfolioSummary`, `getBudgetStatus`, `getTransactions`, `getStockQuote`, `getStockFundamentals`, `getCategorySpending`, `getGoalProgress`, `getReadinessScore`, `searchKnowledge`.
+
+There is no separate profile, history or indicators tool: profile data reaches the model through `getBudgetStatus`, and price history and indicators (RSI, moving averages, MACD) are computed inside `getStockFundamentals`. The screener has one further tool, `applyScreenerFilters`, which runs in a dedicated translation round rather than in the chat tool loop.
 
 No tool accepts a user ID, so cross-user access is impossible by construction. Tool results are the **evidence** the model must cite; a claim without evidence cannot pass the guardrail.
 
@@ -217,12 +219,12 @@ Five factors, each scored 0–100 and weighted:
 | Factor | Weight | What it measures | Full marks | Zero marks |
 | --- | --- | --- | --- | --- |
 | Emergency fund | 25 | Months of expenses covered by savings | ≥ 6 months | 0 months |
-| Debt-to-income | 20 | Monthly debt payments ÷ monthly income | ≤ 10% | ≥ 50% |
+| Debt-to-income | 20 | Total debt ÷ annual income | No debt (ratio 0) | Debt ≥ 1 year of income |
 | Surplus | 25 | Monthly surplus ÷ monthly income | ≥ 30% | ≤ 0% |
-| Concentration | 15 | Largest holding's share of the portfolio | ≤ 20% | ≥ 80% |
-| Volatility | 15 | Portfolio volatility (annualized) | ≤ 10% | ≥ 40% |
+| Concentration | 15 | Largest holding's share of the portfolio | ≤ 20% | Single holding (100%) |
+| Volatility | 15 | Portfolio volatility (annualized) | ≤ 15% | ≥ 60% |
 
-Each factor scales linearly between its thresholds. The bands are **Ready** 80–100, **Building** 50–79, **Not ready** 0–49. The first three factors come from Module 1; the last two from Module 2 — the score is cross-module by construction.
+Each factor scales linearly between its thresholds. The bands are **Ready** 70–100, **Building** 40–69, **Not ready** 0–39. (These are the implemented values in `apps/backend/src/readiness/readiness.formula.ts`, pinned by `readiness.formula.spec.ts`. The first edition of this write-up printed the plan's draft bands — Ready 80–100, monthly debt-to-income, concentration zero at 80%, volatility 10–40% — which were never implemented; corrected 24 November 2026.) The first three factors come from Module 1; the last two from Module 2 — the score is cross-module by construction.
 
 ### 8.2 Missing data
 
@@ -353,7 +355,6 @@ What is **not** verified: live model answers, latency and cost (no API key); Goo
 - Build the expense-extraction entry flow (schema exists; save/review UI needed), then voice and receipt entry.
 - Strategy-document features not yet built: "Why Did My Stock Move?" (attribution with visible chain-of-thought), Market Regime Detection, and the What-If Portfolio Simulator.
 - Alerts, a second price source, corporate-action adjustments, and scenario stress tests.
-- Readiness dashboard card (the endpoint exists; the card is planned).
 - Calibrate the Readiness thresholds against real user feedback once the feature is used.
 
 ---

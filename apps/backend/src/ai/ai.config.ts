@@ -2,9 +2,11 @@
  * AI configuration, resolved from environment variables.
  *
  * OPENROUTER_API_KEY is the only secret and is optional: without it the AI
- * endpoints answer 503 ("AI is not configured") instead of crashing, so the
- * rest of the app keeps working. Set it in Render env vars, never in the
- * repo, never in a test, never in a log.
+ * endpoints answer with the raw computed numbers and no narrative
+ * (`fallback: true`) instead of crashing, so the rest of the app keeps
+ * working — a 503 is reserved for data failures (e.g. no price at all for
+ * a symbol), never for a missing key. Set it in Netlify env vars, never in
+ * the repo, never in a test, never in a log.
  *
  * Model IDs are configurable so a model can be swapped without a code
  * change. The defaults below were verified against the live OpenRouter
