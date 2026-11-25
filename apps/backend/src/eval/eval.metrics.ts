@@ -153,7 +153,7 @@ export function pairwiseAgreement(
 export interface GroundingSummary {
   /** Answers that passed verification outright. */
   answersPassed: number;
-  /** Answers that were verified at all. */
+  /** Answers that were verified at all (refusals excluded — B3). */
   answersTotal: number;
   /** Answer-level pass rate (null when nothing was verified). */
   answerRate: number | null;
@@ -161,6 +161,16 @@ export interface GroundingSummary {
   checksTotal: number;
   /** Check-level pass rate (null when no checks ran). */
   checkRate: number | null;
+  /**
+   * Runs that refused to answer. B3: a refusal is verified as vacuous
+   * by the guardrail, but it is NOT a grounded answer — it is excluded
+   * from answersTotal/answerRate (and from pairwiseAgreement) and
+   * reported here instead, so a model that refuses everything cannot
+   * score 100% grounding.
+   */
+  refused: number;
+  /** Refusals as a share of all runs (null when there were no runs). */
+  refusalRate: number | null;
 }
 
 /** The counts a grounding summary needs — full check rows not required. */
@@ -168,19 +178,23 @@ export interface VerificationCounts {
   passed: boolean;
   checksPassed: number;
   checksFailed: number;
+  /** True when this verification is a refusal's vacuous pass (B3). */
+  refused?: boolean;
 }
 
 /** Aggregate guardrail results into the grounding summary. */
 export function summarizeGrounding(
   results: VerificationCounts[],
 ): GroundingSummary {
-  const answersTotal = results.length;
-  const answersPassed = results.filter((result) => result.passed).length;
-  const checksPassed = results.reduce(
+  const refused = results.filter((result) => result.refused === true);
+  const verified = results.filter((result) => result.refused !== true);
+  const answersTotal = verified.length;
+  const answersPassed = verified.filter((result) => result.passed).length;
+  const checksPassed = verified.reduce(
     (sum, result) => sum + result.checksPassed,
     0,
   );
-  const checksTotal = results.reduce(
+  const checksTotal = verified.reduce(
     (sum, result) => sum + result.checksPassed + result.checksFailed,
     0,
   );
@@ -191,6 +205,8 @@ export function summarizeGrounding(
     checksPassed,
     checksTotal,
     checkRate: checksTotal > 0 ? checksPassed / checksTotal : null,
+    refused: refused.length,
+    refusalRate: results.length > 0 ? refused.length / results.length : null,
   };
 }
 
@@ -207,12 +223,19 @@ export interface LatencySummary {
 export function summarizeLatency(latenciesMs: number[]): LatencySummary | null {
   if (latenciesMs.length === 0) return null;
   const sorted = [...latenciesMs].sort((a, b) => a - b);
+  // B12: linear interpolation between the two nearest ranks (the old
+  // floor-index read the upper-middle value as the "median" for even
+  // n, and the max as p95 for n ≤ 20).
   const at = (fraction: number): number => {
-    const index = Math.min(
-      sorted.length - 1,
-      Math.floor(fraction * sorted.length),
+    const position = fraction * (sorted.length - 1);
+    const lower = Math.floor(position);
+    const upper = Math.ceil(position);
+    if (lower === upper) return sorted[lower] as number;
+    return (
+      (sorted[lower] as number) +
+      ((sorted[upper] as number) - (sorted[lower] as number)) *
+        (position - lower)
     );
-    return sorted[index] as number;
   };
   const mean =
     latenciesMs.reduce((sum, value) => sum + value, 0) / latenciesMs.length;

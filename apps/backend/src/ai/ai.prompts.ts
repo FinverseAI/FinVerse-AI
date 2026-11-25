@@ -158,6 +158,12 @@ export const SCREENER_SUMMARY_INTRO = [
   'has in common. Base every claim on the screened figures below and',
   'cite the stocks by symbol. Do not predict what any stock will do',
   'next and do not recommend buying, selling, or holding anything.',
+  'Cite every claim with the tool name `screenStocks` — that is the',
+  'tool the figures below came from. In the "values" of each claim,',
+  'use the exact field names from the figures below (for example',
+  '"symbol", "price", "rsi14", "trailingPE", "change1moPercent",',
+  '"marketCap"). Every number in your answer text must also appear',
+  'in some claim\'s "values".',
 ].join('\n');
 
 /**

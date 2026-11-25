@@ -75,6 +75,36 @@ describe('ai validation', () => {
       });
     });
 
+    it('rejects impossible months and dates instead of silently matching nothing (B8)', () => {
+      expect(
+        GetBudgetStatusArgsSchema.safeParse({ month: '2026-13' }).success,
+      ).toBe(false);
+      expect(
+        GetBudgetStatusArgsSchema.safeParse({ month: '2026-00' }).success,
+      ).toBe(false);
+      expect(
+        GetTransactionsArgsSchema.safeParse({ startDate: '2026-02-30' })
+          .success,
+      ).toBe(false);
+      expect(
+        GetTransactionsArgsSchema.safeParse({ startDate: '2026-13-01' })
+          .success,
+      ).toBe(false);
+      expect(
+        GetTransactionsArgsSchema.safeParse({ endDate: '2025-02-29' }).success,
+      ).toBe(false);
+      expect(
+        GetTransactionsArgsSchema.safeParse({ startDate: '2024-02-29' })
+          .success,
+      ).toBe(true);
+      expect(
+        ExtractExpenseRequestSchema.safeParse({
+          text: 'coffee 250',
+          today: '2026-02-30',
+        }).success,
+      ).toBe(false);
+    });
+
     it('accepts the three category-spending periods', () => {
       expect(
         GetCategorySpendingArgsSchema.parse({

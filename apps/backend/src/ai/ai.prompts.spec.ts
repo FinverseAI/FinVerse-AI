@@ -1,6 +1,7 @@
 import {
   AI_DISCLAIMER,
   READINESS_EXPLANATION_INTRO,
+  SCREENER_SUMMARY_INTRO,
   STOCK_EXPLANATION_INTRO,
   STRUCTURED_OUTPUT_INSTRUCTIONS,
   SYSTEM_PROMPT,
@@ -66,6 +67,17 @@ describe('ai prompts', () => {
     );
     expect(STOCK_EXPLANATION_INTRO).toContain(
       'use the exact field names from the figures below',
+    );
+  });
+
+  it('names screenStocks and its field names in the screener intro (B5)', () => {
+    expect(SCREENER_SUMMARY_INTRO).toContain(
+      'Cite every claim with the tool name `screenStocks`',
+    );
+    expect(SCREENER_SUMMARY_INTRO).toContain('"marketCap"');
+    expect(SCREENER_SUMMARY_INTRO).toContain('"rsi14"');
+    expect(SCREENER_SUMMARY_INTRO).toContain(
+      'Every number in your answer text must also appear',
     );
   });
 

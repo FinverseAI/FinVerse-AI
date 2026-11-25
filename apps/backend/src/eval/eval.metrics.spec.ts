@@ -209,12 +209,41 @@ describe('summarizeGrounding', () => {
     expect(summary.checksPassed).toBe(18);
     expect(summary.checksTotal).toBe(22);
     expect(summary.checkRate).toBeCloseTo(18 / 22);
+    expect(summary.refused).toBe(0);
+    expect(summary.refusalRate).toBe(0);
   });
 
   it('is null rates when nothing was verified', () => {
     const summary = summarizeGrounding([]);
     expect(summary.answerRate).toBeNull();
     expect(summary.checkRate).toBeNull();
+    expect(summary.refused).toBe(0);
+    expect(summary.refusalRate).toBeNull();
+  });
+
+  it('excludes refusals from the grounding denominator and reports them separately (B3)', () => {
+    const summary = summarizeGrounding([
+      guardrailResult(true, 10),
+      // A refusal's vacuous pass (0 checks, passed: true).
+      { passed: true, checksPassed: 0, checksFailed: 0, refused: true },
+      guardrailResult(false, 4),
+    ]);
+    expect(summary.answersTotal).toBe(2);
+    expect(summary.answersPassed).toBe(1);
+    expect(summary.answerRate).toBeCloseTo(1 / 2);
+    expect(summary.refused).toBe(1);
+    expect(summary.refusalRate).toBeCloseTo(1 / 3);
+  });
+
+  it('an all-refuse model does not score 100% grounding (B3)', () => {
+    const summary = summarizeGrounding([
+      { passed: true, checksPassed: 0, checksFailed: 0, refused: true },
+      { passed: true, checksPassed: 0, checksFailed: 0, refused: true },
+    ]);
+    expect(summary.answersTotal).toBe(0);
+    expect(summary.answerRate).toBeNull();
+    expect(summary.refused).toBe(2);
+    expect(summary.refusalRate).toBe(1);
   });
 });
 
@@ -225,10 +254,17 @@ describe('summarizeLatency', () => {
       count: 5,
       minMs: 10,
       medianMs: 30,
-      p95Ms: 50,
+      // B12: interpolated p95 (position 3.8 between 40 and 50), not max.
+      p95Ms: 48,
       maxMs: 50,
       meanMs: 30,
     });
+  });
+
+  it('interpolates the median for even sample sizes (B12)', () => {
+    const summary = summarizeLatency([10, 20, 30, 40]);
+    expect(summary?.medianMs).toBe(25);
+    expect(summary?.p95Ms).toBeCloseTo(38.5);
   });
 
   it('is null with no samples', () => {

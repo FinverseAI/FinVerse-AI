@@ -244,6 +244,9 @@ export function annualizedVolatility(closes: number[]): number | null {
 }
 
 export function bandForScore(score: number): ReadinessBand {
+  // B11: a non-finite score must never fall through to 'Ready' — the
+  // old code returned 'Ready' for NaN because no comparison matched.
+  if (!Number.isFinite(score)) return 'Not ready';
   for (const { max, band } of READINESS_BANDS) {
     if (score <= max) return band;
   }
@@ -263,6 +266,19 @@ function emergencyFactor(band: EmergencyFundBand | null): ReadinessFactor {
     };
   }
   const months = EMERGENCY_BAND_MONTHS[band];
+  if (months === undefined) {
+    // B11: an unknown band (e.g. a DB value outside the Prisma enum,
+    // cast unchecked by the service) is unavailable, not NaN points
+    // — NaN would poison the total score and the band with it.
+    return {
+      name: 'Emergency fund',
+      metric: 'emergencyFundMonths',
+      points: 0,
+      maxPoints,
+      available: false,
+      detail: `The emergency-fund band "${band}" is not recognised, so the emergency fund cannot be measured.`,
+    };
+  }
   const points = round1(
     maxPoints * Math.min(months / EMERGENCY_FULL_MONTHS, 1),
   );
@@ -538,16 +554,16 @@ export function scoreReadiness(inputs: ReadinessInputs): ReadinessResult {
           b.currentValue > a.currentValue ? b : a,
         )
       : null;
+  const volatilityValueSum = inputs.holdingVolatilities.reduce(
+    (sum, holding) => sum + holding.currentValue,
+    0,
+  );
   const volatility =
-    inputs.holdingVolatilities.length > 0
+    inputs.holdingVolatilities.length > 0 && volatilityValueSum > 0
       ? inputs.holdingVolatilities.reduce(
           (sum, holding) => sum + holding.volatility * holding.currentValue,
           0,
-        ) /
-        inputs.holdingVolatilities.reduce(
-          (sum, holding) => sum + holding.currentValue,
-          0,
-        )
+        ) / volatilityValueSum
       : null;
   const monthlySurplus = inputs.monthlyIncome - inputs.monthlyExpenses;
   return {

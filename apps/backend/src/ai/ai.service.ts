@@ -69,6 +69,7 @@ import {
   AI_TOOL_DEFINITIONS,
   APPLY_SCREENER_FILTERS_TOOL,
   AiTools,
+  istDateKey,
 } from './ai.tools';
 import {
   AiAnswerSchema,
@@ -130,8 +131,9 @@ const MAX_EXPLAIN_DATA_CHARS = 8000;
  * 4096 to 16384 after the 24 Nov 2026 eval re-run: R1 burned 4096 tokens
  * on reasoning alone and returned empty content — it never got room to
  * emit its answer. The cap is a ceiling, not a spend: typical answers
- * use 300–1500 tokens. (The 110s production timeout still binds very
- * slow calls; it sits inside the 120s Next.js forwarder budget.)
+ * use 300–1500 tokens. (The per-call timeout still binds very slow
+ * calls on a long-lived host; on Netlify the platform cap kills them
+ * first — see ai.config.ts, B49.)
  */
 const REASONING_MAX_TOKENS = 16384;
 
@@ -171,6 +173,45 @@ function toolErrorMessage(error: unknown): string {
   return 'The tool could not complete this request.';
 }
 
+/**
+ * A total request deadline (B60): one LLM-time budget for EVERYTHING
+ * a request does — tool rounds, the structured answer and its retry,
+ * the guardrail retry. Before the fix each call had its own 110s
+ * timeout, so a slow chat could stack ~8 calls ≈ 880s while the
+ * forwarder gave up at 120s and the backend kept burning tokens.
+ * Each call gets min(remaining, per-call timeout); once the budget
+ * is spent the next call throws a timed-out provider error, which
+ * every caller already turns into the template/raw-metrics fallback.
+ */
+export class AiRequestDeadline {
+  private readonly deadlineAt: number;
+
+  constructor(totalMs: number, now = Date.now()) {
+    this.deadlineAt = now + totalMs;
+  }
+
+  /** Milliseconds left in the budget (never negative). */
+  remainingMs(now = Date.now()): number {
+    return Math.max(0, this.deadlineAt - now);
+  }
+
+  /** This call's timeout: whatever is left, capped at the per-call timeout. */
+  timeoutFor(perCallMs: number, now = Date.now()): number {
+    return Math.min(this.remainingMs(now), perCallMs);
+  }
+
+  /** Throw once the budget is spent, instead of starting another call. */
+  throwIfExpired(now = Date.now()): void {
+    if (this.remainingMs(now) <= 0) {
+      throw new LlmProviderError(
+        'The AI request took too long overall.',
+        undefined,
+        true,
+      );
+    }
+  }
+}
+
 @Injectable()
 export class AiService {
   private readonly config: AiConfig;
@@ -190,6 +231,10 @@ export class AiService {
     this.limiter = new AiRateLimiter(
       this.config.rateLimitPerMinute,
       this.config.rateLimitWindowMs,
+      {
+        upstashUrl: this.config.upstashRedisRestUrl,
+        upstashToken: this.config.upstashRedisRestToken,
+      },
     );
     this.cache = new AiResponseCache<AiChatResponse>(
       this.config.cacheTtlMs,
@@ -215,7 +260,7 @@ export class AiService {
     const cacheKey = `chat:${userId}:${message.toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -242,7 +287,7 @@ export class AiService {
     const cacheKey = `explain:${userId}:${symbol}:${(question ?? '').toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -297,13 +342,20 @@ export class AiService {
     const cacheKey = `explain-news:${userId}:${symbol}:${(question ?? '').toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    await this.ingest.indexNews(symbol);
+    // B61: ingest is best-effort — a DB/embedding blip while
+    // refreshing the news index must not 500 the explanation. The
+    // retrieval and fallback below proceed from whatever is indexed.
+    try {
+      await this.ingest.indexNews(symbol);
+    } catch {
+      // Ignore: newsFallback / retrieval degrade gracefully.
+    }
     if (this.config.apiKey === undefined) {
       const response = await this.newsFallback(
         symbol,
@@ -369,7 +421,7 @@ export class AiService {
     const cacheKey = `explain-readiness:${userId}:${(question ?? '').toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -431,7 +483,7 @@ export class AiService {
     const cacheKey = `screen:${userId}:${query.toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -478,17 +530,22 @@ export class AiService {
     if (!parsed.success) {
       throw new BadRequestException(firstIssueMessage(parsed.error));
     }
-    if (!this.limiter.allow(userId)) {
+    if (!(await this.limiter.allowAsync(userId))) {
       throw new HttpException(
         'You are asking too quickly. Please wait a moment and try again.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
     const { text } = parsed.data;
-    const today = parsed.data.today ?? new Date().toISOString().slice(0, 10);
+    // B6: "today" defaults to the IST calendar day, not the UTC day.
+    const today = parsed.data.today ?? istDateKey(new Date());
     if (this.config.apiKey !== undefined) {
       try {
-        const extraction = await this.extractWithModel(text, today);
+        const extraction = await this.extractWithModel(
+          text,
+          today,
+          new AiRequestDeadline(this.config.totalDeadlineMs),
+        );
         if (extraction) return { ...extraction, source: 'ai' };
       } catch (error) {
         if (!(error instanceof LlmProviderError)) throw error;
@@ -508,13 +565,20 @@ export class AiService {
   private async extractWithModel(
     text: string,
     today: string,
+    deadline?: AiRequestDeadline,
   ): Promise<ExpenseExtraction | null> {
+    deadline?.throwIfExpired();
     const completion = await this.client.chat({
       model: this.config.primaryModel,
       messages: buildExtractionMessages(text, today),
       responseFormatJson: true,
       maxTokens: 512,
-      timeoutMs: this.config.timeoutMs,
+      // The single 110s call is capped by the ~100s total deadline
+      // (B60): cutting it at 100s leaves the local fallback its
+      // window inside the forwarder budget.
+      timeoutMs: deadline
+        ? deadline.timeoutFor(this.config.timeoutMs)
+        : this.config.timeoutMs,
     });
     const parsed = parseStructuredJson(
       completion.content,
@@ -533,6 +597,9 @@ export class AiService {
     userId: string,
     message: string,
   ): Promise<AiChatResponse> {
+    // B60: one deadline for the whole request — tool rounds plus the
+    // guarded answer's calls share it.
+    const deadline = new AiRequestDeadline(this.config.totalDeadlineMs);
     try {
       const messages: ChatMessage[] = [
         { role: 'system', content: SYSTEM_PROMPT },
@@ -544,11 +611,12 @@ export class AiService {
       // (failures are not evidence — the model must not cite them).
       const toolResults = new Map<string, unknown[]>();
       for (let round = 0; round < this.config.maxToolRounds; round++) {
+        deadline.throwIfExpired();
         const completion = await this.client.chat({
           model: this.config.primaryModel,
           messages,
           tools: AI_TOOL_DEFINITIONS,
-          timeoutMs: this.config.timeoutMs,
+          timeoutMs: deadline.timeoutFor(this.config.timeoutMs),
         });
         if (completion.toolCalls.length === 0) break;
         messages.push({
@@ -590,6 +658,8 @@ export class AiService {
           const { metrics } = await this.snapshotMetrics(userId);
           return chatTemplate(metrics);
         },
+        undefined,
+        deadline,
       );
       return {
         answer: answer.answer,
@@ -633,7 +703,13 @@ export class AiService {
     userId: string,
     symbol: string,
   ): Promise<RetrievedContext> {
-    await this.ingest.ensureProfileIndexed(symbol);
+    // B61: profile indexing is best-effort — a failure here must
+    // degrade to a fundamentals-only explanation, not a 500.
+    try {
+      await this.ingest.ensureProfileIndexed(symbol);
+    } catch {
+      // Ignore: retrieval below degrades gracefully.
+    }
     return this.retrieval.retrieve(
       userId,
       `news and background for ${symbol}`,
@@ -650,6 +726,9 @@ export class AiService {
     fundamentals: unknown,
     context: RetrievedContext,
   ): Promise<AiChatResponse> {
+    // B60: the whole explanation (up to 4 LLM calls via guardedAnswer)
+    // shares one deadline.
+    const deadline = new AiRequestDeadline(this.config.totalDeadlineMs);
     try {
       const contextBlock =
         context.available && context.chunks.length > 0
@@ -684,6 +763,7 @@ export class AiService {
         guardrailContext,
         async () => explainStockTemplate(symbol, fundamentals),
         REASONING_MAX_TOKENS,
+        deadline,
       );
       return {
         answer: answer.answer,
@@ -727,6 +807,8 @@ export class AiService {
     question: string | undefined,
     context: RetrievedContext,
   ): Promise<AiChatResponse> {
+    // B60: one deadline for the whole explanation.
+    const deadline = new AiRequestDeadline(this.config.totalDeadlineMs);
     try {
       const userContent = [
         NEWS_EXPLANATION_INTRO,
@@ -752,6 +834,8 @@ export class AiService {
         this.config.primaryModel,
         guardrailContext,
         async () => explainNewsTemplate(symbol, chunks),
+        undefined,
+        deadline,
       );
       return {
         answer: answer.answer,
@@ -788,6 +872,8 @@ export class AiService {
     question: string | undefined,
     assessment: ReadinessAssessment,
   ): Promise<AiChatResponse> {
+    // B60: one deadline for the whole explanation.
+    const deadline = new AiRequestDeadline(this.config.totalDeadlineMs);
     try {
       // The prompt construction and the guardrail evidence are shared
       // with the Phase 5 evaluation runner (same helpers), so the eval
@@ -808,6 +894,7 @@ export class AiService {
         guardrailContext,
         async () => readinessTemplate(assessment),
         REASONING_MAX_TOKENS,
+        deadline,
       );
       return {
         answer: answer.answer,
@@ -886,9 +973,12 @@ export class AiService {
     userId: string,
     query: string,
   ): Promise<AiChatResponse> {
+    // B60: translation + summary share one deadline.
+    const deadline = new AiRequestDeadline(this.config.totalDeadlineMs);
     let filters: unknown = {};
     let translationNote: string | null = null;
     try {
+      deadline.throwIfExpired();
       const translation = await this.client.chat({
         model: this.config.primaryModel,
         messages: [
@@ -903,7 +993,7 @@ export class AiService {
           type: 'function',
           function: { name: 'applyScreenerFilters' },
         },
-        timeoutMs: this.config.timeoutMs,
+        timeoutMs: deadline.timeoutFor(this.config.timeoutMs),
       });
       const call = translation.toolCalls.find(
         (toolCall) => toolCall.name === 'applyScreenerFilters',
@@ -915,6 +1005,12 @@ export class AiService {
           );
           if (parsed.success) {
             filters = parsed.data;
+            // B9: an empty filters object is a failed translation,
+            // not a criterion that means "everything" — say so.
+            if (Object.keys(parsed.data).length === 0) {
+              translationNote =
+                'The criterion could not be turned into exact filters, so all screened stocks are shown.';
+            }
           } else {
             translationNote =
               'The criterion could not be turned into exact filters, so all screened stocks are shown.';
@@ -960,6 +1056,8 @@ export class AiService {
         this.config.primaryModel,
         guardrailContext,
         async () => screenTemplate(screen),
+        undefined,
+        deadline,
       );
       return {
         answer: answer.answer,
@@ -1033,20 +1131,25 @@ export class AiService {
     messages: ChatMessage[],
     model: string,
     maxTokens?: number,
+    deadline?: AiRequestDeadline,
   ): Promise<AiAnswer> {
     const withInstructions: ChatMessage[] = [
       ...messages,
       { role: 'user', content: STRUCTURED_OUTPUT_INSTRUCTIONS },
     ];
+    deadline?.throwIfExpired();
     const first = await this.client.chat({
       model,
       messages: withInstructions,
       responseFormatJson: true,
-      timeoutMs: this.config.timeoutMs,
+      timeoutMs: deadline
+        ? deadline.timeoutFor(this.config.timeoutMs)
+        : this.config.timeoutMs,
       maxTokens,
     });
     const parsed = parseStructuredJson(first.content, AiAnswerSchema);
     if (parsed.ok) return parsed.value;
+    deadline?.throwIfExpired();
     const retry = await this.client.chat({
       model,
       messages: [
@@ -1058,7 +1161,9 @@ export class AiService {
         },
       ],
       responseFormatJson: true,
-      timeoutMs: this.config.timeoutMs,
+      timeoutMs: deadline
+        ? deadline.timeoutFor(this.config.timeoutMs)
+        : this.config.timeoutMs,
       maxTokens,
     });
     const reparsed = parseStructuredJson(retry.content, AiAnswerSchema);
@@ -1086,8 +1191,14 @@ export class AiService {
     context: GuardrailContext,
     template: () => Promise<TemplateAnswer>,
     maxTokens?: number,
+    deadline?: AiRequestDeadline,
   ): Promise<{ answer: AiAnswer; verification: VerificationState }> {
-    const first = await this.structuredAnswer(messages, model, maxTokens);
+    const first = await this.structuredAnswer(
+      messages,
+      model,
+      maxTokens,
+      deadline,
+    );
     if (first.refused) {
       return { answer: first, verification: refusedVerification() };
     }
@@ -1110,7 +1221,12 @@ export class AiService {
         content: guardrailCorrectionPrompt(firstResult.failures),
       },
     ];
-    const second = await this.structuredAnswer(retryMessages, model, maxTokens);
+    const second = await this.structuredAnswer(
+      retryMessages,
+      model,
+      maxTokens,
+      deadline,
+    );
     if (second.refused) {
       return { answer: second, verification: refusedVerification() };
     }
@@ -1126,6 +1242,21 @@ export class AiService {
       };
     }
     const built = await template();
+    if (built.claims.length === 0) {
+      // B4: an empty template is not a verifiable answer — the schema
+      // requires ≥1 claim for a non-refused answer, and the template
+      // path used to return claims: [] as if it were one. Return an
+      // honest refusal carrying the template's own explanation.
+      return {
+        answer: {
+          answer: built.answer,
+          claims: [],
+          refused: true,
+          refusalReason: built.answer,
+        },
+        verification: refusedVerification(),
+      };
+    }
     return {
       answer: {
         answer: built.answer,

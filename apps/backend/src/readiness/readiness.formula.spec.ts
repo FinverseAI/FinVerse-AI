@@ -76,6 +76,12 @@ describe('bandForScore', () => {
   ])('scores %d as %s', (score, band) => {
     expect(bandForScore(score)).toBe(band);
   });
+
+  it('never returns Ready for a non-finite score (B11)', () => {
+    expect(bandForScore(NaN)).toBe('Not ready');
+    expect(bandForScore(Infinity)).toBe('Not ready');
+    expect(bandForScore(-Infinity)).toBe('Not ready');
+  });
 });
 
 describe('scoreReadiness', () => {
@@ -310,5 +316,37 @@ describe('scoreReadiness', () => {
       (factor) => factor.metric === 'volatilityPercent',
     );
     expect(volatility?.points).toBe(15);
+  });
+
+  it('reports null context volatility when holdings sum to zero value (B10)', () => {
+    const result = assessed(
+      baseInputs({
+        holdings: [{ symbol: 'ZERO.NS', currentValue: 0 }],
+        holdingVolatilities: [
+          { symbol: 'ZERO.NS', volatility: 0.2, currentValue: 0 },
+        ],
+      }),
+    );
+    expect(result.context.volatilityPercent).toBeNull();
+    expect(Number.isFinite(result.score)).toBe(true);
+  });
+
+  it('treats an unknown emergency band as unavailable, never NaN (B11)', () => {
+    const result = assessed(
+      baseInputs({
+        // A DB value outside the enum, as the service's unchecked cast
+        // can deliver it at runtime.
+        emergencyFundBand: 'bogus' as never,
+      }),
+    );
+    const emergency = result.factors.find(
+      (factor) => factor.metric === 'emergencyFundMonths',
+    );
+    expect(emergency?.available).toBe(false);
+    // The score rescales over the remaining factors (debt, surplus,
+    // concentration, volatility) instead of turning NaN.
+    expect(Number.isFinite(result.score)).toBe(true);
+    expect(result.score).toBe(99);
+    expect(result.maxScore).toBe(75);
   });
 });

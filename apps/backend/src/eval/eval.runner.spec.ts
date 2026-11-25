@@ -225,6 +225,93 @@ describe('runEval — stub live client', () => {
     expect(scenario?.llm.runs[0]?.conclusions?.score).toBeNull();
   });
 
+  it('excludes refusals from grounding and consistency — an all-refuse model does not score 100% (B3)', async () => {
+    const client = stubClient({
+      content: JSON.stringify({
+        answer: 'I cannot explain this score.',
+        claims: [],
+        refused: true,
+        refusalReason: 'The data is too thin.',
+      }),
+      toolCalls: [],
+      model: 'deepseek/deepseek-r1-0528',
+      usage: { promptTokens: 800, completionTokens: 50, totalTokens: 850 },
+    });
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 2,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs.map((run) => run.status)).toEqual([
+      'refused',
+      'refused',
+    ]);
+    // The vacuous pass is still recorded per run, but the aggregate
+    // must not count refusals as grounded answers.
+    expect(scenario?.llm.grounding?.answersTotal).toBe(0);
+    expect(scenario?.llm.grounding?.answerRate).toBeNull();
+    expect(scenario?.llm.grounding?.refused).toBe(2);
+    expect(scenario?.llm.grounding?.refusalRate).toBe(1);
+    expect(scenario?.llm.consistency).toBeNull();
+    expect(report.grounding.llm?.answerRate).toBeNull();
+    expect(report.grounding.llm?.refused).toBe(2);
+    const markdown = renderReportMarkdown(report);
+    expect(markdown).toContain('LLM refusals: 2 of 2 runs (100.0%)');
+  }, 15_000);
+
+  it('uses the first successful run for the rating pack, not a failed first repeat (B13)', async () => {
+    const client = sequenceClient([
+      // 401 is not retryable: repeat 1 records a provider-error with
+      // no answer, and repeat 2 succeeds.
+      new LlmProviderError('The AI provider returned an error.', 401),
+      templateCompletionFor('healthy-saver'),
+    ]);
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 2,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs[0]?.status).toBe('provider-error');
+    expect(scenario?.llm.runs[0]?.answer).toBeNull();
+    expect(scenario?.llm.runs[1]?.status).toBe('ok');
+    expect(scenario?.llm.answer).not.toBeNull();
+    expect(scenario?.llm.answer).toEqual(scenario?.llm.runs[1]?.answer);
+  }, 15_000);
+
+  it('skips a refused first repeat when picking the rating-pack answer (B13)', async () => {
+    // A refusal stores a non-null answer, so "first non-null" would
+    // put the refusal itself into the rating pack.
+    const client = sequenceClient([
+      {
+        content: JSON.stringify({
+          answer: 'I cannot explain this score.',
+          claims: [],
+          refused: true,
+          refusalReason: 'The data is too thin.',
+        }),
+        toolCalls: [],
+        model: 'deepseek/deepseek-r1-0528',
+        usage: { promptTokens: 800, completionTokens: 50, totalTokens: 850 },
+      },
+      templateCompletionFor('healthy-saver'),
+    ]);
+    const report = await runEval({
+      client,
+      scenarioIds: ['healthy-saver'],
+      repeats: 2,
+      mock: [],
+    });
+    const [scenario] = report.scenarios;
+    expect(scenario?.llm.runs[0]?.status).toBe('refused');
+    expect(scenario?.llm.runs[0]?.answer).not.toBeNull();
+    expect(scenario?.llm.runs[1]?.status).toBe('ok');
+    expect(scenario?.llm.answer).toEqual(scenario?.llm.runs[1]?.answer);
+  }, 15_000);
+
   it('sends the structured-output instructions with every live call (24 Nov 2026: the first live run never told the model the required shape)', async () => {
     const client = stubClient(templateCompletionFor('healthy-saver'));
     await runEval({

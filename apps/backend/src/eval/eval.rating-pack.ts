@@ -205,8 +205,8 @@ function keyContents(key: RatingPack['key'], generatedAt: string): string {
 /**
  * Build the rating pack from a report. Measured scenarios only (an
  * unavailable scenario has no explanation to rate). The LLM output
- * included is the FIRST repeat's answer — repeats exist for the
- * self-consistency metric, not for rating.
+ * included is the FIRST SUCCESSFUL repeat's answer (B13) — repeats
+ * exist for the self-consistency metric, not for rating.
  */
 export function buildRatingPack(report: EvalReport, seed: number): RatingPack {
   const measured = report.scenarios.filter(

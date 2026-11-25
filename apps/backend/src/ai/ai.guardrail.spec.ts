@@ -598,6 +598,93 @@ describe('verifyAnswer — corrupted outputs are caught (100%)', () => {
     expect(result.passed).toBe(false);
   });
 
+  it('catches prose that contradicts the cited score (B1: bare integers < 100 next to "score" are checked)', () => {
+    const result = verifyAnswer(
+      answer([
+        claim('Your score is 82 out of 100.', 'getReadinessScore', {
+          score: 75,
+          scale: 100,
+        }),
+      ]),
+      context({
+        toolResults: new Map([
+          [
+            'getReadinessScore',
+            [
+              {
+                score: 75,
+                scale: 100,
+                maxScore: 100,
+                band: 'Ready',
+                factors: [],
+                suggestions: [],
+              },
+            ],
+          ],
+        ]),
+      }),
+    );
+    expect(result.passed).toBe(false);
+    expect(result.failures.some((check) => check.checkType === 'text')).toBe(
+      true,
+    );
+  });
+
+  it('passes prose that restates the cited score exactly (B1)', () => {
+    const result = verifyAnswer(
+      answer([
+        claim('Your score is 75 out of 100.', 'getReadinessScore', {
+          score: 75,
+          scale: 100,
+        }),
+      ]),
+      context({
+        toolResults: new Map([
+          [
+            'getReadinessScore',
+            [
+              {
+                score: 75,
+                scale: 100,
+                maxScore: 100,
+                band: 'Ready',
+                factors: [],
+                suggestions: [],
+              },
+            ],
+          ],
+        ]),
+      }),
+    );
+    expect(result.passed).toBe(true);
+  });
+
+  it("catches an unscoped total that is really one category's spend (B15)", () => {
+    // 8600 is Food & Dining's spend, not the total (12800). Before
+    // the fix the unscoped "spent" matched the category element.
+    const result = verifyAnswer(
+      answer([
+        claim('You spent ₹8,600 in total.', 'getBudgetStatus', {
+          spent: 8600,
+        }),
+      ]),
+      context(),
+    );
+    expect(result.passed).toBe(false);
+  });
+
+  it('passes an unscoped spend that really is the total (B15)', () => {
+    const result = verifyAnswer(
+      answer([
+        claim('You spent ₹12,800 in total.', 'getBudgetStatus', {
+          spent: 12800,
+        }),
+      ]),
+      context(),
+    );
+    expect(result.passed).toBe(true);
+  });
+
   it('catches a value the tool never returned', () => {
     const result = verifyAnswer(
       answer([
@@ -734,6 +821,44 @@ describe('extractTextNumbers', () => {
 
   it('extracts negative amounts', () => {
     expect(extractTextNumbers('Down −₹1,200.')[0]?.value).toBe(-1200);
+  });
+
+  it('extracts a bare score next to the score keyword (B1)', () => {
+    expect(
+      extractTextNumbers('Your score is 82 out of 100.').map(
+        (entry) => entry.value,
+      ),
+    ).toEqual([82, 100]);
+  });
+
+  it('extracts bare points next to the points keyword (B1)', () => {
+    expect(
+      extractTextNumbers('Emergency fund: worth 8.3 of 25 points.').map(
+        (entry) => entry.value,
+      ),
+    ).toEqual([8.3, 25]);
+  });
+
+  it('extracts bare months next to the months keyword (B1)', () => {
+    expect(
+      extractTextNumbers('Emergency fund: 6 months of expenses saved.').map(
+        (entry) => entry.value,
+      ),
+    ).toEqual([6]);
+  });
+
+  it('still skips ranges and period labels even next to a keyword (B1)', () => {
+    // 1 and 3 are the "1-3 months" band label, not values; 6 and 5 are.
+    expect(
+      extractTextNumbers(
+        'Build the fund to 6 months (currently 1-3 months) to gain 5 points.',
+      ).map((entry) => entry.value),
+    ).toEqual([6, 5]);
+    expect(
+      extractTextNumbers('The RSI (14) is 55.55 with a score of 60.').map(
+        (entry) => entry.value,
+      ),
+    ).toEqual([55.55, 60]);
   });
 });
 

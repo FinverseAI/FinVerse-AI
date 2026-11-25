@@ -7,6 +7,32 @@ import { z } from 'zod';
  * refusals as a first-class shape instead of free text.
  */
 
+/**
+ * Real-calendar-date checks (B8): the YYYY-MM-DD / YYYY-MM regexes
+ * alone accept 2026-02-30 and 2026-13, which then silently matched
+ * nothing downstream. Round-tripping through Date.UTC catches
+ * impossible months and days (including Feb 29 on non-leap years).
+ */
+export function isRealCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split('-').map(Number) as [
+    number,
+    number,
+    number,
+  ];
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+export function isRealMonth(value: string): boolean {
+  const month = Number(value.slice(5, 7));
+  return month >= 1 && month <= 12;
+}
+
 export const ChatRequestSchema = z.object({
   message: z.string().trim().min(1).max(2000),
 });
@@ -40,6 +66,9 @@ export const ExtractExpenseRequestSchema = z.object({
   today: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isRealCalendarDate, {
+      message: 'today must be a real calendar date (YYYY-MM-DD)',
+    })
     .optional(),
 });
 
@@ -61,10 +90,16 @@ export const GetTransactionsArgsSchema = z.object({
   startDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isRealCalendarDate, {
+      message: 'startDate must be a real calendar date (YYYY-MM-DD)',
+    })
     .optional(),
   endDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isRealCalendarDate, {
+      message: 'endDate must be a real calendar date (YYYY-MM-DD)',
+    })
     .optional(),
   limit: z.number().int().min(1).max(50).optional(),
 });
@@ -73,6 +108,9 @@ export const GetBudgetStatusArgsSchema = z.object({
   month: z
     .string()
     .regex(/^\d{4}-\d{2}$/)
+    .refine(isRealMonth, {
+      message: 'month must be a real month (YYYY-MM, month 01-12)',
+    })
     .optional(),
 });
 
@@ -95,6 +133,9 @@ export const ExpenseExtractionSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(isRealCalendarDate, {
+      message: 'date must be a real calendar date (YYYY-MM-DD)',
+    })
     .nullable(),
   merchant: z.string().trim().max(120).nullable(),
 });

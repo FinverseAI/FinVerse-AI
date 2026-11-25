@@ -56,6 +56,13 @@ describe('eval config', () => {
     expect(priceForModel('some/unknown-model')).toBeUndefined();
   });
 
+  it('prices openrouter/free at zero too (B14: /free, not :free)', () => {
+    expect(priceForModel('openrouter/free')).toEqual({
+      promptPerMillionUsd: 0,
+      completionPerMillionUsd: 0,
+    });
+  });
+
   it('lets LLM_MODEL_REASONING override the eval model (24 Nov 2026 free run)', () => {
     const previous = process.env.LLM_MODEL_REASONING;
     process.env.LLM_MODEL_REASONING = 'google/gemma-4-31b-it:free';

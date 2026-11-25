@@ -229,6 +229,56 @@ function round2(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+/**
+ * IST calendar date (Asia/Calcutta) for a moment, as YYYY-MM-DD.
+ * B6: never `toISOString()` for a user-facing day — between 00:00
+ * and 05:30 IST that is still yesterday in UTC, so the budget month
+ * and "today" would be a day/month behind. Node resolves
+ * Asia/Calcutta via ICU; the shell's missing zoneinfo does not apply.
+ */
+export function istDateKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Calcutta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const get = (type: string): string =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/** IST calendar month (YYYY-MM) for a moment. */
+export function istMonthKey(date: Date): string {
+  return istDateKey(date).slice(0, 7);
+}
+
+/** YYYY-MM-DD from calendar parts (Date.UTC normalises overflow). */
+function dateKeyFromParts(year: number, month: number, day: number): string {
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10);
+}
+
+/**
+ * Category matching for the model's (often partial) category names
+ * (B16): exact, alias, then prefix/substring either way — "food"
+ * finds "Food & Dining", "trans" finds "Transport". Short (1-char)
+ * wants match exactly only, so "t" cannot match every category.
+ */
+function categoryMatches(transactionCategory: string, wanted: string): boolean {
+  const label = normalizeCategoryLabel(transactionCategory).toLowerCase();
+  const want = normalizeCategoryLabel(wanted).toLowerCase();
+  if (label === want) return true;
+  const aliased = CATEGORY_ALIASES[transactionCategory];
+  if (aliased !== undefined && aliased.toLowerCase() === want) return true;
+  if (want.length < 2) return false;
+  return (
+    label.startsWith(want) ||
+    want.startsWith(label) ||
+    label.includes(want) ||
+    want.includes(label)
+  );
+}
+
 function isBudgetSplit(value: unknown): value is Record<string, number> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return false;
@@ -361,7 +411,7 @@ export class AiTools {
     if (!parsed.success) {
       throw new Error(firstIssueMessage(parsed.error));
     }
-    const month = parsed.data.month ?? new Date().toISOString().slice(0, 7);
+    const month = parsed.data.month ?? istMonthKey(new Date());
     const data = await this.profile.get(userId);
     if (!data.profile || !isBudgetSplit(data.profile.budget_split)) {
       return {
@@ -392,8 +442,16 @@ export class AiTools {
       spentPaise[label] =
         (spentPaise[label] ?? 0) + Math.round(-transaction.amount * 100);
     }
+    // B2: a category with a zero budget but real spend is a row, not
+    // a hole — flagged unbudgeted, counted in the totals. Spend under
+    // a label outside the twelve categories is reported separately
+    // (unbudgetedSpent) so totalSpent still reconciles with the ledger.
+    const knownLabels: Set<string> = new Set(
+      BUDGET_CATEGORIES.map(({ label }) => label),
+    );
     const categories = BUDGET_CATEGORIES.filter(
-      ({ id }) => (allocated[id] ?? 0) > 0,
+      ({ id, label }) =>
+        (allocated[id] ?? 0) > 0 || (spentPaise[label] ?? 0) > 0,
     ).map(({ id, label }) => {
       const budgeted = allocated[id] ?? 0;
       const spent = spentPaise[label] ?? 0;
@@ -403,16 +461,21 @@ export class AiTools {
         spent: spent / 100,
         remaining: (budgeted - spent) / 100,
         overBudget: spent > budgeted,
+        ...(budgeted === 0 ? { unbudgeted: true } : {}),
       };
     });
+    const unbudgetedSpentPaise = Object.entries(spentPaise)
+      .filter(([label]) => !knownLabels.has(label))
+      .reduce((sum, [, paise]) => sum + paise, 0);
     const totalBudgeted = categories.reduce(
       (sum, category) => sum + Math.round(category.budgeted * 100),
       0,
     );
-    const totalSpent = categories.reduce(
-      (sum, category) => sum + Math.round(category.spent * 100),
-      0,
-    );
+    const totalSpent =
+      categories.reduce(
+        (sum, category) => sum + Math.round(category.spent * 100),
+        0,
+      ) + unbudgetedSpentPaise;
     return {
       available: true,
       month,
@@ -421,6 +484,7 @@ export class AiTools {
       totalBudgeted: totalBudgeted / 100,
       totalSpent: totalSpent / 100,
       totalRemaining: (totalBudgeted - totalSpent) / 100,
+      unbudgetedSpent: unbudgetedSpentPaise / 100,
     };
   }
 
@@ -434,11 +498,7 @@ export class AiTools {
     const all = await this.activity.transactions(userId);
     const filtered = all
       .filter((transaction) => {
-        if (
-          category &&
-          normalizeCategoryLabel(transaction.category).toLowerCase() !==
-            normalizeCategoryLabel(category).toLowerCase()
-        ) {
+        if (category && !categoryMatches(transaction.category, category)) {
           return false;
         }
         if (startDate && transaction.date < startDate) return false;
@@ -466,37 +526,43 @@ export class AiTools {
     }
     const category = parsed.data.category;
     const period = parsed.data.period ?? 'month';
-    const today = new Date();
-    const todayKey = today.toISOString().slice(0, 10);
+    // B6: "today" and the period start are IST calendar dates, never
+    // UTC — toISOString() is yesterday until 05:30 IST.
+    const todayKey = istDateKey(new Date());
+    const [year, month, day] = todayKey.split('-').map(Number) as [
+      number,
+      number,
+      number,
+    ];
     let start: string;
     if (period === 'week') {
-      start = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
+      start = dateKeyFromParts(year, month, day - 6);
     } else if (period === '3months') {
-      start = new Date(
-        Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 2, 1),
-      )
-        .toISOString()
-        .slice(0, 10);
+      start = dateKeyFromParts(year, month - 2, 1);
     } else {
-      start = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
-        .toISOString()
-        .slice(0, 10);
+      start = dateKeyFromParts(year, month, 1);
     }
-    const wanted = category.toLowerCase();
-    const matches = (transaction: { category: string }) => {
-      const label = transaction.category;
-      if (label.toLowerCase() === wanted) return true;
-      const aliased = CATEGORY_ALIASES[label];
-      return aliased !== undefined && aliased.toLowerCase() === wanted;
-    };
-    const transactions = (await this.activity.transactions(userId)).filter(
+    const allTransactions = await this.activity.transactions(userId);
+    // B16: when nothing the user ever recorded matches the category
+    // at all, say so — a confident zero would be invented data.
+    if (
+      !allTransactions.some((transaction) =>
+        categoryMatches(transaction.category, category),
+      )
+    ) {
+      return {
+        available: false,
+        category,
+        period,
+        reason: `No such category "${category}" was found in the user's transactions.`,
+      };
+    }
+    const transactions = allTransactions.filter(
       (transaction) =>
         transaction.amount < 0 &&
         transaction.date >= start &&
         transaction.date <= todayKey &&
-        matches(transaction),
+        categoryMatches(transaction.category, category),
     );
     const totalPaise = transactions.reduce(
       (sum, transaction) => sum + Math.round(-transaction.amount * 100),
@@ -511,6 +577,7 @@ export class AiTools {
         date: transaction.date,
       }));
     return {
+      available: true,
       category,
       period,
       startDate: start,
@@ -592,7 +659,10 @@ export class AiTools {
                 histogram: round2(latestMacd.histogram),
               },
         change1moPercent:
-          monthAgo && latest && monthAgo !== 0
+          // B7: with fewer than 22 closes there is no 1-month-ago bar
+          // — the old fallback (closes[0]) labelled the whole
+          // available history as "1 month". Null, like the screener.
+          closes.length >= 22 && monthAgo && latest && monthAgo !== 0
             ? round2(((latest - monthAgo) / monthAgo) * 100)
             : null,
         change3moPercent:

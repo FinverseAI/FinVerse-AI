@@ -93,14 +93,20 @@ export interface SlimVerification {
   checksPassed: number;
   checksFailed: number;
   failures: GuardrailCheckRow[];
+  /** True when this is a refusal's vacuous pass (B3: excluded from grounding). */
+  refused: boolean;
 }
 
-function slimVerification(result: GuardrailResult): SlimVerification {
+function slimVerification(
+  result: GuardrailResult,
+  refused = false,
+): SlimVerification {
   return {
     passed: result.passed,
     checksPassed: result.checksPassed,
     checksFailed: result.checksFailed,
     failures: result.failures,
+    refused,
   };
 }
 
@@ -128,7 +134,7 @@ export interface EvalSystemResult {
   latency: LatencySummary | null;
   /** Total USD cost across runs (null when usage was not reported). */
   totalCostUsd: number | null;
-  /** First run's answer, for the rating pack (null when none). */
+  /** First successful run's answer, for the rating pack (B13: a failed first repeat must not blank the pack). */
   answer: AiAnswer | null;
 }
 
@@ -206,6 +212,7 @@ function syntheticFailure(detail: string): SlimVerification {
     checksPassed: 0,
     checksFailed: 1,
     failures: [row],
+    refused: false,
   };
 }
 
@@ -411,7 +418,9 @@ async function runModelSystem(
         costUsd,
         answer,
         // A refusal is verified as vacuous by the guardrail
-        // (verifyAnswer passes refusals with zero checks).
+        // (verifyAnswer passes refusals with zero checks) — the
+        // refused flag keeps it out of the grounding denominator
+        // (B3) instead of counting as a grounded answer.
         verification: slimVerification(
           verifyAnswer(
             answer,
@@ -421,6 +430,7 @@ async function runModelSystem(
               assessment,
             ),
           ),
+          true,
         ),
         conclusions: extractConclusions(answer),
         error: null,
@@ -454,7 +464,10 @@ async function runModelSystem(
   const verifications = runs
     .map((run) => run.verification)
     .filter((result): result is SlimVerification => result !== null);
+  // B3: refused runs extract empty conclusions (score/band null) that
+  // would agree with each other and inflate self-consistency.
   const conclusions = runs
+    .filter((run) => run.status !== 'refused')
     .map((run) => run.conclusions)
     .filter((value): value is AnswerConclusions => value !== null);
   const costs = runs
@@ -472,7 +485,13 @@ async function runModelSystem(
     totalCostUsd: anyUsageReported
       ? costs.reduce((sum, value) => sum + value, 0)
       : null,
-    answer: runs[0]?.answer ?? null,
+    // B13: the first SUCCESSFUL run's answer — a parse/provider
+    // error on repeat 1 used to blank the rating-pack output. A
+    // refusal also stores a non-null answer, so status must be 'ok':
+    // the pack must show a real answer, not a refusal.
+    answer:
+      runs.find((run) => run.status === 'ok' && run.answer !== null)?.answer ??
+      null,
   };
 }
 
@@ -831,6 +850,21 @@ export function renderReportMarkdown(report: EvalReport): string {
   lines.push(
     'Mock rows exercise the runner mechanics only; they are not model measurements.',
   );
+  // B3: refusals are excluded from the grounding rates above — report
+  // them separately so a refusal-heavy run cannot hide behind them.
+  for (const [system, label] of [
+    ['baseline', 'Template baseline'],
+    ['llm', 'LLM'],
+    ['mock-correct', 'Mock — correct'],
+    ['mock-corrupt', 'Mock — corrupt'],
+  ] as Array<[EvalSystemName, string]>) {
+    const grounding = report.grounding[system];
+    if (grounding && grounding.refused > 0) {
+      lines.push(
+        `- ${label} refusals: ${grounding.refused} of ${grounding.refused + grounding.answersTotal} runs (${pct(grounding.refusalRate)}) — excluded from the grounding rate above.`,
+      );
+    }
+  }
   lines.push('');
   lines.push('## Per-scenario results');
   lines.push('');

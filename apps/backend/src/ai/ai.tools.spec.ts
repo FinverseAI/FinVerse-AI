@@ -10,6 +10,8 @@ import {
   AI_TOOL_DEFINITIONS,
   APPLY_SCREENER_FILTERS_TOOL,
   AiTools,
+  istDateKey,
+  istMonthKey,
 } from './ai.tools';
 
 const USER_ID = 'user-123';
@@ -234,7 +236,7 @@ describe('AiTools', () => {
     });
 
     it('flags overspending and defaults to the current month', async () => {
-      const month = monthKey();
+      const month = istMonthKey(new Date());
       const { tools } = makeTools({
         profile: {
           profile: {
@@ -257,7 +259,8 @@ describe('AiTools', () => {
         month: string;
         categories: { name: string; overBudget: boolean; remaining: number }[];
       };
-      expect(result.month).toBe(month);
+      // The default month is the IST month, not the UTC month (B6).
+      expect(result.month).toBe(istMonthKey(new Date()));
       const food = result.categories.find((c) => c.name === 'Food & Dining');
       expect(food?.overBudget).toBe(true);
       expect(food?.remaining).toBe(-1000);
@@ -267,6 +270,69 @@ describe('AiTools', () => {
       const { tools } = makeTools();
       const result = await tools.execute(USER_ID, 'getBudgetStatus', {});
       expect(result).toEqual(expect.objectContaining({ available: false }));
+    });
+
+    it('includes zero-budget spend as unbudgeted instead of dropping it (B2)', async () => {
+      const month = monthKey();
+      const { tools } = makeTools({
+        profile: {
+          profile: {
+            monthly_income: 10000,
+            budget_split: { food: 10 },
+          },
+          goals: [],
+          onboarding_completed: true,
+        },
+        transactions: [
+          {
+            name: 'Lunch',
+            amount: -500,
+            category: 'Food & Dining',
+            date: `${month}-03`,
+          },
+          {
+            name: 'Cab',
+            amount: -2000,
+            category: 'Transport',
+            date: `${month}-04`,
+          },
+          {
+            name: 'Gift',
+            amount: -300,
+            category: 'Gifts',
+            date: `${month}-05`,
+          },
+        ],
+      });
+      const result = (await tools.execute(USER_ID, 'getBudgetStatus', {
+        month,
+      })) as {
+        categories: {
+          name: string;
+          budgeted: number;
+          spent: number;
+          overBudget: boolean;
+          unbudgeted?: boolean;
+        }[];
+        totalBudgeted: number;
+        totalSpent: number;
+        totalRemaining: number;
+        unbudgetedSpent: number;
+      };
+      const transport = result.categories.find((c) => c.name === 'Transport');
+      expect(transport).toEqual({
+        name: 'Transport',
+        budgeted: 0,
+        spent: 2000,
+        remaining: -2000,
+        overBudget: true,
+        unbudgeted: true,
+      });
+      // Food 500 + Transport 2000 + unknown-label Gifts 300.
+      expect(result.totalSpent).toBe(2800);
+      expect(result.totalBudgeted).toBe(1000);
+      expect(result.totalRemaining).toBe(-1800);
+      expect(result.unbudgetedSpent).toBe(300);
     });
   });
 
@@ -333,6 +399,15 @@ describe('AiTools', () => {
       expect(result.transactions.map((t) => t.name)).toEqual(['Rent']);
     });
 
+    it('matches a partial category name (B16)', async () => {
+      const { tools } = makeTools({ transactions });
+      const result = (await tools.execute(USER_ID, 'getTransactions', {
+        category: 'food',
+      })) as { count: number; transactions: { name: string }[] };
+      expect(result.count).toBe(1);
+      expect(result.transactions.map((t) => t.name)).toEqual(['A']);
+    });
+
     it('returns the most recent first and applies the limit', async () => {
       const { tools } = makeTools({ transactions });
       const result = (await tools.execute(USER_ID, 'getTransactions', {
@@ -349,6 +424,47 @@ describe('AiTools', () => {
   });
 
   describe('getCategorySpending', () => {
+    it('matches a partial category name (B16)', async () => {
+      const { tools } = makeTools({
+        transactions: [
+          {
+            name: 'Dinner',
+            amount: -500,
+            category: 'Food & Dining',
+            // IST today, so the 00:00–05:30 window cannot push it
+            // into the previous UTC day outside the period.
+            date: istDateKey(new Date()),
+          },
+        ],
+      });
+      const result = (await tools.execute(USER_ID, 'getCategorySpending', {
+        category: 'food',
+        period: 'month',
+      })) as { available: boolean; totalSpent: number; count: number };
+      expect(result.available).toBe(true);
+      expect(result.totalSpent).toBe(500);
+      expect(result.count).toBe(1);
+    });
+
+    it('says so instead of a confident zero when no such category exists (B16)', async () => {
+      const { tools } = makeTools({
+        transactions: [
+          {
+            name: 'Dinner',
+            amount: -500,
+            category: 'Food & Dining',
+            date: dayKey(0),
+          },
+        ],
+      });
+      const result = (await tools.execute(USER_ID, 'getCategorySpending', {
+        category: 'Yachts',
+        period: 'month',
+      })) as { available: boolean; reason: string; totalSpent?: number };
+      expect(result.available).toBe(false);
+      expect(result.reason).toContain('No such category');
+      expect(result.totalSpent).toBeUndefined();
+    });
     it('totals spending exactly and lists the largest transactions', async () => {
       const { tools } = makeTools({
         transactions: [
@@ -403,6 +519,23 @@ describe('AiTools', () => {
       })) as { totalSpent: number; count: number };
       expect(result.totalSpent).toBe(12000);
       expect(result.count).toBe(1);
+    });
+  });
+
+  describe('IST dates (B6)', () => {
+    it('reports the IST calendar day, not the UTC day', () => {
+      // 2026-11-01 00:30 IST is still 2026-10-31 in UTC.
+      const earlyMorningIst = new Date('2026-10-31T19:00:00.000Z');
+      expect(istDateKey(earlyMorningIst)).toBe('2026-11-01');
+      expect(istMonthKey(earlyMorningIst)).toBe('2026-11');
+      // 05:30 IST is 00:00 UTC the same IST day.
+      expect(istDateKey(new Date('2026-11-01T00:00:00.000Z'))).toBe(
+        '2026-11-01',
+      );
+      // Midday UTC is the same day in IST.
+      expect(istDateKey(new Date('2026-11-15T12:00:00.000Z'))).toBe(
+        '2026-11-15',
+      );
     });
   });
 
@@ -551,6 +684,50 @@ describe('AiTools', () => {
       );
       expect(result.technicals.barsUsed).toBe(60);
       expect(result.technicals.note).toBeNull();
+    });
+
+    it('returns null for the 1-month change with fewer than 22 closes (B7)', async () => {
+      const closes = Array.from({ length: 15 }, (_, i) => 100 + i);
+      const { tools } = makeTools({
+        fundamentals: {
+          symbol: 'RELIANCE',
+          quote: { price: 114 },
+          fundamentals: {},
+          fundamentalsAvailable: true,
+        },
+        history: historyFixture(closes),
+      });
+      const result = (await tools.execute(USER_ID, 'getStockFundamentals', {
+        symbol: 'RELIANCE',
+      })) as {
+        technicals: {
+          change1moPercent: number | null;
+          change3moPercent: number | null;
+        };
+      };
+      // 15 bars span the whole available history, not one month.
+      expect(result.technicals.change1moPercent).toBeNull();
+      expect(result.technicals.change3moPercent).not.toBeNull();
+    });
+
+    it('computes the 1-month change once 22 closes exist (B7)', async () => {
+      const closes = Array.from({ length: 22 }, (_, i) => 100 + i);
+      const { tools } = makeTools({
+        fundamentals: {
+          symbol: 'RELIANCE',
+          quote: { price: 121 },
+          fundamentals: {},
+          fundamentalsAvailable: true,
+        },
+        history: historyFixture(closes),
+      });
+      const result = (await tools.execute(USER_ID, 'getStockFundamentals', {
+        symbol: 'RELIANCE',
+      })) as { technicals: { change1moPercent: number | null } };
+      expect(result.technicals.change1moPercent).toBeCloseTo(
+        ((closes[21] - closes[0]) / closes[0]) * 100,
+        2,
+      );
     });
 
     it('notes thin and stale history instead of inventing values', async () => {

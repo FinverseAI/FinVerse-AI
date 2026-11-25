@@ -281,6 +281,25 @@ describe('AiService guardrail flow', () => {
     expect(attempt2.some((row) => !row.check.passed)).toBe(true);
   });
 
+  it('refuses honestly when the template itself is empty (B4)', async () => {
+    const repository = new InMemoryGuardrailCheckRepository();
+    const { client } = scriptedClient([
+      toolCallCompletion('getBudgetStatus', { month: '2026-11' }),
+      contentCompletion('thinking'),
+      contentCompletion(CORRUPTED_BUDGET_JSON),
+      contentCompletion(CORRUPTED_BUDGET_JSON),
+    ]);
+    // No metrics at all: the chat template has no claims to build.
+    const service = makeService(client, repository, { available: false });
+    const response = await service.chat(USER_ID, {
+      message: 'How much did I spend this month?',
+    });
+    expect(response.refused).toBe(true);
+    expect(response.claims).toEqual([]);
+    expect(response.verification.status).toBe('refused');
+    expect(response.answer).toContain("couldn't be loaded");
+  });
+
   it('skips verification entirely for refusals', async () => {
     const repository = new InMemoryGuardrailCheckRepository();
     const { client } = scriptedClient([

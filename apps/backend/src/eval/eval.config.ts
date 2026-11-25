@@ -77,9 +77,10 @@ export const EVAL_MODEL_PRICES: Record<string, ModelPrice> = {
  * Price for the cost metric. A `:free` model costs $0 by definition,
  * so it prices to zero without a table entry; anything else comes
  * from the snapshot table (undefined = unknown, cost unreported).
+ * B14: `openrouter/free` ends in `/free`, not `:free`.
  */
 export function priceForModel(model: string): ModelPrice | undefined {
-  if (model.endsWith(':free')) {
+  if (model.endsWith(':free') || model.endsWith('/free')) {
     return { promptPerMillionUsd: 0, completionPerMillionUsd: 0 };
   }
   return EVAL_MODEL_PRICES[model];

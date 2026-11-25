@@ -103,8 +103,16 @@ describe('formatScreenResults', () => {
   it('formats matches as compact lines', () => {
     const text = formatScreenResults(screen());
     expect(text).toBe(
-      'RELIANCE.NS: price ₹2600, RSI 100, P/E 25, 1-month 5.5%, market cap ₹1760000 crore',
+      'RELIANCE.NS: price ₹2600, RSI 100, P/E 25, 1-month 5.5%, market cap ₹17600000000000',
     );
+  });
+
+  it('shows the exact market cap, never a rounded crore figure (B5)', () => {
+    // The guardrail checks market-cap claims against the exact value,
+    // so "₹176 crore" in the prompt could never be restated verifiably.
+    const text = formatScreenResults(screen());
+    expect(text).toContain('market cap ₹17600000000000');
+    expect(text).not.toContain('crore');
   });
 
   it('says so when nothing matched', () => {

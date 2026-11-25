@@ -10,7 +10,7 @@ import {
   type ChatOptions,
   type LlmClient,
 } from './ai.provider';
-import { AiService } from './ai.service';
+import { AiRequestDeadline, AiService } from './ai.service';
 import type { AiTools } from './ai.tools';
 
 const USER_ID = 'user-123';
@@ -139,6 +139,24 @@ function toolCallCompletion(name: string, args: unknown): ChatCompletion {
 function contentCompletion(content: string): ChatCompletion {
   return { content, toolCalls: [], model: 'test-model', usage: null };
 }
+
+describe('AiRequestDeadline (B60)', () => {
+  it('caps each call at the remaining budget', () => {
+    const deadline = new AiRequestDeadline(100, 1000);
+    expect(deadline.remainingMs(1050)).toBe(50);
+    expect(deadline.timeoutFor(110_000, 1050)).toBe(50);
+    expect(deadline.timeoutFor(10, 1050)).toBe(10);
+    expect(deadline.remainingMs(2000)).toBe(0);
+    expect(deadline.timeoutFor(110_000, 2000)).toBe(0);
+  });
+
+  it('throws once the budget is spent', () => {
+    const deadline = new AiRequestDeadline(100, 1000);
+    expect(() => deadline.throwIfExpired(1099)).not.toThrow();
+    expect(() => deadline.throwIfExpired(1100)).toThrow(LlmProviderError);
+    expect(() => deadline.throwIfExpired(2000)).toThrow(LlmProviderError);
+  });
+});
 
 describe('AiService', () => {
   describe('status', () => {
@@ -298,6 +316,33 @@ describe('AiService', () => {
       const response = await service.chat(USER_ID, { message: 'Hi' });
       expect(response.answer).toContain('dining out');
       expect(toolsExecute).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops at the total deadline and falls back instead of stacking calls (B60)', async () => {
+      const toolsExecute = jest.fn().mockResolvedValue({ ok: true });
+      const calls: ChatOptions[] = [];
+      const slowClient: LlmClient = {
+        chat: jest.fn(async (request: ChatOptions) => {
+          calls.push(request);
+          // Each call takes 50ms; the deadline is 5ms, so the second
+          // round must never start.
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return toolCallCompletion('getBudgetStatus', {});
+        }),
+      };
+      const service = makeService(
+        { ...DEFAULT_ENV, LLM_TOTAL_DEADLINE_MS: '5' },
+        toolsExecute,
+        slowClient,
+      );
+      const response = await service.chat(USER_ID, {
+        message: 'deadline test',
+      });
+      expect(response.fallback).toBe(true);
+      expect(calls).toHaveLength(1);
+      // The one call that ran was capped at the remaining budget.
+      expect(calls[0]?.timeoutMs).toBeLessThanOrEqual(5);
+      expect(calls[0]?.timeoutMs).toBeGreaterThan(0);
     });
 
     it('hands tool failures to the model as error results', async () => {

@@ -160,6 +160,8 @@ function makeService(
     retrievalResult?: unknown;
     newsResult?: unknown;
     screenResult?: unknown;
+    /** Override ingest behaviour (B61: failing ingest must degrade). */
+    ingest?: Partial<RagIngestService>;
     // These fixtures predate the guardrail, so it is a pass-through by
     // default; the real guardrail flow has its own spec.
     guardrail?: GuardrailService;
@@ -191,6 +193,7 @@ function makeService(
       available: true,
       reason: null,
     }),
+    ...overrides.ingest,
   } as unknown as RagIngestService;
   const newsForSymbol = jest
     .fn()
@@ -288,6 +291,23 @@ describe('AiService RAG wiring', () => {
       expect(userContent(calls[0])).not.toContain('Retrieved context');
       expect(userContent(calls[0])).not.toContain('Do not invent news');
     });
+
+    it('explains a stock even when profile indexing fails (B61)', async () => {
+      const { client } = scriptedClient([contentCompletion(NEWS_ANSWER_JSON)]);
+      const { service } = makeService(client, {
+        ingest: {
+          ensureProfileIndexed: jest
+            .fn()
+            .mockRejectedValue(new Error('database down')),
+        },
+      });
+      const response = await service.explainStock(USER_ID, {
+        symbol: 'RELIANCE.NS',
+      });
+      expect(response.fallback).toBe(false);
+      expect(response.refused).toBe(false);
+      expect(response.answer).toContain('profit jump');
+    });
   });
 
   describe('explain-news', () => {
@@ -329,6 +349,25 @@ describe('AiService RAG wiring', () => {
       expect(response.refused).toBe(false);
       expect(response.model).toBe('qwen/qwen-2.5-72b-instruct');
       expect(response.toolsUsed).toEqual(['searchKnowledge']);
+    });
+
+    it('explains from retrieved articles even when the index refresh fails (B61)', async () => {
+      const { client } = scriptedClient([contentCompletion(NEWS_ANSWER_JSON)]);
+      const { service } = makeService(client, {
+        retrievalResult: {
+          available: true,
+          chunks: [NEWS_CHUNK],
+          reason: null,
+        },
+        ingest: {
+          indexNews: jest.fn().mockRejectedValue(new Error('database down')),
+        },
+      });
+      const response = await service.explainNews(USER_ID, {
+        symbol: 'RELIANCE.NS',
+      });
+      expect(response.refused).toBe(false);
+      expect(response.answer).toContain('profit jump');
     });
 
     it('falls back to the raw news list when the model fails', async () => {
@@ -458,6 +497,22 @@ describe('AiService RAG wiring', () => {
       expect((response.metrics as { note: string | null }).note).toContain(
         'could not be turned into exact filters',
       );
+    });
+
+    it('notes an empty filters object as a failed translation (B9)', async () => {
+      const { client } = scriptedClient([
+        toolCallCompletion('applyScreenerFilters', {}),
+        contentCompletion(SCREEN_SUMMARY_JSON),
+      ]);
+      const { service, screen } = makeService(client);
+      const response = await service.screenByQuery(USER_ID, {
+        query: 'good stocks please',
+      });
+      expect(screen).toHaveBeenCalledWith(USER_ID, {});
+      expect((response.metrics as { note: string | null }).note).toContain(
+        'could not be turned into exact filters',
+      );
+      expect(response.fallback).toBe(false);
     });
 
     it('falls back to the raw screen when the translation call fails', async () => {

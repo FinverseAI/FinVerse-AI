@@ -64,11 +64,10 @@ export function formatScreenResults(screen: ScreenResponse): string {
     if (stock.change1moPercent !== null)
       parts.push(`1-month ${stock.change1moPercent}%`);
     if (stock.marketCap !== null)
-      parts.push(
-        currency === '₹'
-          ? `market cap ₹${Math.round(stock.marketCap / 10_000_000)} crore`
-          : `market cap ${currency}${stock.marketCap}`,
-      );
+      // B5: the exact market cap, not a rounded "₹176 crore" — the
+      // guardrail demands the exact value, so a rounded restatement
+      // in the model's answer could never verify.
+      parts.push(`market cap ${currency}${stock.marketCap}`);
     return parts.join(', ');
   });
   if (screen.unavailable.length > 0) {

@@ -173,6 +173,26 @@ const KEY_ALIASES: Record<string, string[]> = {
   matches: ['matchcount'],
 };
 
+/**
+ * Keys that denote an aggregate: any total* key, or a per-element
+ * amount that sums to a top-level total (a category's spent, a goal's
+ * saved). B15: these never leak from array elements into the global
+ * scalars — an unscoped claim citing one must match the top-level
+ * total, not one element's share of it.
+ */
+const TOTAL_ISH_KEYS = new Set([
+  'spent',
+  'budgeted',
+  'remaining',
+  'invested',
+  'saved',
+  'gainloss',
+]);
+
+function isTotalishKey(normalized: string): boolean {
+  return normalized.startsWith('total') || TOTAL_ISH_KEYS.has(normalized);
+}
+
 function kindOfKey(normalized: string): 'money' | 'percent' {
   if (
     normalized.includes('percent') ||
@@ -268,9 +288,17 @@ function flattenInto(
           elements.push({ id: normalizeText(id), rawId: id, fields });
         }
         // Element leaves are ALSO global scalars: an unscoped claim
-        // ("spent ₹8,600", no category named) can still match. Scoped
-        // matching takes precedence whenever an identifier is present.
+        // ("RELIANCE is at ₹2,600", no symbol named) can still match.
+        // Scoped matching takes precedence whenever an identifier is
+        // present. EXCEPTION (B15): total-ish keys — a per-element
+        // amount that sums to a total (spent, budgeted, remaining,
+        // invested, saved, or any total* key) — are NOT copied up:
+        // an unscoped "spent ₹8,600" must not pass off one category's
+        // spend as the total. It matches only the top-level total
+        // (via the key alias, e.g. spent → totalSpent), or the
+        // element itself when the claim names it (scoped matching).
         for (const [key, values] of fields) {
+          if (isTotalishKey(key)) continue;
           for (const number of values) addNumber(scalars, key, number);
         }
       }
@@ -328,6 +356,7 @@ function flattenScreen(screen: ScreenResponse): FlatData {
   });
   for (const element of elements) {
     for (const [key, values] of element.fields) {
+      if (isTotalishKey(key)) continue;
       for (const number of values) addNumber(scalars, key, number);
     }
   }
@@ -356,6 +385,16 @@ const UNIT_MULTIPLIERS: Record<string, number> = {
  * periods, "RSI (14)", "20-day") and years are skipped — they are
  * labels, not values. Indian grouping (1,20,000) and "lakh crore"
  * are handled.
+ *
+ * B1: a bare integer < 100 IS significant when it sits next to a
+ * score/points/months/count keyword ("score is 82", "25 points",
+ * "6 months", "3 stocks matched") — the score itself lives in that
+ * range, and skipping it let prose contradict the cited score.
+ * The keyword must be within 20 characters either side, so a
+ * distant word cannot bless an unrelated number. Label forms stay
+ * skipped even next to a keyword: "RSI (14)", hyphenated periods
+ * ("20-day", "1-month"), hyphenated ranges ("1-3 months"), and
+ * years (1900–2100).
  */
 export function extractTextNumbers(text: string): ExtractedNumber[] {
   const withoutDates = text
@@ -375,10 +414,35 @@ export function extractTextNumbers(text: string): ExtractedNumber[] {
     if (!Number.isFinite(parsed)) continue;
     const hasMarker = marker !== '' || unitWord !== '';
     const isDecimal = rawNumber.includes('.');
-    // Bare small integers and bare years are labels, not values.
+    // Bare small integers and bare years are labels, not values —
+    // UNLESS a score/points/months/count keyword sits next to the
+    // number (B1). Years and label forms (RSI (14), 20-day, 1-3
+    // months) stay skipped whatever surrounds them.
     if (!hasMarker && !isDecimal) {
-      if (Math.abs(parsed) < 100) continue;
       if (parsed >= 1900 && parsed <= 2100) continue;
+      if (Math.abs(parsed) < 100) {
+        const start = match.index ?? 0;
+        const before = withoutDates.slice(Math.max(0, start - 20), start);
+        const after = withoutDates.slice(
+          start + match[0].length,
+          start + match[0].length + 20,
+        );
+        const isLabelForm =
+          /rsi\s*\(\s*$/i.test(before) ||
+          /^-(day|month|year|week)\b/i.test(after) ||
+          /^[-−–]\d/.test(after) ||
+          /\d[-−–]$/.test(before) ||
+          // The second half of a hyphenated range ("1-3"): a signed
+          // bare integer directly after a digit is a label, not a
+          // value — even though "months" sits next to it.
+          (/^[-−–]/.test(rawNumber) &&
+            start > 0 &&
+            /\d/.test(withoutDates[start - 1] ?? ''));
+        const nearKeyword =
+          /\b(score|points?|months?|counts?|matched|matches)\b/i.test(before) ||
+          /\b(score|points?|months?|counts?|matched|matches)\b/i.test(after);
+        if (isLabelForm || !nearKeyword) continue;
+      }
     }
     let value = parsed;
     let unit: ExtractedNumber['unit'] = 'plain';
