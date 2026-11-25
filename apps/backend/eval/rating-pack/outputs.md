@@ -500,3 +500,235 @@ Claims cited:
 - The largest single gain available is the emergency fund suggestion: reaching targetMonths of 6 would gain 16.7 points.
 - The next largest gain is the portfolio concentration suggestion: bringing NIFTYBEES below targetWeightPercent of 20 would add 15 points.
 - The debt-to-income suggestion would add 7.4 points by reaching targetDebt of 0.
+
+## Mid-career builder (mid-career-builder)
+
+Score: 54 out of 100 (Building); 100 of 100 points measurable.
+
+Factors (the ground truth the explanation must match):
+- Emergency fund: 8.3/25 points — Your emergency fund covers 1-3 months of expenses (6+ months is full marks).
+- Debt-to-income: 10.7/20 points — Total debt of ₹10,00,000 is 0.46× your annual income of ₹21,60,000.
+- Monthly surplus: 13.9/25 points — Monthly surplus of ₹30,000 is 16.7% of income (30% is full marks).
+- Portfolio concentration: 10.3/15 points — Your largest holding, RELIANCE, is 45% of your portfolio (20% or less is full marks).
+- Portfolio volatility: 10.7/15 points — Your portfolio's annualized volatility is 28% (value-weighted average across 4 holdings; 15% or less is full marks).
+
+Top improvements (computed by code):
+- Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points.
+- Raising your monthly surplus to ₹54,000 (30% of income) would add 11.1 points.
+- Clearing your ₹10,00,000 debt would add 9.3 points.
+
+### Output S10-A
+
+Your computed readiness score is 54 on a scale of 100, which the assessment puts in the Building band. Here is what is behind it, reading only the computed numbers. Pulling the score down: your Emergency fund factor earns 8.3 points, the lowest of the measured factors, based on 2 months of expenses. Monthly surplus earns 13.9 points, based on a surplus of ₹30,000 a month, which is 16.7% of your monthly income of ₹180,000. Debt-to-income earns 10.7 points, based on total debt of ₹10,00,000 against annual income of ₹21,60,000, a ratio of 0.46. Pulling the score up: Portfolio volatility earns 10.7 points at 28% annualized volatility, and Portfolio concentration earns 10.3 points, with your largest holding, RELIANCE, at 45% of the portfolio across 4 holdings. What to fix first: the emergency fund. Its suggestion carries a pointsGain of 16.7, the largest of the three suggestions, ahead of 11.1 for raising the monthly surplus to ₹54,000 and 9.3 for clearing the debt. So the emergency fund is both your weakest measured factor and the one the data says would move the score most. Every factor in the assessment was measured, so nothing had to be left out. These are computed figures I am reading back to you, not advice on what to buy, sell, or hold.
+
+Claims cited:
+
+- The computed readiness score is 54 on a scale of 100, in the Building band.
+- The Emergency fund factor earns 8.3 points out of 25, based on 2 months of expenses.
+- The Monthly surplus factor earns 13.9 points out of 25, based on a surplus of ₹30,000 which is 16.7% of monthly income of ₹180,000.
+- The Debt-to-income factor earns 10.7 points, based on total debt of ₹10,00,000 against annual income of ₹21,60,000, a ratio of 0.46.
+- The Portfolio volatility factor earns 10.7 points at 28% annualized volatility.
+- The Portfolio concentration factor earns 10.3 points, with largest holding RELIANCE at 45% of the portfolio across 4 holdings.
+- The Emergency fund suggestion has a pointsGain of 16.7, the largest of the three suggestions listed.
+- The Monthly surplus suggestion has a pointsGain of 11.1, with a targetSurplus of ₹54,000.
+- The Debt-to-income suggestion has a pointsGain of 9.3.
+- The assessment was available and not stale, so every factor listed has a measured number.
+
+### Output S10-B
+
+Your investment readiness score is 54 out of 100 (Building). Emergency fund: 2 months of expenses saved, worth 8.3 of 25 points. Debt-to-income: ₹10,00,000 of debt against ₹21,60,000 of annual income (ratio 0.46), worth 10.7 of 20 points. Monthly surplus: ₹30,000 a month (16.7% of income), worth 13.9 of 25 points. Portfolio concentration: your largest holding (RELIANCE) is 45% of the portfolio, worth 10.3 of 15 points. Portfolio volatility: 28% annualised across 4 holdings with enough history, worth 10.7 of 15 points. Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points. Raising your monthly surplus to ₹54,000 (30% of income) would add 11.1 points. Clearing your ₹10,00,000 debt would add 9.3 points.
+
+Claims cited:
+
+- Your investment readiness score is 54 out of 100 (Building).
+- Emergency fund: 2 months of expenses saved, worth 8.3 of 25 points.
+- Debt-to-income: ₹10,00,000 of debt against ₹21,60,000 of annual income (ratio 0.46), worth 10.7 of 20 points.
+- Monthly surplus: ₹30,000 a month (16.7% of income), worth 13.9 of 25 points.
+- Portfolio concentration: your largest holding (RELIANCE) is 45% of the portfolio, worth 10.3 of 15 points.
+- Portfolio volatility: 28% annualised across 4 holdings with enough history, worth 10.7 of 15 points.
+- Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points.
+- Raising your monthly surplus to ₹54,000 (30% of income) would add 11.1 points.
+- Clearing your ₹10,00,000 debt would add 9.3 points.
+
+## Debt-free, high surplus (debt-free-high-surplus)
+
+Score: 76 out of 100 (Ready); 100 of 100 points measurable.
+
+Factors (the ground truth the explanation must match):
+- Emergency fund: 8.3/25 points — Your emergency fund covers 1-3 months of expenses (6+ months is full marks).
+- Debt-to-income: 20/20 points — You carry no debt.
+- Monthly surplus: 25/25 points — Monthly surplus of ₹70,000 is 50% of income (30% is full marks).
+- Portfolio concentration: 9.4/15 points — Your largest holding, RELIANCE, is 50% of your portfolio (20% or less is full marks).
+- Portfolio volatility: 13.7/15 points — Your portfolio's annualized volatility is 19% (value-weighted average across 3 holdings; 15% or less is full marks).
+
+Top improvements (computed by code):
+- Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points.
+- Reducing RELIANCE below 20% of your portfolio (currently 50%) would add 5.6 points.
+- Reducing your portfolio's volatility to 15% or below (currently 19%) would add 1.3 points.
+
+### Output S11-A
+
+Your investment readiness score is 76 out of 100 (Ready). Emergency fund: 2 months of expenses saved, worth 8.3 of 25 points. Debt-to-income: ₹0 of debt against ₹16,80,000 of annual income (ratio 0), worth 20 of 20 points. Monthly surplus: ₹70,000 a month (50% of income), worth 25 of 25 points. Portfolio concentration: your largest holding (RELIANCE) is 50% of the portfolio, worth 9.4 of 15 points. Portfolio volatility: 19% annualised across 3 holdings with enough history, worth 13.7 of 15 points. Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points. Reducing RELIANCE below 20% of your portfolio (currently 50%) would add 5.6 points. Reducing your portfolio's volatility to 15% or below (currently 19%) would add 1.3 points.
+
+Claims cited:
+
+- Your investment readiness score is 76 out of 100 (Ready).
+- Emergency fund: 2 months of expenses saved, worth 8.3 of 25 points.
+- Debt-to-income: ₹0 of debt against ₹16,80,000 of annual income (ratio 0), worth 20 of 20 points.
+- Monthly surplus: ₹70,000 a month (50% of income), worth 25 of 25 points.
+- Portfolio concentration: your largest holding (RELIANCE) is 50% of the portfolio, worth 9.4 of 15 points.
+- Portfolio volatility: 19% annualised across 3 holdings with enough history, worth 13.7 of 15 points.
+- Build your emergency fund to 6 months (currently 1-3 months) to gain 16.7 points.
+- Reducing RELIANCE below 20% of your portfolio (currently 50%) would add 5.6 points.
+- Reducing your portfolio's volatility to 15% or below (currently 19%) would add 1.3 points.
+
+### Output S11-B
+
+Your readiness score is 76 on a scale of 100, which places you in the Ready band. It is high because some factors earn full points, and the shortfall sits in a few others.
+
+Pulling the score up:
+• Debt-to-income earns full points — points 20 of maxPoints 20 — because you carry no debt: totalDebt 0 and debtToIncomeRatio 0 against annualIncome ₹1680000.
+• Monthly surplus also earns full points — points 25 of maxPoints 25 — with surplus ₹70000 on monthlyIncome ₹140000, a surplusRatePercent of 50, above the full-marks level.
+• Portfolio volatility is near the top: points 13.7, with volatilityPercent 19 measured across holdingsWithHistory 3.
+
+Pulling the score down:
+• Emergency fund is the weakest factor: points 8.3 of maxPoints 25, with months 2 (monthsLabel 1-3 months), short of the full-marks level.
+• Portfolio concentration scores points 9.4: largestHoldingSymbol RELIANCE is largestHoldingWeightPercent 50 of the portfolio, across holdingsCount 3.
+
+What would move the score most, using the assessment's own suggestions:
+• Emergency fund: pointsGain 16.7 — by far the largest gain on offer.
+• Portfolio concentration: pointsGain 5.6 from reducing RELIANCE's weight.
+• Portfolio volatility: pointsGain 1.3.
+
+In short, the score is what it is because debt and surplus are at full points while the emergency fund and concentration hold it back, and the emergency fund is where the assessment sees the most room. The assessment is not stale (stale false) and covers totalPortfolioValue ₹500000 with pricedHoldingsCount 3.
+
+Claims cited:
+
+- The readiness score is 76 on a scale of 100, in the Ready band.
+- Debt-to-income earns full points (points 20 of maxPoints 20) with totalDebt 0 and debtToIncomeRatio 0 against annualIncome ₹1680000.
+- Monthly surplus earns full points (points 25 of maxPoints 25): surplus ₹70000 on monthlyIncome ₹140000 gives surplusRatePercent 50, above the full-marks level.
+- Portfolio volatility scores points 13.7, with volatilityPercent 19 across holdingsWithHistory 3.
+- Emergency fund is the weakest factor: points 8.3 of maxPoints 25, with months 2 (monthsLabel 1-3 months), short of the full-marks level.
+- Portfolio concentration scores points 9.4: largestHoldingSymbol RELIANCE is largestHoldingWeightPercent 50 of the portfolio, across holdingsCount 3.
+- The largest suggested gain is pointsGain 16.7 for the Emergency fund.
+- Reducing RELIANCE's weight (Portfolio concentration) would add pointsGain 5.6.
+- Reducing volatility (Portfolio volatility) would add pointsGain 1.3.
+- The assessment is not stale and covers totalPortfolioValue ₹500000 with pricedHoldingsCount 3.
+
+## Single-stock gambler (single-stock-gambler)
+
+Score: 28 out of 100 (Not ready); 100 of 100 points measurable.
+
+Factors (the ground truth the explanation must match):
+- Emergency fund: 0/25 points — Your emergency fund covers 0 months of expenses (6+ months is full marks).
+- Debt-to-income: 14.7/20 points — Total debt of ₹3,00,000 is 0.26× your annual income of ₹11,40,000.
+- Monthly surplus: 13.2/25 points — Monthly surplus of ₹15,000 is 15.8% of income (30% is full marks).
+- Portfolio concentration: 0/15 points — Your largest holding, RELIANCE, is 100% of your portfolio (20% or less is full marks).
+- Portfolio volatility: 0/15 points — Your portfolio's annualized volatility is 70% (value-weighted average across 1 holding; 15% or less is full marks).
+
+Top improvements (computed by code):
+- Build your emergency fund to 6 months (currently 0 months) to gain 25 points.
+- Reducing RELIANCE below 20% of your portfolio (currently 100%) would add 15 points.
+- Reducing your portfolio's volatility to 15% or below (currently 70%) would add 15 points.
+
+### Output S12-A
+
+Your investment readiness score is 28 out of 100 (Not ready). Emergency fund: 0 months of expenses saved, worth 0 of 25 points. Debt-to-income: ₹3,00,000 of debt against ₹11,40,000 of annual income (ratio 0.26), worth 14.7 of 20 points. Monthly surplus: ₹15,000 a month (15.8% of income), worth 13.2 of 25 points. Portfolio concentration: your largest holding (RELIANCE) is 100% of the portfolio, worth 0 of 15 points. Portfolio volatility: 70% annualised across 1 holding with enough history, worth 0 of 15 points. Build your emergency fund to 6 months (currently 0 months) to gain 25 points. Reducing RELIANCE below 20% of your portfolio (currently 100%) would add 15 points. Reducing your portfolio's volatility to 15% or below (currently 70%) would add 15 points.
+
+Claims cited:
+
+- Your investment readiness score is 28 out of 100 (Not ready).
+- Emergency fund: 0 months of expenses saved, worth 0 of 25 points.
+- Debt-to-income: ₹3,00,000 of debt against ₹11,40,000 of annual income (ratio 0.26), worth 14.7 of 20 points.
+- Monthly surplus: ₹15,000 a month (15.8% of income), worth 13.2 of 25 points.
+- Portfolio concentration: your largest holding (RELIANCE) is 100% of the portfolio, worth 0 of 15 points.
+- Portfolio volatility: 70% annualised across 1 holding with enough history, worth 0 of 15 points.
+- Build your emergency fund to 6 months (currently 0 months) to gain 25 points.
+- Reducing RELIANCE below 20% of your portfolio (currently 100%) would add 15 points.
+- Reducing your portfolio's volatility to 15% or below (currently 70%) would add 15 points.
+
+### Output S12-B
+
+Your computed readiness score is 28 on a scale of 100 (maxScore 100), which lands in the "Not ready" band. Every factor in the assessment was measurable (available true), so nothing had to be guessed or skipped.
+
+Factors pulling the score down:
+- Emergency fund — points 0 of maxPoints 25. The measured months value is 0 (monthsLabel "0 months"), so no expense buffer is recorded and this factor earns nothing.
+- Portfolio concentration — points 0 of maxPoints 15. Your largest holding, RELIANCE (largestHoldingSymbol RELIANCE), is largestHoldingWeightPercent 100 of the portfolio with holdingsCount 1, so everything sits in one position and no points are earned.
+- Portfolio volatility — points 0 of maxPoints 15. volatilityPercent is 70, measured as a value-weighted average across holdingsWithHistory 1, which is well above the full-marks level, so no points.
+
+Factors pulling the score up:
+- Debt-to-income — points 14.7 of maxPoints 20, your strongest factor. totalDebt 300000 against annualIncome 1140000 gives debtToIncomeRatio 0.26, meaning debt is small relative to annual income.
+- Monthly surplus — points 13.2 of maxPoints 25. surplus 15000 on monthlyIncome 95000 is surplusRatePercent 15.8: positive, but below the full-marks level, so it earns only partial credit.
+
+Context behind those factors: totalPortfolioValue 500000, pricedHoldingsCount 1, holdingsCount 1, stale false.
+
+What would move the score most, per the suggestions in the data: the Emergency fund suggestion carries the largest pointsGain, 25, and it comes from a factor currently at points 0. The Portfolio concentration suggestion (symbol RELIANCE, currently largestHoldingWeightPercent 100) and the Portfolio volatility suggestion (currently volatilityPercent 70) each carry pointsGain 15. So building the emergency fund is the biggest single lever in the computed suggestions, followed by the two portfolio factors. This is an explanation of the assessment only, not a recommendation about any specific investment.
+
+Claims cited:
+
+- The computed readiness score is 28 on a scale of 100, in the "Not ready" band, and the assessment was available.
+- Emergency fund scored 0 of 25 points, with 0 months of expenses covered.
+- Debt-to-income scored 14.7 of 20 points, with total debt of 300000 against annual income of 1140000, a ratio of 0.26.
+- Monthly surplus scored 13.2 of 25 points, with a surplus of 15000 on monthly income of 95000, a surplus rate of 15.8%.
+- Portfolio concentration scored 0 of 15 points because the largest holding, RELIANCE, is 100% of a portfolio with 1 holding.
+- Portfolio volatility scored 0 of 15 points, with annualized volatility of 70% measured across 1 holding with history.
+- The assessment context shows a total portfolio value of 500000 across 1 priced holding, and the data is not stale.
+- The Emergency fund suggestion offers the largest points gain, 25.
+- The Portfolio concentration suggestion, referring to RELIANCE at a current weight of 100%, offers a points gain of 15.
+- The Portfolio volatility suggestion, starting from a current volatility of 70%, offers a points gain of 15.
+
+## Retiree, steady (retiree-steady)
+
+Score: 96 out of 100 (Ready); 100 of 100 points measurable.
+
+Factors (the ground truth the explanation must match):
+- Emergency fund: 25/25 points — Your emergency fund covers 6+ months of expenses (6+ months is full marks).
+- Debt-to-income: 20/20 points — You carry no debt.
+- Monthly surplus: 20.8/25 points — Monthly surplus of ₹15,000 is 25% of income (30% is full marks).
+- Portfolio concentration: 15/15 points — Your largest holding, RELIANCE, is 20% of your portfolio (20% or less is full marks).
+- Portfolio volatility: 15/15 points — Your portfolio's annualized volatility is 11% (value-weighted average across 6 holdings; 15% or less is full marks).
+
+Top improvements (computed by code):
+- Raising your monthly surplus to ₹18,000 (30% of income) would add 4.2 points.
+
+### Output S13-A
+
+Your readiness score is 96 out of a possible 100, which places you in the 'Ready' band. The score is built from the measured factors below, and every factor except Monthly surplus earned its full points.
+
+What pulls the score up:
+- Emergency fund: 25 points out of 25. Your emergency fund covers 6+ months of expenses (months: 6).
+- Debt-to-income: 20 points out of 20. You carry no debt — totalDebt is 0 against an annualIncome of 720,000, so the debtToIncomeRatio is 0.
+- Portfolio concentration: 15 points out of 15. Your largest holding, RELIANCE, is 20% of the portfolio, spread across 6 holdings.
+- Portfolio volatility: 15 points out of 15. Annualized volatility is 11%, a value-weighted average across the 6 holdings that have price history.
+
+What pulls the score down:
+- Monthly surplus: 20.8 points out of 25. Your monthly surplus of ₹15,000 on a monthlyIncome of ₹60,000 works out to a surplusRatePercent of 25, which sits below the full-marks level for this factor. It is the only factor that did not earn full points.
+
+What would move the score most: the only suggestion in the assessment is on Monthly surplus — raising your monthly surplus to ₹18,000 would add 4.2 points. No suggestion is attached to any other factor, so this is the only lever the data identifies.
+
+Every factor was measured (available: true) and the assessment is not stale, so nothing is missing here. This is a summary of the computed assessment only, not advice on what to buy, sell, or hold.
+
+Claims cited:
+
+- The computed readiness score is 96 on a scale of 100, in the 'Ready' band.
+- Emergency fund earned 25 of 25 points, with the fund covering 6+ months of expenses (months: 6).
+- Debt-to-income earned 20 of 20 points: totalDebt is 0 against annualIncome of 720,000, giving a debtToIncomeRatio of 0.
+- Monthly surplus earned 20.8 of 25 points: a surplus of ₹15,000 on monthlyIncome of ₹60,000 is a surplusRatePercent of 25, below the full-marks level, and it is the only factor not at full points.
+- Portfolio concentration earned 15 of 15 points: the largest holding, RELIANCE, is 20% of the portfolio across 6 holdings.
+- Portfolio volatility earned 15 of 15 points, with annualized volatility of 11% averaged across 6 holdings with history.
+- The only suggestion is on Monthly surplus: raising the monthly surplus to ₹18,000 would add 4.2 points.
+- All factors were measured and the assessment is not stale.
+
+### Output S13-B
+
+Your investment readiness score is 96 out of 100 (Ready). Emergency fund: 6 months of expenses saved, worth 25 of 25 points. Debt-to-income: ₹0 of debt against ₹7,20,000 of annual income (ratio 0), worth 20 of 20 points. Monthly surplus: ₹15,000 a month (25% of income), worth 20.8 of 25 points. Portfolio concentration: your largest holding (RELIANCE) is 20% of the portfolio, worth 15 of 15 points. Portfolio volatility: 11% annualised across 6 holdings with enough history, worth 15 of 15 points. Raising your monthly surplus to ₹18,000 (30% of income) would add 4.2 points.
+
+Claims cited:
+
+- Your investment readiness score is 96 out of 100 (Ready).
+- Emergency fund: 6 months of expenses saved, worth 25 of 25 points.
+- Debt-to-income: ₹0 of debt against ₹7,20,000 of annual income (ratio 0), worth 20 of 20 points.
+- Monthly surplus: ₹15,000 a month (25% of income), worth 20.8 of 25 points.
+- Portfolio concentration: your largest holding (RELIANCE) is 20% of the portfolio, worth 15 of 15 points.
+- Portfolio volatility: 11% annualised across 6 holdings with enough history, worth 15 of 15 points.
+- Raising your monthly surplus to ₹18,000 (30% of income) would add 4.2 points.

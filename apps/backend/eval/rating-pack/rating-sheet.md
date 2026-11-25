@@ -22,3 +22,11 @@ One row per output. Fill in 1–5 for each dimension (see README.md for the rubr
 | S08-B | No portfolio yet | | | | | |
 | S09-A | Young starter | | | | | |
 | S09-B | Young starter | | | | | |
+| S10-A | Mid-career builder | | | | | |
+| S10-B | Mid-career builder | | | | | |
+| S11-A | Debt-free, high surplus | | | | | |
+| S11-B | Debt-free, high surplus | | | | | |
+| S12-A | Single-stock gambler | | | | | |
+| S12-B | Single-stock gambler | | | | | |
+| S13-A | Retiree, steady | | | | | |
+| S13-B | Retiree, steady | | | | | |

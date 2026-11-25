@@ -1,6 +1,6 @@
 {
   "warning": "SEALED — do not open until every rating is finished. Opening this file before rating breaks the blind.",
-  "generatedAt": "2026-11-24T17:22:03.307Z",
+  "generatedAt": "2026-11-25T15:20:17.789Z",
   "key": {
     "S01-A": {
       "scenarioId": "healthy-saver",
@@ -73,6 +73,38 @@
     "S09-B": {
       "scenarioId": "young-starter",
       "system": "llm"
+    },
+    "S10-A": {
+      "scenarioId": "mid-career-builder",
+      "system": "llm"
+    },
+    "S10-B": {
+      "scenarioId": "mid-career-builder",
+      "system": "baseline"
+    },
+    "S11-A": {
+      "scenarioId": "debt-free-high-surplus",
+      "system": "baseline"
+    },
+    "S11-B": {
+      "scenarioId": "debt-free-high-surplus",
+      "system": "llm"
+    },
+    "S12-A": {
+      "scenarioId": "single-stock-gambler",
+      "system": "baseline"
+    },
+    "S12-B": {
+      "scenarioId": "single-stock-gambler",
+      "system": "llm"
+    },
+    "S13-A": {
+      "scenarioId": "retiree-steady",
+      "system": "llm"
+    },
+    "S13-B": {
+      "scenarioId": "retiree-steady",
+      "system": "baseline"
     }
   }
 }

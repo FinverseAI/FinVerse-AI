@@ -130,7 +130,7 @@ explain). Per-scenario results are in
   would cost on the order of a few US cents — the exact figure
   awaits the provider's reported token counts.
 
-## 4. Live runs (24 November 2026) — what happened, honestly
+## 4. Live runs (24–25 November 2026) — what happened, honestly
 
 Three live runs have been made. The first two produced no LLM
 metrics — both failed for reasons outside the model, and both are
@@ -215,6 +215,31 @@ reads the band from the claim values, with a position-aware prose
 fallback (`ac31d6f`); the merged report recomputes every conclusion
 with the fixed code, and every scenario is 1.0.
 
+**Run 3 — free model, part 2a (25 Nov 2026, ~20:31–20:49 IST).**
+Part 2 (the remaining 10 scenarios) started with a fresh key paste
+and a verified 0/50 quota. A **runtime restart killed the run at
+27 of 50 calls** — the runner writes its results only when it
+finishes, and its output went to `/tmp`, so all 27 calls' data was
+lost (the quota counter kept the spend: 27 used, 23 remaining).
+Recovery: the first 4 scenarios were re-run immediately (20 calls,
+inside the 23 left), this time with the output in a durable
+workspace folder and the console log to a file, so a restart can no
+longer wipe a run. **Part 2a results (4 scenarios, 20 runs, ERNIE
+5.5 Flash :free):** 20/20 runs ok (0 provider-errors, 0
+parse-errors). Baseline grounding 100% (4/4 answers, 300/300
+checks). **LLM grounding 85.0% (17/20 answers), 99.8% (1610/1613
+checks). LLM self-consistency 100%. Cost $0.0000.** Per scenario:
+mid-career-builder 60% (3/5), debt-free-high-surplus 100% (5/5),
+single-stock-gambler 100% (5/5), retiree-steady 80% (4/5). The 3
+failing answers each failed exactly one check. Merged with part 1,
+the running totals are **13 of 19 scenarios: LLM grounding 86.2%
+(56/65 answers), 99.8% (5135/5144 checks), self-consistency 100%,
+cost $0.0000.** Quota closed the day at 46/50 used — one less than
+the 27 + 20 arithmetic, so evidently one call was not counted. The
+remaining 6 scenarios (freelancer-irregular, new-investor,
+emergency-only, maxed-out, balanced-ready, partial-history) run on
+26 Nov after the quota reset (30 calls).
+
 **Scope note.** These numbers measure ERNIE 5.5 Flash, not the
 pinned qwen-2.5-72B / DeepSeek R1. They are the first evidence the
 harness measures a real model end-to-end (prompt → parse →
@@ -226,11 +251,11 @@ require the top-up run.
 
 | Pending item | Blocked on | How to complete |
 | --- | --- | --- |
-| LLM grounding rate (free model, full set) | Free-quota reset (UTC midnight) + key re-paste | Part 2: 10 scenarios × 5 on ERNIE :free (25 Nov 2026), then re-merge |
+| LLM grounding rate (free model, full set) | Free-quota reset (UTC midnight) + key re-paste | Part 2a done (4/10 scenarios, 25 Nov); remaining 6 scenarios × 5 on ERNIE :free (26 Nov 2026), then re-merge to 19/19 |
 | LLM grounding rate (pinned models) | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key |
 | LLM self-consistency (pinned models) | Same top-up | Same run (5 repeats per scenario) |
 | LLM latency + cost (pinned models) | Same top-up | Same run (usage reported by the provider) |
-| Explanation-quality ratings | Live LLM outputs + human raters | The rating pack now holds part-1 LLM outputs (9 scenarios); re-generate from the full report after part 2, then the team rates blind and unblinds with `key.json` |
+| Explanation-quality ratings | Live LLM outputs + human raters | The rating pack now holds LLM outputs for 13 scenarios; re-generate from the full report after part 2, then the team rates blind and unblinds with `key.json` |
 
 **Production note.** Production's reasoning timeout was raised from
 30s to 110s on 24 Nov 2026 (Vivek's decision): the live R1 calls took
