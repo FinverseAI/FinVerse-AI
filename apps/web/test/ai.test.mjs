@@ -15,7 +15,9 @@ test("claimToolLabel maps tools to readable names and passes unknown ones throug
 });
 
 test("formatEvidenceValue formats money-like keys as rupees", () => {
-  assert.equal(formatEvidenceValue("totalSpent", 8200), "₹8,200.00");
+  // Recorded amounts render with 0 decimals (canonical formatter);
+  // a per-unit price keeps two decimals.
+  assert.equal(formatEvidenceValue("totalSpent", 8200), "₹8,200");
   assert.equal(formatEvidenceValue("price", 1500.5), "₹1,500.50");
   assert.equal(formatEvidenceValue("count", 12), "12");
   assert.equal(formatEvidenceValue("changePercent", 1.234), "1.23");
@@ -30,7 +32,7 @@ test("formatEvidenceValue formats money-like keys as rupees", () => {
 test("formatClaimValues joins labelled values", () => {
   assert.equal(
     formatClaimValues({ category: "Food & Dining", totalSpent: 8200 }),
-    "category: Food & Dining · totalSpent: ₹8,200.00",
+    "category: Food & Dining · totalSpent: ₹8,200",
   );
   assert.equal(formatClaimValues({}), "");
 });

@@ -1,3 +1,5 @@
+import { formatMoney } from "../../../lib/market.ts";
+
 export type Tone = "accent" | "blue" | "purple" | "warning" | "red" | "muted";
 export type Budget = { name: string; spent: number; limit: number };
 export type Transaction = {
@@ -8,19 +10,14 @@ export type Transaction = {
   date: string;
 };
 
-const currencyFormats = new Map<number, Intl.NumberFormat>();
+/**
+ * Recorded amounts and totals render with 0 decimals by default.
+ * Delegates to the canonical formatter in lib/market so the same figure
+ * never renders with different decimals on different surfaces; per-unit
+ * prices use formatPrice (2dp) instead.
+ */
 export function money(value: number, decimals = 0) {
-  let formatter = currencyFormats.get(decimals);
-  if (!formatter) {
-    formatter = new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-    currencyFormats.set(decimals, formatter);
-  }
-  return formatter.format(value);
+  return formatMoney(value, "INR", decimals);
 }
 
 /**

@@ -119,6 +119,8 @@ export type Holding = {
   quantity: number;
   buyPrice: number;
   buyDate: string;
+  /** The currency the buy price is entered in (INR by default). */
+  currency: string;
 };
 
 export type ValuedHolding = Holding & {
@@ -138,6 +140,14 @@ export type WatchlistItem = {
   name: string | null;
 };
 
+export type CurrencyTotals = {
+  currency: string;
+  totalValue: number;
+  totalInvested: number;
+  totalGainLoss: number;
+  totalGainLossPercent: number;
+};
+
 export type PortfolioSummary = {
   holdings: ValuedHolding[];
   totals: {
@@ -146,6 +156,13 @@ export type PortfolioSummary = {
     totalGainLoss: number;
     totalGainLossPercent: number;
   };
+  /**
+   * Per-currency totals, one entry per currency with priced holdings.
+   * `totals` is the aggregate across currencies and is only meaningful
+   * when every priced holding shares one currency — read this instead
+   * whenever holdings span currencies.
+   */
+  totalsByCurrency?: CurrencyTotals[];
   sectors: { sector: string; value: number; weight: number }[];
   unavailable: string[];
   asOf: string | null;
@@ -162,19 +179,48 @@ export const historyRanges = [
 
 export type HistoryRange = (typeof historyRanges)[number]["value"];
 
-const priceFormats = new Map<string, Intl.NumberFormat>();
-export function formatPrice(value: number, currency = "INR") {
-  let formatter = priceFormats.get(currency);
+/**
+ * Today's date in IST (Asia/Kolkata), as YYYY-MM-DD. Built from IST date
+ * parts via Intl — never from `toISOString()`, which is UTC and runs a
+ * day behind IST between 00:00 and 05:30.
+ */
+export function todayIst(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+const moneyFormats = new Map<string, Intl.NumberFormat>();
+/**
+ * The canonical money formatter. Recorded amounts and totals render
+ * with 0 decimals by default; pass `decimals = 2` for per-unit prices
+ * (see `formatPrice`). All other formatters delegate here so the same
+ * figure never renders with different decimals on different surfaces.
+ */
+export function formatMoney(value: number, currency = "INR", decimals = 0) {
+  const key = `${currency}:${decimals}`;
+  let formatter = moneyFormats.get(key);
   if (!formatter) {
     formatter = new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     });
-    priceFormats.set(currency, formatter);
+    moneyFormats.set(key, formatter);
   }
   return formatter.format(value);
+}
+
+/** Per-unit prices always render with two decimals, in their currency. */
+export function formatPrice(value: number, currency = "INR") {
+  return formatMoney(value, currency, 2);
 }
 
 const compactFormats = new Map<string, Intl.NumberFormat>();
@@ -220,7 +266,7 @@ export function formatFetchedAt(iso: string | null) {
  */
 export function portfolioCashFlows(
   holdings: ValuedHolding[],
-  today = new Date().toISOString().slice(0, 10),
+  today = todayIst(),
 ) {
   const flows: { amount: number; date: string }[] = [];
   for (const holding of holdings) {
@@ -241,4 +287,42 @@ export function earliestBuyDate(holdings: ValuedHolding[]) {
     }
   }
   return earliest;
+}
+
+/**
+ * Per-currency totals from priced holdings, computed from the holdings
+ * themselves so mixed-currency portfolios never silently add USD and INR
+ * together. One entry per currency with priced holdings, sorted by
+ * currency code; empty when nothing is priced.
+ */
+export function totalsByCurrency(holdings: ValuedHolding[]): CurrencyTotals[] {
+  const byCurrency = new Map<string, CurrencyTotals>();
+  for (const holding of holdings) {
+    if (!holding.priced || holding.currentValue === null) continue;
+    const currency = holding.currency ?? "INR";
+    const entry = byCurrency.get(currency) ?? {
+      currency,
+      totalValue: 0,
+      totalInvested: 0,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+    };
+    entry.totalValue =
+      Math.round((entry.totalValue + holding.currentValue) * 100) / 100;
+    entry.totalInvested =
+      Math.round((entry.totalInvested + holding.investedValue) * 100) / 100;
+    entry.totalGainLoss =
+      Math.round((entry.totalGainLoss + (holding.gainLoss ?? 0)) * 100) / 100;
+    byCurrency.set(currency, entry);
+  }
+  for (const entry of byCurrency.values()) {
+    entry.totalGainLossPercent =
+      entry.totalInvested === 0
+        ? 0
+        : Math.round((entry.totalGainLoss / entry.totalInvested) * 100 * 100) /
+          100;
+  }
+  return [...byCurrency.values()].sort((a, b) =>
+    a.currency.localeCompare(b.currency),
+  );
 }

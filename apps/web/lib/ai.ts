@@ -1,3 +1,5 @@
+import { formatMoney, formatPrice } from "./market.ts";
+
 /**
  * Shared types and pure helpers for the FinVerse AI chat. The backend
  * answers in this shape (apps/backend/src/ai/ai.service.ts); the client
@@ -91,21 +93,21 @@ const MONEY_KEYS = [
   "income",
 ];
 
-const inr = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 2,
-});
 const grouped = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 2,
 });
 
-/** Format one evidence value: money-like keys get ₹, others get grouping. */
+/**
+ * Format one evidence value: money-like keys get ₹, others get grouping.
+ * Recorded amounts and totals render with 0 decimals via the canonical
+ * formatter; a per-unit `price` keeps two decimals via formatPrice.
+ */
 export function formatEvidenceValue(key: string, value: unknown): string {
   if (typeof value === "number" && Number.isFinite(value)) {
     const lower = key.toLowerCase();
+    if (lower.includes("price")) return formatPrice(value);
     if (MONEY_KEYS.some((part) => lower.includes(part)))
-      return inr.format(value);
+      return formatMoney(value);
     return grouped.format(value);
   }
   if (typeof value === "string") return value;

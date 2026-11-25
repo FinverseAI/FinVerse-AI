@@ -4,10 +4,13 @@ import {
   earliestBuyDate,
   formatCompact,
   formatFetchedAt,
+  formatMoney,
   formatPercent,
   formatPrice,
   historyRanges,
   portfolioCashFlows,
+  todayIst,
+  totalsByCurrency,
 } from "../lib/market.ts";
 
 test("formatPrice uses Indian grouping with two decimals", () => {
@@ -18,6 +21,68 @@ test("formatPrice uses Indian grouping with two decimals", () => {
 
 test("formatPrice honours the quote currency", () => {
   assert.equal(formatPrice(99.99, "USD"), "$99.99");
+});
+
+test("formatMoney is the canonical formatter: 0 decimals by default, 2 for prices", () => {
+  assert.equal(formatMoney(1234567.89), "₹12,34,568");
+  assert.equal(formatMoney(99.99, "USD"), "$100");
+  assert.equal(formatMoney(99.99, "USD", 2), "$99.99");
+  assert.equal(formatPrice(1234567.89), "₹12,34,567.89");
+});
+
+test("todayIst returns the IST date, not the UTC date", () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  assert.equal(todayIst(), `${get("year")}-${get("month")}-${get("day")}`);
+  assert.match(todayIst(), /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test("totalsByCurrency never adds across currencies", () => {
+  const holdings = [
+    {
+      currency: "INR",
+      priced: true,
+      currentValue: 26002.5,
+      investedValue: 24505,
+      gainLoss: 1497.5,
+    },
+    {
+      currency: "USD",
+      priced: true,
+      currentValue: 500,
+      investedValue: 400,
+      gainLoss: 100,
+    },
+    {
+      currency: "INR",
+      priced: false,
+      currentValue: null,
+      investedValue: 100,
+      gainLoss: null,
+    },
+  ];
+  assert.deepEqual(totalsByCurrency(holdings), [
+    {
+      currency: "INR",
+      totalValue: 26002.5,
+      totalInvested: 24505,
+      totalGainLoss: 1497.5,
+      totalGainLossPercent: 6.11,
+    },
+    {
+      currency: "USD",
+      totalValue: 500,
+      totalInvested: 400,
+      totalGainLoss: 100,
+      totalGainLossPercent: 25,
+    },
+  ]);
+  assert.deepEqual(totalsByCurrency([]), []);
 });
 
 test("formatCompact shortens large values and leaves small ones alone", () => {
