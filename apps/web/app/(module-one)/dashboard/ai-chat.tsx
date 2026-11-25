@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PanelHeading, ProgressBar } from "./ui";
 import { money } from "./data";
+import { formatPrice } from "../../../lib/market";
 import {
   activityRequest,
   activityError,
@@ -40,14 +41,21 @@ const AI_TIMEOUT_MS = 150000;
 /**
  * POST to an AI route with the long timeout the reasoning model needs.
  * Shared by the screener and stock-news components (Phase 2).
+ * Pass a signal to let the caller cancel the wait; the 150s timeout
+ * still applies on top of it.
  */
-export async function aiRequest<T>(path: string, body: unknown): Promise<T> {
+export async function aiRequest<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  const timeoutSignal = AbortSignal.timeout(AI_TIMEOUT_MS);
   const response = await fetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+    signal: signal ? AbortSignal.any([timeoutSignal, signal]) : timeoutSignal,
   });
   let data: unknown;
   try {
@@ -74,6 +82,9 @@ export async function aiRequest<T>(path: string, body: unknown): Promise<T> {
 export function aiErrorMessage(error: unknown): string {
   if (error instanceof ActivityApiError && error.status === 429) {
     return "You are asking too quickly. Please wait a moment and try again.";
+  }
+  if (error instanceof Error && error.name === "AbortError") {
+    return "The request was cancelled.";
   }
   if (error instanceof Error && error.name === "TimeoutError") {
     return "FinVerse AI took too long to answer. Please try again.";
@@ -128,7 +139,7 @@ function BudgetFallback({ data }: { data: Record<string, unknown> }) {
                 {spent !== null ? money(spent) : "—"} spent
                 {budgeted !== null ? ` of ${money(budgeted)}` : ""}
                 {remaining !== null && (
-                  <span className={overBudget ? "text-red-500" : ""}>
+                  <span className={overBudget ? "text-dash-red" : ""}>
                     {" "}
                     · {overBudget ? "over by " : ""}
                     {money(Math.abs(remaining))} {overBudget ? "" : "left"}
@@ -218,7 +229,7 @@ function PortfolioFallback({ data }: { data: Record<string, unknown> }) {
                 {gainLoss !== null && (
                   <span
                     className={
-                      gainLoss < 0 ? "text-red-500" : "text-emerald-600"
+                      gainLoss < 0 ? "text-dash-red" : "text-dash-accent"
                     }
                   >
                     {" "}
@@ -275,9 +286,15 @@ function FundamentalsFallback({ data }: { data: Record<string, unknown> }) {
     if (rsi !== null)
       technicalRows.push({ label: "RSI (14)", value: String(rsi) });
     if (sma20 !== null)
-      technicalRows.push({ label: "20-day average", value: money(sma20, 2) });
+      technicalRows.push({
+        label: "20-day average",
+        value: formatPrice(sma20),
+      });
     if (sma50 !== null)
-      technicalRows.push({ label: "50-day average", value: money(sma50, 2) });
+      technicalRows.push({
+        label: "50-day average",
+        value: formatPrice(sma50),
+      });
     if (macd) {
       const histogram = asNumber(macd.histogram);
       if (histogram !== null)
@@ -302,10 +319,10 @@ function FundamentalsFallback({ data }: { data: Record<string, unknown> }) {
     <div>
       <p className="text-sm text-dash-text">
         {name ? `${name} — ` : ""}
-        {price !== null ? money(price, 2) : "price unavailable"}
+        {price !== null ? formatPrice(price) : "price unavailable"}
         {changePercent !== null && (
           <span
-            className={changePercent < 0 ? "text-red-500" : "text-emerald-600"}
+            className={changePercent < 0 ? "text-dash-red" : "text-dash-accent"}
           >
             {" "}
             · {changePercent > 0 ? "+" : ""}
@@ -315,7 +332,7 @@ function FundamentalsFallback({ data }: { data: Record<string, unknown> }) {
         {previousClose !== null && (
           <span className="text-dash-muted">
             {" "}
-            · previous close {money(previousClose, 2)}
+            · previous close {formatPrice(previousClose)}
           </span>
         )}
       </p>
@@ -418,7 +435,7 @@ export function VerificationNote({
 }) {
   if (verification.status === "verified") {
     return (
-      <p className="mt-2 text-xs text-emerald-600">
+      <p className="mt-2 text-xs text-dash-accent">
         ✓ Verified against your data ({verification.checksPassed}{" "}
         {verification.checksPassed === 1 ? "check" : "checks"} passed)
       </p>
@@ -454,75 +471,221 @@ export function ReasoningIndicator() {
   );
 }
 
+/** One question/answer turn in the chat history. */
+type ChatTurn = {
+  id: number;
+  prompt: string;
+  response: AiChatResponse | null;
+  error: string;
+  cancelled: boolean;
+};
+
+/**
+ * One answer: the narrative (or the raw computed metrics when the
+ * narrative is unavailable), its evidence, and the disclaimer.
+ */
+function ResponseContent({ response }: { response: AiChatResponse }) {
+  return (
+    <div className="space-y-4">
+      {response.fallback ? (
+        <div>
+          <p className="text-sm text-dash-muted">{response.fallbackReason}</p>
+          {response.metrics && (
+            <div className="mt-4">
+              <FallbackMetrics metrics={response.metrics} />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div>
+          {response.refused && (
+            <p className="text-sm font-medium text-dash-text">
+              FinVerse AI can&rsquo;t answer that one.
+            </p>
+          )}
+          {response.answer && (
+            <p className="mt-1 text-sm leading-6 text-dash-text">
+              {response.answer}
+            </p>
+          )}
+          <VerificationNote verification={response.verification} />
+          {response.claims.length > 0 && (
+            <div className="mt-4">
+              <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+                Evidence
+              </h4>
+              <ul className="mt-2 space-y-2">
+                {response.claims.map((claim, index) => (
+                  <li
+                    key={`${claim.source.tool}-${index}`}
+                    className="rounded-lg border border-dash-border px-3 py-2 text-sm"
+                  >
+                    <p className="text-dash-text">{claim.text}</p>
+                    <p className="mt-1 text-xs text-dash-muted">
+                      <span className="font-medium">
+                        {claimToolLabel(claim.source.tool)}
+                      </span>
+                      {" · "}
+                      {formatClaimValues(claim.source.values)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="border-t border-dash-border pt-3 text-xs text-dash-muted">
+        {response.disclaimer}
+        {response.model && (
+          <>
+            {" "}
+            · Answered by <span className="font-mono">{response.model}</span>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 export default function AiChat() {
   const [mode, setMode] = useState<"ask" | "explain">("ask");
   const [message, setMessage] = useState("");
   const [symbol, setSymbol] = useState("");
   const [question, setQuestion] = useState("");
   const [status, setStatus] = useState<AiStatus | null>(null);
-  const [response, setResponse] = useState<AiChatResponse | null>(null);
+  const [statusError, setStatusError] = useState(false);
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [abortController, setAbortController] =
+    useState<AbortController | null>(null);
+  const nextTurnId = useRef(0);
+  const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     let active = true;
     activityRequest<AiStatus>("/api/ai/status")
       .then((data) => {
-        if (active) setStatus(data);
+        if (active) {
+          setStatus(data);
+          setStatusError(false);
+        }
       })
       .catch(() => {
-        // Status is advisory only; a failed check never blocks the chat.
-        if (active) setStatus(null);
+        // A failed check is its own state: the chat still works (the
+        // backend falls back to raw metrics), but the user is told the
+        // setup could not be checked instead of hearing nothing.
+        if (active) setStatusError(true);
       });
     return () => {
       active = false;
     };
   }, []);
 
+  function cancel() {
+    abortController?.abort();
+  }
+
+  function finishTurn(
+    turnId: number,
+    patch: Partial<Pick<ChatTurn, "response" | "error" | "cancelled">>,
+  ) {
+    setTurns((previous) =>
+      previous.map((turn) =>
+        turn.id === turnId ? { ...turn, ...patch } : turn,
+      ),
+    );
+  }
+
   async function ask(questionText: string) {
     const trimmed = questionText.trim();
     if (!trimmed || loading) return;
-    setError("");
-    setResponse(null);
+    const controller = new AbortController();
+    const turnId = nextTurnId.current;
+    nextTurnId.current += 1;
+    setTurns((previous) => [
+      ...previous,
+      {
+        id: turnId,
+        prompt: trimmed,
+        response: null,
+        error: "",
+        cancelled: false,
+      },
+    ]);
+    setMessage("");
+    setAbortController(controller);
     setLoading(true);
     try {
-      const data = await aiRequest<unknown>("/api/ai/chat", {
-        message: trimmed,
-      });
+      const data = await aiRequest<unknown>(
+        "/api/ai/chat",
+        { message: trimmed },
+        controller.signal,
+      );
       if (!isAiChatResponse(data)) {
         throw new Error(
           "The AI service returned an unexpected response. Please try again.",
         );
       }
-      setResponse(data);
+      finishTurn(turnId, { response: data });
     } catch (caught: unknown) {
-      setError(aiErrorMessage(caught));
+      if (controller.signal.aborted) {
+        finishTurn(turnId, { cancelled: true });
+      } else {
+        finishTurn(turnId, { error: aiErrorMessage(caught) });
+      }
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   }
 
   async function explain(symbolText: string, questionText: string) {
     const trimmedSymbol = symbolText.trim();
     if (!trimmedSymbol || loading) return;
-    setError("");
-    setResponse(null);
+    const controller = new AbortController();
+    const turnId = nextTurnId.current;
+    nextTurnId.current += 1;
+    const prompt = questionText.trim()
+      ? `Explain ${trimmedSymbol.toUpperCase()}: ${questionText.trim()}`
+      : `Explain ${trimmedSymbol.toUpperCase()}`;
+    setTurns((previous) => [
+      ...previous,
+      {
+        id: turnId,
+        prompt,
+        response: null,
+        error: "",
+        cancelled: false,
+      },
+    ]);
+    setQuestion("");
+    setAbortController(controller);
     setLoading(true);
     try {
-      const data = await aiRequest<unknown>("/api/ai/explain-stock", {
-        symbol: trimmedSymbol,
-        question: questionText.trim() || undefined,
-      });
+      const data = await aiRequest<unknown>(
+        "/api/ai/explain-stock",
+        {
+          symbol: trimmedSymbol,
+          question: questionText.trim() || undefined,
+        },
+        controller.signal,
+      );
       if (!isAiChatResponse(data)) {
         throw new Error(
           "The AI service returned an unexpected response. Please try again.",
         );
       }
-      setResponse(data);
+      finishTurn(turnId, { response: data });
     } catch (caught: unknown) {
-      setError(aiErrorMessage(caught));
+      if (controller.signal.aborted) {
+        finishTurn(turnId, { cancelled: true });
+      } else {
+        finishTurn(turnId, { error: aiErrorMessage(caught) });
+      }
     } finally {
       setLoading(false);
+      setAbortController(null);
     }
   }
 
@@ -569,6 +732,17 @@ export default function AiChat() {
           </div>
         </PanelHeading>
 
+        {statusError && (
+          <p
+            role="note"
+            className="mt-4 rounded-lg border border-dash-border bg-dash-bg px-3 py-2 text-sm text-dash-muted"
+          >
+            Couldn&rsquo;t check whether AI is set up — the status check itself
+            failed. Answers may still show your numbers without the narrative;
+            try asking and see.
+          </p>
+        )}
+
         {status !== null && !status.configured && (
           <p
             role="note"
@@ -595,6 +769,7 @@ export default function AiChat() {
             </label>
             <textarea
               id="ai-question"
+              ref={questionInputRef}
               className="dash-input mt-2 min-h-20 w-full resize-y"
               value={message}
               onChange={(event) => setMessage(event.target.value)}
@@ -610,8 +785,10 @@ export default function AiChat() {
                   className="rounded-full border border-dash-border px-3 py-1 text-xs text-dash-muted hover:text-dash-text"
                   disabled={loading}
                   onClick={() => {
+                    // Fill only — the user edits the suggestion, then
+                    // submits it themselves. Nothing fires on click.
                     setMessage(suggestion);
-                    void ask(suggestion);
+                    questionInputRef.current?.focus();
                   }}
                 >
                   {suggestion}
@@ -684,74 +861,46 @@ export default function AiChat() {
         )}
 
         <div className="mt-5" aria-live="polite">
-          {loading && <ReasoningIndicator />}
-          {error && (
-            <p role="alert" className="text-sm text-red-500">
-              {error}
-            </p>
-          )}
-          {response && !loading && (
-            <div className="space-y-4">
-              {response.fallback ? (
-                <div>
-                  <p className="text-sm text-dash-muted">
-                    {response.fallbackReason}
+          {turns.length > 0 && (
+            <div
+              aria-label="Chat history"
+              className="max-h-96 space-y-5 overflow-y-auto pr-1"
+            >
+              {turns.map((turn) => (
+                <article
+                  key={turn.id}
+                  className="space-y-2 border-t border-dash-border pt-4 first:border-t-0 first:pt-0"
+                >
+                  <p className="text-sm font-medium text-dash-text">
+                    {turn.prompt}
                   </p>
-                  {response.metrics && (
-                    <div className="mt-4">
-                      <FallbackMetrics metrics={response.metrics} />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  {response.refused && (
-                    <p className="text-sm font-medium text-dash-text">
-                      FinVerse AI can&rsquo;t answer that one.
+                  {turn.cancelled && (
+                    <p className="text-sm text-dash-muted">
+                      Request cancelled.
                     </p>
                   )}
-                  {response.answer && (
-                    <p className="mt-1 text-sm leading-6 text-dash-text">
-                      {response.answer}
+                  {turn.error && (
+                    <p role="alert" className="text-sm text-dash-red">
+                      {turn.error}
                     </p>
                   )}
-                  <VerificationNote verification={response.verification} />
-                  {response.claims.length > 0 && (
-                    <div className="mt-4">
-                      <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
-                        Evidence
-                      </h4>
-                      <ul className="mt-2 space-y-2">
-                        {response.claims.map((claim, index) => (
-                          <li
-                            key={`${claim.source.tool}-${index}`}
-                            className="rounded-lg border border-dash-border px-3 py-2 text-sm"
-                          >
-                            <p className="text-dash-text">{claim.text}</p>
-                            <p className="mt-1 text-xs text-dash-muted">
-                              <span className="font-medium">
-                                {claimToolLabel(claim.source.tool)}
-                              </span>
-                              {" · "}
-                              {formatClaimValues(claim.source.values)}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  {turn.response && (
+                    <ResponseContent response={turn.response} />
                   )}
-                </div>
-              )}
-              <p className="border-t border-dash-border pt-3 text-xs text-dash-muted">
-                {response.disclaimer}
-                {response.model && (
-                  <>
-                    {" "}
-                    · Answered by{" "}
-                    <span className="font-mono">{response.model}</span>
-                  </>
-                )}
-              </p>
+                </article>
+              ))}
+            </div>
+          )}
+          {loading && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <ReasoningIndicator />
+              <button
+                type="button"
+                className="dash-small-button"
+                onClick={cancel}
+              >
+                Cancel
+              </button>
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ import {
   formatClaimValues,
   isAiChatResponse,
   type AiChatResponse,
+  type AiStatus,
 } from "../../../lib/ai";
 import {
   isReadinessResult,
@@ -51,6 +52,11 @@ export default function ReadinessCard() {
   const [explanation, setExplanation] = useState<AiChatResponse | null>(null);
   const [explaining, setExplaining] = useState(false);
   const [explainError, setExplainError] = useState("");
+  const [aiStatus, setAiStatus] = useState<AiStatus | null>(null);
+  const [aiStatusError, setAiStatusError] = useState(false);
+  const [explainController, setExplainController] =
+    useState<AbortController | null>(null);
+  const [explainCancelled, setExplainCancelled] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -76,6 +82,26 @@ export default function ReadinessCard() {
     };
   }, [revision]);
 
+  useEffect(() => {
+    let active = true;
+    activityRequest<AiStatus>("/api/ai/status")
+      .then((data) => {
+        if (active) {
+          setAiStatus(data);
+          setAiStatusError(false);
+        }
+      })
+      .catch(() => {
+        // A failed check is its own state: explain still runs (the
+        // backend falls back to raw metrics), but the user is told the
+        // setup could not be checked instead of hearing nothing.
+        if (active) setAiStatusError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function retry() {
     setLoading(true);
     setError("");
@@ -84,11 +110,30 @@ export default function ReadinessCard() {
 
   async function explain() {
     if (explaining) return;
+    // Check status first, as the chat does: when AI is known to be
+    // unconfigured, no narrative can come back — and unlike the chat,
+    // the numbers here are already on screen, so there is nothing to
+    // fall back to. Say so at once instead of a 150s wait. When the
+    // status is unknown (still loading, or the check itself failed),
+    // run anyway and let the backend fallback handle it.
+    if (aiStatus !== null && !aiStatus.configured) {
+      setExplainError(
+        "AI explanations aren't set up yet, so there's no narrative to generate — the score, factor breakdown, and suggestions above already show your numbers.",
+      );
+      return;
+    }
+    const controller = new AbortController();
     setExplainError("");
+    setExplainCancelled(false);
     setExplanation(null);
+    setExplainController(controller);
     setExplaining(true);
     try {
-      const data = await aiRequest<unknown>("/api/ai/explain-readiness", {});
+      const data = await aiRequest<unknown>(
+        "/api/ai/explain-readiness",
+        {},
+        controller.signal,
+      );
       if (!isAiChatResponse(data)) {
         throw new Error(
           "The AI service returned an unexpected response. Please try again.",
@@ -96,10 +141,19 @@ export default function ReadinessCard() {
       }
       setExplanation(data);
     } catch (caught: unknown) {
-      setExplainError(aiErrorMessage(caught));
+      if (controller.signal.aborted) {
+        setExplainCancelled(true);
+      } else {
+        setExplainError(aiErrorMessage(caught));
+      }
     } finally {
       setExplaining(false);
+      setExplainController(null);
     }
+  }
+
+  function cancelExplain() {
+    explainController?.abort();
   }
 
   const assessment =
@@ -124,7 +178,7 @@ export default function ReadinessCard() {
           )}
           {error && (
             <div>
-              <p role="alert" className="text-sm text-red-500">
+              <p role="alert" className="text-sm text-dash-red">
                 {error}
               </p>
               <button
@@ -250,6 +304,25 @@ export default function ReadinessCard() {
               </div>
 
               <div className="border-t border-dash-border pt-4">
+                {aiStatusError && (
+                  <p
+                    role="note"
+                    className="mb-3 rounded-lg border border-dash-border bg-dash-bg px-3 py-2 text-sm text-dash-muted"
+                  >
+                    Couldn&rsquo;t check whether AI is set up — the status check
+                    itself failed. An explanation may still show your numbers
+                    without the narrative; try it and see.
+                  </p>
+                )}
+                {aiStatus !== null && !aiStatus.configured && (
+                  <p
+                    role="note"
+                    className="mb-3 rounded-lg border border-dash-border bg-dash-bg px-3 py-2 text-sm text-dash-muted"
+                  >
+                    AI explanations aren&rsquo;t set up yet, so answers show
+                    your numbers without the narrative for now.
+                  </p>
+                )}
                 <button
                   type="button"
                   className="dash-small-button"
@@ -259,9 +332,25 @@ export default function ReadinessCard() {
                   {explaining ? "Explaining…" : "Explain my score"}
                 </button>
                 <div className="mt-4" aria-live="polite">
-                  {explaining && <ReasoningIndicator />}
+                  {explaining && (
+                    <div className="flex flex-wrap items-center gap-3">
+                      <ReasoningIndicator />
+                      <button
+                        type="button"
+                        className="dash-small-button"
+                        onClick={cancelExplain}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                  {explainCancelled && !explaining && (
+                    <p className="text-sm text-dash-muted">
+                      Request cancelled.
+                    </p>
+                  )}
                   {explainError && (
-                    <p role="alert" className="text-sm text-red-500">
+                    <p role="alert" className="text-sm text-dash-red">
                       {explainError}
                     </p>
                   )}
