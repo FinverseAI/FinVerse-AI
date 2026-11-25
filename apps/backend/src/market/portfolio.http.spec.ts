@@ -29,7 +29,7 @@ describe('holdings, watchlist and portfolio summary', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
-      update: jest.fn(),
+      updateMany: jest.fn(),
       deleteMany: jest.fn(),
     },
   };
@@ -111,7 +111,7 @@ describe('holdings, watchlist and portfolio summary', () => {
     prisma.watchlistItem.findMany.mockResolvedValue([storedWatchlistItem]);
     prisma.watchlistItem.findFirst.mockResolvedValue(storedWatchlistItem);
     prisma.watchlistItem.create.mockResolvedValue(storedWatchlistItem);
-    prisma.watchlistItem.update.mockResolvedValue(storedWatchlistItem);
+    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
     prisma.watchlistItem.deleteMany.mockResolvedValue({ count: 1 });
     provider.quote.mockResolvedValue({
       symbol: 'RELIANCE.NS',
@@ -339,9 +339,10 @@ describe('holdings, watchlist and portfolio summary', () => {
     expect(prisma.watchlistItem.findFirst).toHaveBeenCalledWith({
       where: { id: 'watch-1', user_id: 'owner' },
     });
-    // A newly set alert re-arms (the stored item had no alert).
-    expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
-      where: { id: 'watch-1' },
+    // A newly set alert re-arms (the stored item had no alert). The
+    // write is conditional on ownership (B30).
+    expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
       data: {
         note: 'Watch earnings',
         alert_direction: 'above',
@@ -352,8 +353,8 @@ describe('holdings, watchlist and portfolio summary', () => {
     await save({ note: '', alertDirection: null, alertPrice: null }).expect(
       200,
     );
-    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
-      where: { id: 'watch-1' },
+    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
       data: { note: null, alert_direction: null, alert_price: null },
     });
     await save({ alertDirection: 'below', alertPrice: -2 }).expect(400);
@@ -379,8 +380,8 @@ describe('holdings, watchlist and portfolio summary', () => {
       alertDirection: 'above',
       alertPrice: 4200,
     }).expect(200);
-    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
-      where: { id: 'watch-1' },
+    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
       data: {
         note: 'New note',
         alert_direction: 'above',
@@ -393,8 +394,8 @@ describe('holdings, watchlist and portfolio summary', () => {
       alertDirection: 'above',
       alertPrice: 4300,
     }).expect(200);
-    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
-      where: { id: 'watch-1' },
+    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
       data: {
         note: 'New note',
         alert_direction: 'above',
@@ -406,14 +407,28 @@ describe('holdings, watchlist and portfolio summary', () => {
     await save({ note: '', alertDirection: null, alertPrice: null }).expect(
       200,
     );
-    expect(prisma.watchlistItem.update).toHaveBeenLastCalledWith({
-      where: { id: 'watch-1' },
+    expect(prisma.watchlistItem.updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
       data: {
         note: null,
         alert_direction: null,
         alert_price: null,
         alert_fired_at: null,
       },
+    });
+  });
+
+  it('reports 404 when the watchlist item disappears between read and write (B30)', async () => {
+    prisma.watchlistItem.findFirst.mockResolvedValue(storedWatchlistItem);
+    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 0 });
+    await session(
+      request(app.getHttpServer())
+        .put('/api/watchlist/watch-1')
+        .send({ note: 'Too late', alertDirection: 'above', alertPrice: 4200 }),
+    ).expect(404);
+    expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+      where: { id: 'watch-1', user_id: 'owner' },
+      data: expect.objectContaining({ note: 'Too late' }),
     });
   });
 
@@ -518,6 +533,8 @@ describe('holdings, watchlist and portfolio summary', () => {
       totalInvested: 26505,
       totalGainLoss: 1597.75,
       totalGainLossPercent: 6.03,
+      investedPriced: 26505,
+      investedUnpriced: 0,
     });
     expect(result.body.totalsByCurrency).toEqual([
       {
@@ -526,6 +543,8 @@ describe('holdings, watchlist and portfolio summary', () => {
         totalInvested: 26505,
         totalGainLoss: 1597.75,
         totalGainLossPercent: 6.03,
+        investedPriced: 26505,
+        investedUnpriced: 0,
       },
     ]);
     expect(result.body.sectors).toEqual([
@@ -568,15 +587,99 @@ describe('holdings, watchlist and portfolio summary', () => {
       gainLoss: null,
       priced: false,
     });
-    // Only TCS is valued: 2 × 4200.50 = 8401.00; invested 8000.00.
+    // Only TCS is valued: 2 × 4200.50 = 8401.00; invested 8000.00. But
+    // the totals still count RELIANCE's invested 24505.00 (B21): the
+    // invested money is known book data, and the per-holding
+    // investedValue column must reconcile with the totals.
     expect(result.body.totals).toEqual({
       totalValue: 8401,
-      totalInvested: 8000,
+      totalInvested: 32505,
       totalGainLoss: 401,
       totalGainLossPercent: 5.01,
+      investedPriced: 8000,
+      investedUnpriced: 24505,
     });
+    expect(result.body.totalsByCurrency).toEqual([
+      {
+        currency: 'INR',
+        totalValue: 8401,
+        totalInvested: 32505,
+        totalGainLoss: 401,
+        totalGainLossPercent: 5.01,
+        investedPriced: 8000,
+        investedUnpriced: 24505,
+      },
+    ]);
     expect(result.body.sectors).toEqual([
       { sector: 'Unknown', value: 8401, weight: 100 },
+    ]);
+  });
+
+  it('counts a foreign unpriced holding in the invested totals (B21)', async () => {
+    prisma.userHolding.findMany.mockResolvedValue([
+      storedHolding,
+      {
+        id: 'holding-2',
+        user_id: 'owner',
+        symbol: 'AAPL',
+        name: 'Apple Inc.',
+        sector: 'Technology',
+        quantity: '2.0000',
+        buy_price: '200.00',
+        buy_date: new Date('2026-06-01T00:00:00Z'),
+        currency: 'USD',
+        created_at: new Date('2026-06-01T00:00:00Z'),
+        updated_at: new Date('2026-06-01T00:00:00Z'),
+      },
+    ]);
+    provider.quote.mockImplementation(async (symbol: string) => {
+      if (symbol === 'RELIANCE.NS') {
+        return {
+          symbol,
+          price: 2600.25,
+          previousClose: 2580,
+          currency: 'INR',
+          sector: 'Energy',
+        };
+      }
+      throw new Error('no data');
+    });
+    const result = await session(
+      request(app.getHttpServer()).get('/api/portfolio/summary'),
+    ).expect(200);
+    expect(result.body.unavailable).toEqual(['AAPL']);
+    expect(result.body.holdings[1]).toMatchObject({
+      symbol: 'AAPL',
+      investedValue: 400,
+      priced: false,
+    });
+    // AAPL's $400 invested is counted even though it has no price;
+    // the USD group exists with no value (B21).
+    expect(result.body.totals).toMatchObject({
+      totalValue: 26002.5,
+      totalInvested: 24905,
+      investedPriced: 24505,
+      investedUnpriced: 400,
+    });
+    expect(result.body.totalsByCurrency).toEqual([
+      {
+        currency: 'INR',
+        totalValue: 26002.5,
+        totalInvested: 24505,
+        totalGainLoss: 1497.5,
+        totalGainLossPercent: 6.11,
+        investedPriced: 24505,
+        investedUnpriced: 0,
+      },
+      {
+        currency: 'USD',
+        totalValue: 0,
+        totalInvested: 400,
+        totalGainLoss: 0,
+        totalGainLossPercent: 0,
+        investedPriced: 0,
+        investedUnpriced: 400,
+      },
     ]);
   });
 
@@ -637,6 +740,8 @@ describe('holdings, watchlist and portfolio summary', () => {
         totalInvested: 24505,
         totalGainLoss: 1497.5,
         totalGainLossPercent: 6.11,
+        investedPriced: 24505,
+        investedUnpriced: 0,
       },
       {
         currency: 'USD',
@@ -644,6 +749,8 @@ describe('holdings, watchlist and portfolio summary', () => {
         totalInvested: 400,
         totalGainLoss: 100,
         totalGainLossPercent: 25,
+        investedPriced: 400,
+        investedUnpriced: 0,
       },
     ]);
   });
@@ -666,7 +773,27 @@ describe('holdings, watchlist and portfolio summary', () => {
       currentPrice: null,
       priced: false,
     });
-    expect(result.body.totalsByCurrency).toEqual([]);
+    // The holding is unpriced, but its invested money is still counted
+    // (B21) — including a per-currency group with no value.
+    expect(result.body.totals).toEqual({
+      totalValue: 0,
+      totalInvested: 24505,
+      totalGainLoss: 0,
+      totalGainLossPercent: 0,
+      investedPriced: 0,
+      investedUnpriced: 24505,
+    });
+    expect(result.body.totalsByCurrency).toEqual([
+      {
+        currency: 'INR',
+        totalValue: 0,
+        totalInvested: 24505,
+        totalGainLoss: 0,
+        totalGainLossPercent: 0,
+        investedPriced: 0,
+        investedUnpriced: 24505,
+      },
+    ]);
   });
 
   it('returns zeros for an empty portfolio', async () => {
@@ -681,6 +808,8 @@ describe('holdings, watchlist and portfolio summary', () => {
         totalInvested: 0,
         totalGainLoss: 0,
         totalGainLossPercent: 0,
+        investedPriced: 0,
+        investedUnpriced: 0,
       },
       totalsByCurrency: [],
       sectors: [],

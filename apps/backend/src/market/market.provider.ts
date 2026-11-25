@@ -43,7 +43,12 @@ export interface MarketProfileData {
   fiftyTwoWeekHigh?: number;
   fiftyTwoWeekLow?: number;
   description?: string;
-  currency: string;
+  /**
+   * Absent when Yahoo omits it for a non-Indian listing: a missing
+   * currency is never defaulted to INR outside India (B21) — callers
+   * must treat such a profile as unpriceable in that currency.
+   */
+  currency?: string;
   // Deeper fundamentals (Filings & Reports, Nov 2026): every field is
   // verified to exist in yahoo-finance2's quoteSummary types — book
   // value, price-to-book, beta and shares outstanding come from
@@ -103,7 +108,29 @@ function text(value: unknown): string | undefined {
  * The client is injectable for tests; in production Nest passes nothing
  * (@Optional) and the default client is built. The library's default
  * export is a const, not a class, so the instance type is spelled out.
+ *
+ * Timeouts (B20): every Yahoo call carries an AbortSignal that fails
+ * the request after YAHOO_TIMEOUT_MS. The installed yahoo-finance2's
+ * `queue.timeout` client option is a dead letter — the Queue never
+ * reads it — so the timeout is passed per call via
+ * `fetchOptions.signal`, which the library forwards to fetch.
  */
+export const YAHOO_TIMEOUT_MS = 10_000;
+
+/** Per-call module options carrying the Yahoo timeout signal. */
+function timeoutOptions() {
+  return { fetchOptions: { signal: AbortSignal.timeout(YAHOO_TIMEOUT_MS) } };
+}
+
+/**
+ * A known Indian listing: an NSE (`.NS`) or BSE (`.BO`) symbol. Only
+ * these default a missing Yahoo currency to INR (B21) — a foreign
+ * quote that omits its currency is unpriceable, not ₹.
+ */
+function isIndianListing(symbol: string): boolean {
+  return /\.(NS|BO)$/i.test(symbol);
+}
+
 @Injectable()
 export class YahooFinanceProvider implements MarketDataProvider {
   private readonly client: InstanceType<typeof YahooFinance>;
@@ -135,17 +162,24 @@ export class YahooFinanceProvider implements MarketDataProvider {
   }
 
   async quote(symbol: string): Promise<MarketQuoteData> {
-    const result = await this.client.quote(symbol);
+    const result = await this.client.quote(symbol, undefined, timeoutOptions());
     const price = finite(result.regularMarketPrice);
     if (price === undefined || price <= 0) {
       throw new Error(`No usable price returned for ${symbol}.`);
+    }
+    const currency = text(result.currency);
+    if (currency === undefined && !isIndianListing(symbol)) {
+      // A foreign quote with no currency cannot be valued — it must
+      // not silently become ₹ (B21). Callers fall back to the stale
+      // cache or report the symbol unavailable.
+      throw new Error(`No currency returned for ${symbol}.`);
     }
     return {
       symbol: result.symbol ?? symbol,
       name: text(result.longName) ?? text(result.shortName),
       price,
       previousClose: finite(result.regularMarketPreviousClose),
-      currency: text(result.currency) ?? 'INR',
+      currency: currency ?? 'INR',
     };
   }
 
@@ -154,11 +188,15 @@ export class YahooFinanceProvider implements MarketDataProvider {
     from: Date,
     to: Date,
   ): Promise<MarketHistoryBar[]> {
-    const { quotes: rows } = await this.client.chart(symbol, {
-      interval: '1d',
-      period1: from,
-      period2: to,
-    });
+    const { quotes: rows } = await this.client.chart(
+      symbol,
+      {
+        interval: '1d',
+        period1: from,
+        period2: to,
+      },
+      timeoutOptions(),
+    );
     const bars: MarketHistoryBar[] = [];
     for (const row of rows) {
       // A suspended or missing session can have null OHLC values.
@@ -189,7 +227,7 @@ export class YahooFinanceProvider implements MarketDataProvider {
   }
 
   async search(query: string): Promise<MarketSearchResult[]> {
-    const result = await this.client.search(query);
+    const result = await this.client.search(query, undefined, timeoutOptions());
     // Non-Yahoo results (e.g. web links) carry no symbol; only Yahoo
     // quotes are tradeable instruments, so only those are returned.
     return result.quotes
@@ -207,7 +245,11 @@ export class YahooFinanceProvider implements MarketDataProvider {
   }
 
   async news(symbol: string): Promise<MarketNewsItem[]> {
-    const result = await this.client.search(symbol, { newsCount: 10 });
+    const result = await this.client.search(
+      symbol,
+      { newsCount: 10 },
+      timeoutOptions(),
+    );
     const items: MarketNewsItem[] = [];
     // The client validates the shape, but news items arrive from an
     // external API — each one is still checked before it is trusted.
@@ -234,15 +276,19 @@ export class YahooFinanceProvider implements MarketDataProvider {
   }
 
   async profile(symbol: string): Promise<MarketProfileData> {
-    const result = await this.client.quoteSummary(symbol, {
-      modules: [
-        'assetProfile',
-        'summaryDetail',
-        'price',
-        'financialData',
-        'defaultKeyStatistics',
-      ],
-    });
+    const result = await this.client.quoteSummary(
+      symbol,
+      {
+        modules: [
+          'assetProfile',
+          'summaryDetail',
+          'price',
+          'financialData',
+          'defaultKeyStatistics',
+        ],
+      },
+      timeoutOptions(),
+    );
     const assetProfile = result.assetProfile;
     const summaryDetail = result.summaryDetail;
     const price = result.price;
@@ -260,7 +306,10 @@ export class YahooFinanceProvider implements MarketDataProvider {
       fiftyTwoWeekHigh: finite(summaryDetail?.fiftyTwoWeekHigh),
       fiftyTwoWeekLow: finite(summaryDetail?.fiftyTwoWeekLow),
       description: text(assetProfile?.longBusinessSummary),
-      currency: text(price?.currency) ?? 'INR',
+      // Only an Indian listing defaults a missing currency to INR; a
+      // foreign profile without one reports no currency (B21).
+      currency:
+        text(price?.currency) ?? (isIndianListing(symbol) ? 'INR' : undefined),
       bookValue: finite(keyStatistics?.bookValue),
       priceToBook: finite(keyStatistics?.priceToBook),
       returnOnEquity: finite(financialData?.returnOnEquity),

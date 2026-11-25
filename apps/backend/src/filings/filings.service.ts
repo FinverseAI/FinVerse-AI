@@ -5,6 +5,7 @@ import {
   bseAnnouncementLinks,
   bseStockPageUrl,
   drhpLinks,
+  isExchangeFallbackUrl,
   nseAnnouncementLinks,
   NSE_ANNOUNCEMENTS_BOARD_URL,
   ratingLinks,
@@ -42,16 +43,26 @@ export class FilingsService {
 
   async getFilings(symbolInput: string): Promise<FilingsResponse> {
     const symbol = normalizeSymbol(symbolInput);
-    const entry = symbol.endsWith('.BO')
+    // `.BO` by company name (`RELIANCE.BO`) resolves through the
+    // registry by symbol after stripping the suffix; a bare 6-digit
+    // scrip code (`500180`) is a scrip-code lookup (B24). The plain
+    // scrip-code form (`500180.BO`) still resolves first.
+    const entry = /^\d{6}$/.test(symbol)
       ? findCompanyByScripCode(symbol)
-      : findCompany(symbol);
+      : symbol.endsWith('.BO')
+        ? (findCompanyByScripCode(symbol) ?? findCompany(symbol.slice(0, -3)))
+        : findCompany(symbol);
     const nseSymbol = entry?.symbol ?? nseSymbolOf(symbol);
     const isEquity =
       nseSymbol !== null &&
       !nseSymbol.startsWith('^') &&
       !nseSymbol.includes('=');
 
-    const announcements = await this.announcements(entry, nseSymbol, isEquity);
+    const { block: announcementsBlock, fetchedAt } = await this.announcements(
+      entry,
+      nseSymbol,
+      isEquity,
+    );
     const reportLinkList =
       entry || (nseSymbol !== null && isEquity)
         ? reportLinks(entry, nseSymbol as string)
@@ -74,12 +85,17 @@ export class FilingsService {
       company: entry
         ? { name: entry.companyName, bseScripCode: entry.bseScripCode }
         : null,
-      asOf: new Date().toISOString(),
+      // The freshness of the feeds actually consulted, not "now": when
+      // the announcements came from the 10-minute cache, `asOf` is the
+      // cache timestamp (B27). With no feed consulted (an index, or any
+      // links-only response) there is no cached data to date, so the
+      // response time is honest.
+      asOf: fetchedAt ?? new Date().toISOString(),
       categories: {
         'annual-reports': linksOnly(reportLinkList),
         'quarterly-results': linksOnly(reportLinkList),
         'investor-presentations': linksOnly(reportLinkList),
-        announcements,
+        announcements: announcementsBlock,
         drhp: linksOnly(drhpLinks()),
         ratings: linksOnly(ratingLinks(ratingName)),
       },
@@ -90,7 +106,11 @@ export class FilingsService {
     entry: CompanyRegistryEntry | null,
     nseSymbol: string | null,
     isEquity: boolean,
-  ): Promise<FilingCategoryBlock> {
+  ): Promise<{
+    block: FilingCategoryBlock;
+    /** Newest fetch time of the feeds consulted, or null when none were. */
+    fetchedAt: string | null;
+  }> {
     const links: FilingCategoryBlock['links'] = [];
     if (nseSymbol !== null && isEquity) {
       links.push(...nseAnnouncementLinks(nseSymbol));
@@ -106,7 +126,10 @@ export class FilingsService {
     // Indices and currency pairs are not equities: no announcement feed
     // exists for them, so the category is links-only by definition.
     if (nseSymbol === null || !isEquity) {
-      return { status: 'links-only', entries: [], links };
+      return {
+        block: { status: 'links-only', entries: [], links },
+        fetchedAt: null,
+      };
     }
 
     const [nseResult, bseResult] = await Promise.all([
@@ -116,30 +139,51 @@ export class FilingsService {
             entry.bseScripCode,
             bseStockPageUrl(entry),
           )
-        : Promise.resolve({ available: false, entries: [] }),
+        : Promise.resolve({
+            available: false,
+            entries: [],
+            fetchedAt: new Date().toISOString(),
+          }),
     ]);
     const live = nseResult.available || bseResult.available;
+    // The newest fetch among the feeds consulted — a cached feed
+    // contributes its original fetch time (B27). A feed that was not
+    // consulted (no registry entry → no BSE call) must not move `asOf`.
+    const fetchedAt = entry
+      ? nseResult.fetchedAt >= bseResult.fetchedAt
+        ? nseResult.fetchedAt
+        : bseResult.fetchedAt
+      : nseResult.fetchedAt;
     return {
-      status: live ? 'live' : 'unavailable',
-      entries: mergeAnnouncements(nseResult.entries, bseResult.entries),
-      links,
+      block: {
+        status: live ? 'live' : 'unavailable',
+        entries: mergeAnnouncements(nseResult.entries, bseResult.entries),
+        links,
+      },
+      fetchedAt,
     };
   }
 }
 
 /**
- * Merges the two feeds, newest first, deduplicated by URL (falling back
- * to title + date). Undated entries sort last — an unknown date is never
- * promoted above a known one.
+ * Merges the two feeds, newest first. Entries with a real document URL
+ * dedup by that URL (the same attachment on both feeds is one
+ * announcement). Rows without an attachment share their exchange's
+ * fallback page URL, so deduping on it would silently drop all but one
+ * of them (B18) — those dedup on title + date instead, which is also
+ * how the same text-only disclosure cross-posted on both exchanges
+ * collapses to one row. Undated entries sort last — an unknown date is
+ * never promoted above a known one.
  */
 export function mergeAnnouncements(...feeds: FilingEntry[][]): FilingEntry[] {
   const seen = new Set<string>();
   const merged: FilingEntry[] = [];
   for (const feed of feeds) {
     for (const item of feed) {
-      const key = item.url
-        ? `url:${item.url.toLowerCase().replace(/\/$/, '')}`
-        : `title:${item.title.toLowerCase()}|${item.date ?? ''}`;
+      const key =
+        item.url && !isExchangeFallbackUrl(item.url)
+          ? `url:${item.url.toLowerCase().replace(/\/$/, '')}`
+          : `title:${item.title.toLowerCase().trim()}|${item.date ?? ''}`;
       if (seen.has(key)) continue;
       seen.add(key);
       merged.push(item);

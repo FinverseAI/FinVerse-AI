@@ -37,8 +37,16 @@ describe('filings endpoint', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
-    nse.fetchAnnouncements.mockResolvedValue({ available: false, entries: [] });
-    bse.fetchAnnouncements.mockResolvedValue({ available: false, entries: [] });
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
     global.fetch = jest.fn(async () =>
       Response.json({
         user: { id: 'owner' },
@@ -69,6 +77,7 @@ describe('filings endpoint', () => {
           documentType: 'announcement',
         },
       ],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
     });
     const result = await session(
       request(app.getHttpServer()).get('/api/market/filings/hdfcbank.ns'),
@@ -79,6 +88,7 @@ describe('filings endpoint', () => {
       company: { name: 'HDFC Bank Ltd', bseScripCode: '500180' },
     });
     expect(typeof result.body.asOf).toBe('string');
+    expect(result.body.asOf).toBe('2026-11-25T10:00:00.000Z');
     expect(result.body.categories.announcements.status).toBe('live');
     expect(result.body.categories.announcements.entries).toHaveLength(1);
     expect(result.body.categories['annual-reports'].status).toBe('links-only');

@@ -116,6 +116,18 @@ describe('NSE date parsing', () => {
     expect(parseNseDate(20261124)).toBeNull();
     expect(parseNseDate(null)).toBeNull();
   });
+
+  it('rejects impossible dates and accepts any month case (B32)', () => {
+    expect(parseNseDate('32-Nov-2026')).toBeNull();
+    expect(parseNseDate('31-Apr-2026')).toBeNull();
+    expect(parseNseDate('29-Feb-2026')).toBeNull();
+    expect(parseNseDate('29-Feb-2024')).toBe('2024-02-29');
+    expect(parseNseDate('2026-02-30')).toBeNull();
+    expect(parseNseDate('2026-13-01')).toBeNull();
+    expect(parseNseDate('2026-00-10')).toBeNull();
+    expect(parseNseDate('24-nov-2026')).toBe('2026-11-24');
+    expect(parseNseDate('24-NOV-2026')).toBe('2026-11-24');
+  });
 });
 
 describe('NSE announcement parsing', () => {
@@ -176,6 +188,17 @@ describe('BSE date parsing', () => {
     expect(parseBseDate('24 Nov 2026 04:30:00 PM')).toBe('2026-11-24');
     expect(parseBseDate('2026-11-24')).toBe('2026-11-24');
     expect(parseBseDate('garbage')).toBeNull();
+  });
+
+  it('rejects impossible dates and accepts any month case (B32)', () => {
+    expect(parseBseDate('32 Nov 2026')).toBeNull();
+    expect(parseBseDate('31 Apr 2026')).toBeNull();
+    expect(parseBseDate('29 Feb 2026')).toBeNull();
+    expect(parseBseDate('29 Feb 2024')).toBe('2024-02-29');
+    expect(parseBseDate('2026-02-30')).toBeNull();
+    expect(parseBseDate('2026-13-01')).toBeNull();
+    expect(parseBseDate('24 nov 2026')).toBe('2026-11-24');
+    expect(parseBseDate('24 NOV 2026')).toBe('2026-11-24');
   });
 });
 
@@ -284,6 +307,66 @@ describe('announcement merging', () => {
     );
     expect(mergeAnnouncements(feed)).toHaveLength(25);
   });
+
+  it('keeps several attachment-less rows that share the fallback page URL (B18)', () => {
+    const merged = mergeAnnouncements([
+      entry({
+        title: 'Outcome one',
+        date: '2026-11-24',
+        url: 'https://www.nseindia.com/get-quotes/equity?symbol=HDFCBANK',
+      }),
+      entry({
+        title: 'Outcome two',
+        date: '2026-11-23',
+        url: 'https://www.nseindia.com/get-quotes/equity?symbol=HDFCBANK',
+      }),
+      entry({
+        title: 'Outcome three',
+        date: '2026-11-22',
+        source: 'BSE',
+        url: 'https://www.bseindia.com/stock-share-price/hdfc-bank-ltd/hdfcbank/500180/',
+      }),
+    ]);
+    expect(merged.map((item) => item.title)).toEqual([
+      'Outcome one',
+      'Outcome two',
+      'Outcome three',
+    ]);
+  });
+
+  it('still collapses an exact title+date duplicate on the fallback URL (B18)', () => {
+    const merged = mergeAnnouncements(
+      [
+        entry({
+          title: 'Outcome',
+          date: '2026-11-24',
+          url: 'https://www.nseindia.com/get-quotes/equity?symbol=HDFCBANK',
+        }),
+      ],
+      [
+        entry({
+          title: 'Outcome',
+          date: '2026-11-24',
+          source: 'BSE',
+          url: 'https://www.bseindia.com/stock-share-price/hdfc-bank-ltd/hdfcbank/500180/',
+        }),
+      ],
+    );
+    expect(merged).toHaveLength(1);
+  });
+
+  it('keeps multi-row no-attachment parses end to end (B18)', () => {
+    const parsed = parseNseAnnouncements(
+      [
+        { desc: 'Outcome one.', date: '24-Nov-2026' },
+        { desc: 'Outcome two.', date: '23-Nov-2026' },
+        { desc: 'Outcome three.', date: '22-Nov-2026' },
+      ],
+      'HDFCBANK',
+    );
+    expect(parsed).toHaveLength(3);
+    expect(mergeAnnouncements(parsed)).toHaveLength(3);
+  });
 });
 
 describe('NseClient fail-open behaviour', () => {
@@ -329,6 +412,7 @@ describe('NseClient fail-open behaviour', () => {
     await expect(client.fetchAnnouncements('HDFCBANK')).resolves.toEqual({
       available: false,
       entries: [],
+      fetchedAt: expect.any(String),
     });
   });
 
@@ -340,6 +424,7 @@ describe('NseClient fail-open behaviour', () => {
     await expect(client.fetchAnnouncements('HDFCBANK')).resolves.toEqual({
       available: false,
       entries: [],
+      fetchedAt: expect.any(String),
     });
   });
 
@@ -351,6 +436,96 @@ describe('NseClient fail-open behaviour', () => {
     await client.fetchAnnouncements('HDFCBANK');
     await client.fetchAnnouncements('HDFCBANK');
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('caches a failure only briefly, then refetches (B23)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-26T00:00:00Z'));
+    try {
+      const fetchFn = jest.fn(async (url: string) =>
+        url.includes('/api/')
+          ? new Response('Denied', { status: 403 })
+          : homeResponse(),
+      );
+      const client = new NseClient(fetchFn as unknown as typeof fetch);
+      await client.fetchAnnouncements('HDFCBANK');
+      await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      jest.setSystemTime(new Date('2026-11-26T00:01:01Z'));
+      await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('caches an empty successful result only briefly (B23)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-26T00:00:00Z'));
+    try {
+      const fetchFn = jest.fn(async (url: string) =>
+        url.includes('/api/') ? apiResponse([]) : homeResponse(),
+      );
+      const client = new NseClient(fetchFn as unknown as typeof fetch);
+      await client.fetchAnnouncements('HDFCBANK');
+      jest.setSystemTime(new Date('2026-11-26T00:00:59Z'));
+      await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      jest.setSystemTime(new Date('2026-11-26T00:01:01Z'));
+      await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('keeps a successful non-empty result for ten minutes and reports its original fetch time (B23, B27)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-26T00:00:00Z'));
+    try {
+      const fetchFn = jest.fn(async (url: string) => {
+        if (url.includes('/api/corporate-announcements')) {
+          return apiResponse([
+            {
+              desc: 'Board meeting.',
+              date: '24-Nov-2026',
+              attachmentFile: 'https://www.nseindia.com/x.pdf',
+            },
+          ]);
+        }
+        return homeResponse();
+      });
+      const client = new NseClient(fetchFn as unknown as typeof fetch);
+      const first = await client.fetchAnnouncements('HDFCBANK');
+      expect(first.fetchedAt).toBe('2026-11-26T00:00:00.000Z');
+      jest.setSystemTime(new Date('2026-11-26T00:09:00Z'));
+      const second = await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      expect(second.fetchedAt).toBe(first.fetchedAt);
+      jest.setSystemTime(new Date('2026-11-26T00:10:01Z'));
+      const third = await client.fetchAnnouncements('HDFCBANK');
+      expect(fetchFn).toHaveBeenCalledTimes(4);
+      expect(third.fetchedAt).toBe('2026-11-26T00:10:01.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('evicts the oldest entry past 200 cached symbols (B23)', async () => {
+    const fetchFn = jest.fn(async (url: string) =>
+      url.includes('/api/') ? apiResponse([]) : homeResponse(),
+    );
+    const client = new NseClient(fetchFn as unknown as typeof fetch);
+    for (let i = 0; i < 201; i++) {
+      await client.fetchAnnouncements(`SYM${String(i).padStart(3, '0')}`);
+    }
+    const callsForFirst = () =>
+      fetchFn.mock.calls.filter((call) =>
+        String(call[0]).includes('symbol=SYM000'),
+      ).length;
+    expect(callsForFirst()).toBe(1);
+    await client.fetchAnnouncements('SYM000');
+    expect(callsForFirst()).toBe(2);
   });
 });
 
@@ -389,7 +564,121 @@ describe('BseClient fail-open behaviour', () => {
     ).resolves.toEqual({
       available: false,
       entries: [],
+      fetchedAt: expect.any(String),
     });
+  });
+
+  it('pages through results until a page adds nothing new (B31)', async () => {
+    const fetchFn = jest.fn(async (url: string) => {
+      const page = new URL(url).searchParams.get('pageno');
+      const rows =
+        page === '1'
+          ? [
+              {
+                ANNOUNCEMENT: 'First.',
+                ANNOUNCEMENT_DT: '24 Nov 2026',
+              },
+              {
+                ANNOUNCEMENT: 'Second.',
+                ANNOUNCEMENT_DT: '23 Nov 2026',
+              },
+            ]
+          : page === '2'
+            ? [{ ANNOUNCEMENT: 'Third.', ANNOUNCEMENT_DT: '22 Nov 2026' }]
+            : [];
+      return Response.json({ Table: rows });
+    });
+    const client = new BseClient(fetchFn as unknown as typeof fetch);
+    const result = await client.fetchAnnouncements(
+      '500180',
+      'https://www.bseindia.com/stock-share-price/hdfc-bank-ltd/hdfcbank/500180/',
+    );
+    expect(result.available).toBe(true);
+    expect(result.entries.map((entry) => entry.title)).toEqual([
+      'First.',
+      'Second.',
+      'Third.',
+    ]);
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(new URL(fetchFn.mock.calls[1][0]).searchParams.get('pageno')).toBe(
+      '2',
+    );
+  });
+
+  it('stops paging when a page repeats rows already seen (B31)', async () => {
+    const fetchFn = jest.fn(async () =>
+      Response.json({
+        Table: [{ ANNOUNCEMENT: 'Same.', ANNOUNCEMENT_DT: '24 Nov 2026' }],
+      }),
+    );
+    const client = new BseClient(fetchFn as unknown as typeof fetch);
+    const result = await client.fetchAnnouncements(
+      '500180',
+      'https://example.com',
+    );
+    expect(result.entries).toHaveLength(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('caps paging at five pages even when every page has new rows (B31)', async () => {
+    let page = 0;
+    const fetchFn = jest.fn(async () => {
+      page++;
+      return Response.json({
+        Table: [
+          {
+            ANNOUNCEMENT: `Row ${page}.`,
+            ANNOUNCEMENT_DT: '24 Nov 2026',
+          },
+        ],
+      });
+    });
+    const client = new BseClient(fetchFn as unknown as typeof fetch);
+    const result = await client.fetchAnnouncements(
+      '500180',
+      'https://example.com',
+    );
+    expect(result.entries).toHaveLength(5);
+    expect(fetchFn).toHaveBeenCalledTimes(5);
+  });
+
+  it('caches a failure only briefly, then refetches (B23)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-26T00:00:00Z'));
+    try {
+      const fetchFn = jest.fn(
+        async () => new Response('Denied', { status: 403 }),
+      );
+      const client = new BseClient(fetchFn as unknown as typeof fetch);
+      await client.fetchAnnouncements('500180', 'https://example.com');
+      await client.fetchAnnouncements('500180', 'https://example.com');
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      jest.setSystemTime(new Date('2026-11-26T00:01:01Z'));
+      await client.fetchAnnouncements('500180', 'https://example.com');
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('evicts the oldest entry past 200 cached scrip codes (B23)', async () => {
+    const fetchFn = jest.fn(async (_url: string) =>
+      Response.json({ Table: [] }),
+    );
+    const client = new BseClient(fetchFn as unknown as typeof fetch);
+    for (let i = 0; i < 201; i++) {
+      await client.fetchAnnouncements(
+        String(500000 + i),
+        'https://example.com',
+      );
+    }
+    const callsForFirst = () =>
+      fetchFn.mock.calls.filter((call) =>
+        String(call[0]).includes('strScrip=500000'),
+      ).length;
+    expect(callsForFirst()).toBe(1);
+    await client.fetchAnnouncements('500000', 'https://example.com');
+    expect(callsForFirst()).toBe(2);
   });
 });
 
@@ -418,10 +707,12 @@ describe('FilingsService', () => {
     nse.fetchAnnouncements.mockResolvedValue({
       available: true,
       entries: [nseEntry],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
     });
     bse.fetchAnnouncements.mockResolvedValue({
       available: true,
       entries: [bseEntry],
+      fetchedAt: '2026-11-25T10:05:00.000Z',
     });
     const service = new FilingsService(
       nse as unknown as NseClient,
@@ -448,10 +739,59 @@ describe('FilingsService', () => {
     );
   });
 
+  it('reports asOf as the newest feed fetch time, not now (B27)', async () => {
+    const { nse, bse } = mockClients();
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [nseEntry],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [bseEntry],
+      fetchedAt: '2026-11-25T10:05:00.000Z',
+    });
+    const service = new FilingsService(
+      nse as unknown as NseClient,
+      bse as unknown as BseClient,
+    );
+    const result = await service.getFilings('HDFCBANK');
+    expect(result.asOf).toBe('2026-11-25T10:05:00.000Z');
+  });
+
+  it('keeps a stale cached asOf instead of refreshing it to now (B27)', async () => {
+    const { nse, bse } = mockClients();
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [nseEntry],
+      fetchedAt: '2026-11-25T09:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T09:01:00.000Z',
+    });
+    const service = new FilingsService(
+      nse as unknown as NseClient,
+      bse as unknown as BseClient,
+    );
+    const result = await service.getFilings('HDFCBANK');
+    expect(result.asOf).toBe('2026-11-25T09:01:00.000Z');
+    expect(new Date(result.asOf).getTime()).toBeLessThan(Date.now());
+  });
+
   it('degrades to unavailable when both feeds are blocked, links intact', async () => {
     const { nse, bse } = mockClients();
-    nse.fetchAnnouncements.mockResolvedValue({ available: false, entries: [] });
-    bse.fetchAnnouncements.mockResolvedValue({ available: false, entries: [] });
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
     const service = new FilingsService(
       nse as unknown as NseClient,
       bse as unknown as BseClient,
@@ -472,8 +812,13 @@ describe('FilingsService', () => {
     nse.fetchAnnouncements.mockResolvedValue({
       available: true,
       entries: [nseEntry],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
     });
-    bse.fetchAnnouncements.mockResolvedValue({ available: false, entries: [] });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: false,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
     const service = new FilingsService(
       nse as unknown as NseClient,
       bse as unknown as BseClient,
@@ -485,7 +830,11 @@ describe('FilingsService', () => {
 
   it('serves an unknown symbol with Yahoo-style data only: NSE feed, no BSE call', async () => {
     const { nse, bse } = mockClients();
-    nse.fetchAnnouncements.mockResolvedValue({ available: true, entries: [] });
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
     const service = new FilingsService(
       nse as unknown as NseClient,
       bse as unknown as BseClient,
@@ -505,8 +854,16 @@ describe('FilingsService', () => {
 
   it('resolves a .BO symbol through its scrip code', async () => {
     const { nse, bse } = mockClients();
-    nse.fetchAnnouncements.mockResolvedValue({ available: true, entries: [] });
-    bse.fetchAnnouncements.mockResolvedValue({ available: true, entries: [] });
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
     const service = new FilingsService(
       nse as unknown as NseClient,
       bse as unknown as BseClient,
@@ -517,6 +874,65 @@ describe('FilingsService', () => {
       bseScripCode: '500180',
     });
     expect(nse.fetchAnnouncements).toHaveBeenCalledWith('HDFCBANK');
+  });
+
+  it('resolves a .BO symbol by company name, not only by scrip code (B24)', async () => {
+    const { nse, bse } = mockClients();
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    const service = new FilingsService(
+      nse as unknown as NseClient,
+      bse as unknown as BseClient,
+    );
+    const result = await service.getFilings('RELIANCE.BO');
+    expect(result.company).toEqual({
+      name: 'Reliance Industries Ltd',
+      bseScripCode: '500325',
+    });
+    expect(result.nseSymbol).toBe('RELIANCE');
+    expect(nse.fetchAnnouncements).toHaveBeenCalledWith('RELIANCE');
+    expect(bse.fetchAnnouncements).toHaveBeenCalledWith(
+      '500325',
+      expect.stringContaining('500325'),
+    );
+  });
+
+  it('resolves a bare 6-digit scrip code (B24)', async () => {
+    const { nse, bse } = mockClients();
+    nse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    bse.fetchAnnouncements.mockResolvedValue({
+      available: true,
+      entries: [],
+      fetchedAt: '2026-11-25T10:00:00.000Z',
+    });
+    const service = new FilingsService(
+      nse as unknown as NseClient,
+      bse as unknown as BseClient,
+    );
+    const result = await service.getFilings('500180');
+    expect(result.symbol).toBe('500180');
+    expect(result.company).toEqual({
+      name: 'HDFC Bank Ltd',
+      bseScripCode: '500180',
+    });
+    expect(result.nseSymbol).toBe('HDFCBANK');
+    expect(nse.fetchAnnouncements).toHaveBeenCalledWith('HDFCBANK');
+    expect(bse.fetchAnnouncements).toHaveBeenCalledWith(
+      '500180',
+      expect.stringContaining('500180'),
+    );
   });
 
   it('treats an index as links-only and never calls the feeds', async () => {

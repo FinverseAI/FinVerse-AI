@@ -55,4 +55,12 @@ export interface FilingsResponse {
 export interface ExchangeFetchResult {
   available: boolean;
   entries: FilingEntry[];
+  /**
+   * When this result was fetched from the exchange (ISO timestamp). For a
+   * cached result this is the original fetch time, not "now" — the
+   * service reports it as the response's `asOf` so a cached feed is
+   * never presented as just-fetched (B27). A failed attempt still stamps
+   * the attempt time: it says when the feed was last checked.
+   */
+  fetchedAt: string;
 }

@@ -166,10 +166,15 @@ export class PortfolioService {
     const alertChanged =
       (current.alert_direction ?? null) !== data.alert_direction ||
       Number(current.alert_price ?? null) !== Number(data.alert_price ?? null);
-    await this.prisma.watchlistItem.update({
-      where: { id },
+    // The write itself is conditional on ownership (B30): the row is
+    // only updated if it still belongs to the caller at write time,
+    // like updateHolding — the read above only decides the re-arm.
+    const result = await this.prisma.watchlistItem.updateMany({
+      where: { id, user_id: userId },
       data: alertChanged ? { ...data, alert_fired_at: null } : data,
     });
+    if (!result.count)
+      throw new NotFoundException('This watchlist item no longer exists.');
     return { updated: true };
   }
 
@@ -185,8 +190,14 @@ export class PortfolioService {
   /**
    * The portfolio valued at current prices. Holdings whose price cannot be
    * fetched (provider down and nothing cached) are listed under
-   * `unavailable` and excluded from the totals — never valued at a stale
-   * or invented price. Sector weights come from the holding's stored
+   * `unavailable` and excluded from the value — never valued at a stale
+   * or invented price. But invested cost is known book data, not a market
+   * valuation, so `totals.totalInvested` covers EVERY holding, priced or
+   * not (B21): the per-holding `investedValue` column and the totals now
+   * reconcile. `totals.investedUnpriced` names the slice that has no
+   * current value, and the gain/loss is computed over the priced slice
+   * only (`investedPriced`) — a gain/loss over unpriced money would be
+   * meaningless. Sector weights come from the holding's stored
    * sector, falling back to the quote's sector, then "Unknown".
    */
   async portfolioSummary(userId: string) {
@@ -202,6 +213,8 @@ export class PortfolioService {
           totalInvested: 0,
           totalGainLoss: 0,
           totalGainLossPercent: 0,
+          investedPriced: 0,
+          investedUnpriced: 0,
         },
         totalsByCurrency: [],
         sectors: [],
@@ -234,17 +247,37 @@ export class PortfolioService {
     );
     let totalValuePaise = 0;
     let totalInvestedPaise = 0;
+    let totalInvestedPricedPaise = 0;
+    let totalInvestedUnpricedPaise = 0;
     let stale = false;
     let asOf = 0;
     // Per-currency totals, in each currency's minor units. `totals`
     // below still aggregates across currencies for backwards
     // compatibility, but it is only meaningful when every priced
     // holding shares one currency — consumers must read
-    // totalsByCurrency whenever holdings span currencies.
+    // totalsByCurrency whenever holdings span currencies. Each entry
+    // covers every holding in that currency: `totalInvested` is all
+    // invested money, split into `investedPriced` (has a current
+    // value) and `investedUnpriced` (listed under `unavailable`).
     const totalsByCurrency = new Map<
       string,
-      { totalValue: number; totalInvested: number }
+      {
+        totalValue: number;
+        totalInvested: number;
+        investedPriced: number;
+        investedUnpriced: number;
+      }
     >();
+    const currencyGroup = (currency: string) => {
+      const group = totalsByCurrency.get(currency) ?? {
+        totalValue: 0,
+        totalInvested: 0,
+        investedPriced: 0,
+        investedUnpriced: 0,
+      };
+      totalsByCurrency.set(currency, group);
+      return group;
+    };
     const valued = holdings.map((holding) => {
       const quantity = Number(holding.quantity);
       const buyPrice = Number(holding.buy_price);
@@ -257,6 +290,13 @@ export class PortfolioService {
       if (quote && quote.currency !== holdingCurrency)
         unavailable.push(holding.symbol);
       if (!quote || quote.currency !== holdingCurrency) {
+        // Unpriced — but the invested money is still real and still
+        // counted in the totals (B21).
+        totalInvestedPaise += investedPaise;
+        totalInvestedUnpricedPaise += investedPaise;
+        const group = currencyGroup(holdingCurrency);
+        group.totalInvested += investedPaise;
+        group.investedUnpriced += investedPaise;
         return {
           ...holdingResponse(holding),
           currentPrice: null,
@@ -274,13 +314,11 @@ export class PortfolioService {
       const gainPaise = currentPaise - investedPaise;
       totalValuePaise += currentPaise;
       totalInvestedPaise += investedPaise;
-      const group = totalsByCurrency.get(holdingCurrency) ?? {
-        totalValue: 0,
-        totalInvested: 0,
-      };
+      totalInvestedPricedPaise += investedPaise;
+      const group = currencyGroup(holdingCurrency);
       group.totalValue += currentPaise;
       group.totalInvested += investedPaise;
-      totalsByCurrency.set(holdingCurrency, group);
+      group.investedPriced += investedPaise;
       if (quote.stale) stale = true;
       const fetchedAt = new Date(quote.fetchedAt).getTime();
       if (fetchedAt > asOf) asOf = fetchedAt;
@@ -319,19 +357,21 @@ export class PortfolioService {
           totalValuePaise === 0 ? 0 : round2((paise / totalValuePaise) * 100),
       }))
       .sort((a, b) => b.value - a.value);
-    const totalGainPaise = totalValuePaise - totalInvestedPaise;
+    const totalGainPaise = totalValuePaise - totalInvestedPricedPaise;
     const totalsByCurrencyList = [...totalsByCurrency.entries()]
       .map(([currency, group]) => {
-        const gain = group.totalValue - group.totalInvested;
+        const gain = group.totalValue - group.investedPriced;
         return {
           currency,
           totalValue: group.totalValue / 100,
           totalInvested: group.totalInvested / 100,
           totalGainLoss: gain / 100,
           totalGainLossPercent:
-            group.totalInvested === 0
+            group.investedPriced === 0
               ? 0
-              : round2((gain / group.totalInvested) * 100),
+              : round2((gain / group.investedPriced) * 100),
+          investedPriced: group.investedPriced / 100,
+          investedUnpriced: group.investedUnpriced / 100,
         };
       })
       .sort((a, b) => a.currency.localeCompare(b.currency));
@@ -342,9 +382,11 @@ export class PortfolioService {
         totalInvested: totalInvestedPaise / 100,
         totalGainLoss: totalGainPaise / 100,
         totalGainLossPercent:
-          totalInvestedPaise === 0
+          totalInvestedPricedPaise === 0
             ? 0
-            : round2((totalGainPaise / totalInvestedPaise) * 100),
+            : round2((totalGainPaise / totalInvestedPricedPaise) * 100),
+        investedPriced: totalInvestedPricedPaise / 100,
+        investedUnpriced: totalInvestedUnpricedPaise / 100,
       },
       totalsByCurrency: totalsByCurrencyList,
       sectors,

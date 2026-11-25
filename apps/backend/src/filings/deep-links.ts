@@ -22,6 +22,33 @@ export function nseQuotePageUrl(nseSymbol: string): string {
   return `https://www.nseindia.com/get-quotes/equity?symbol=${encodeURIComponent(nseSymbol)}`;
 }
 
+/**
+ * True when a URL is one of the exchange pages the parsers fall back to
+ * for an announcement row with no attachment (the NSE quote page, the
+ * BSE stock page) — i.e. a link to the feed's home, not to a document.
+ * Merging must never dedup on such a URL: every attachment-less row
+ * shares it, so URL dedup would silently drop all but one of them (B18).
+ * Anything unparseable is not a fallback.
+ */
+export function isExchangeFallbackUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (
+    parsed.hostname === 'www.nseindia.com' &&
+    parsed.pathname === '/get-quotes/equity'
+  ) {
+    return true;
+  }
+  return (
+    parsed.hostname === 'www.bseindia.com' &&
+    parsed.pathname.startsWith('/stock-share-price/')
+  );
+}
+
 /** BSE stock page for a registered company — carries its announcements tab. */
 export function bseStockPageUrl(entry: CompanyRegistryEntry): string {
   return `https://www.bseindia.com/stock-share-price/${entry.bseSlug}/${entry.symbol.toLowerCase()}/${entry.bseScripCode}/`;

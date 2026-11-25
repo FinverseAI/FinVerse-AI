@@ -36,6 +36,12 @@ export class MarketController {
     return this.market.firedAlerts(request.userId);
   }
 
+  @Delete('market/alerts/:id')
+  @Header('Cache-Control', 'private, no-store')
+  dismissAlert(@Req() request: AuthenticatedRequest, @Param('id') id: string) {
+    return this.market.dismissAlert(request.userId, id);
+  }
+
   @Get('market/search')
   @Header('Cache-Control', 'private, no-store')
   search(@Query('q') query: string) {

@@ -25,8 +25,15 @@ describe('market data endpoints', () => {
     },
     watchlistItem: {
       findMany: jest.fn(),
-      update: jest.fn(),
+      updateMany: jest.fn(),
     },
+    // Runs the writes like a transaction would: each write executes in
+    // order and a failure aborts the rest.
+    $transaction: jest.fn(async (ops: unknown[]) => {
+      const out: unknown[] = [];
+      for (const op of ops) out.push(await op);
+      return out;
+    }),
   };
   const provider = {
     quote: jest.fn(),
@@ -100,7 +107,7 @@ describe('market data endpoints', () => {
     prisma.marketHistory.createMany.mockResolvedValue({ count: 0 });
     prisma.marketHistory.deleteMany.mockResolvedValue({ count: 0 });
     prisma.watchlistItem.findMany.mockResolvedValue([]);
-    prisma.watchlistItem.update.mockResolvedValue({});
+    prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
     provider.quote.mockResolvedValue(liveQuote);
     provider.history.mockResolvedValue([]);
     provider.search.mockResolvedValue([]);
@@ -123,6 +130,9 @@ describe('market data endpoints', () => {
   it('requires authentication for every market route', async () => {
     await request(app.getHttpServer()).get('/api/market/overview').expect(401);
     await request(app.getHttpServer()).get('/api/market/alerts').expect(401);
+    await request(app.getHttpServer())
+      .delete('/api/market/alerts/watch-1')
+      .expect(401);
     await request(app.getHttpServer())
       .get('/api/market/search?q=reliance')
       .expect(401);
@@ -267,6 +277,9 @@ describe('market data endpoints', () => {
     expect(prisma.marketHistory.createMany).toHaveBeenCalledWith(
       expect.objectContaining({ skipDuplicates: true }),
     );
+    // The delete + insert run in one transaction (B25), so a failed
+    // insert cannot leave today's bar deleted.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(result.body.bars).toHaveLength(2);
     expect(result.body.stale).toBe(false);
   });
@@ -481,6 +494,10 @@ describe('market data endpoints', () => {
       symbol: '^NSEI',
       name: 'NIFTY 50',
       price: null,
+      // A null price with stale:false would read as "loading" — the
+      // fallback says outright that the fetch failed (B29).
+      stale: true,
+      available: false,
     });
     expect(result.body.unavailable).toEqual([
       '^NSEI',
@@ -521,9 +538,11 @@ describe('market data endpoints', () => {
       const result = await session(
         request(app.getHttpServer()).get('/api/market/overview'),
       ).expect(200);
-      expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
-        where: { id: 'watch-1' },
-        data: { alert_fired_at: expect.any(Date) },
+      // Conditional write (B19): fire only if still unfired.
+      // B26: the quote currency is stored on the item at fire time.
+      expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+        where: { id: 'watch-1', alert_fired_at: null },
+        data: { alert_fired_at: expect.any(Date), alert_currency: 'INR' },
       });
       expect(result.body.alerts).toHaveLength(1);
       expect(result.body.alerts[0]).toMatchObject({
@@ -540,32 +559,57 @@ describe('market data endpoints', () => {
       );
     });
 
+    it('fires a crossed alert exactly once across two simultaneous overview loads (B19)', async () => {
+      prisma.watchlistItem.findMany.mockResolvedValue([watchItem()]);
+      freshQuotes({ 'RELIANCE.NS': 2600 });
+      // The first conditional write wins the race; the second sees
+      // count 0 and reports nothing.
+      prisma.watchlistItem.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValue({ count: 0 });
+      const [first, second] = await Promise.all([
+        session(request(app.getHttpServer()).get('/api/market/overview')),
+        session(request(app.getHttpServer()).get('/api/market/overview')),
+      ]);
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      const firedTotal = first.body.alerts.length + second.body.alerts.length;
+      expect(firedTotal).toBe(1);
+      expect(prisma.watchlistItem.updateMany).toHaveBeenCalledTimes(2);
+      expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+        where: { id: 'watch-1', alert_fired_at: null },
+        data: { alert_fired_at: expect.any(Date), alert_currency: 'INR' },
+      });
+    });
+
     it('does not re-fire an alert that already fired', async () => {
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
       prisma.watchlistItem.findMany.mockResolvedValue([
-        watchItem({ alert_fired_at: new Date('2026-11-24T10:00:00Z') }),
+        watchItem({ alert_fired_at: firedAt }),
       ]);
       freshQuotes({ 'RELIANCE.NS': 2600 });
       const result = await session(
         request(app.getHttpServer()).get('/api/market/overview'),
       ).expect(200);
       expect(result.body.alerts).toEqual([]);
-      expect(prisma.watchlistItem.update).not.toHaveBeenCalled();
-      expect(result.body.watchlist[0].alertFiredAt).toBe(
-        '2026-11-24T10:00:00.000Z',
-      );
+      expect(prisma.watchlistItem.updateMany).not.toHaveBeenCalled();
+      expect(result.body.watchlist[0].alertFiredAt).toBe(firedAt.toISOString());
     });
 
     it('re-arms a fired alert when the price moves back across', async () => {
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
       prisma.watchlistItem.findMany.mockResolvedValue([
-        watchItem({ alert_fired_at: new Date('2026-11-24T10:00:00Z') }),
+        watchItem({ alert_fired_at: firedAt }),
       ]);
       freshQuotes({ 'RELIANCE.NS': 2400 });
       const result = await session(
         request(app.getHttpServer()).get('/api/market/overview'),
       ).expect(200);
-      expect(prisma.watchlistItem.update).toHaveBeenCalledWith({
-        where: { id: 'watch-1' },
-        data: { alert_fired_at: null },
+      // Conditional write (B19): re-arm only if still fired.
+      // B26: re-arm clears the stored fire-time currency.
+      expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+        where: { id: 'watch-1', alert_fired_at: { not: null } },
+        data: { alert_fired_at: null, alert_currency: null },
       });
       expect(result.body.alerts).toEqual([]);
       expect(result.body.watchlist[0].alertFiredAt).toBeNull();
@@ -585,13 +629,13 @@ describe('market data endpoints', () => {
       ).expect(200);
       expect(result.body.watchlist[0].quote.stale).toBe(true);
       expect(result.body.alerts).toEqual([]);
-      expect(prisma.watchlistItem.update).not.toHaveBeenCalled();
+      expect(prisma.watchlistItem.updateMany).not.toHaveBeenCalled();
     });
 
     it('a failed alert write never breaks the overview', async () => {
       prisma.watchlistItem.findMany.mockResolvedValue([watchItem()]);
       freshQuotes({ 'RELIANCE.NS': 2600 });
-      prisma.watchlistItem.update.mockRejectedValue(
+      prisma.watchlistItem.updateMany.mockRejectedValue(
         new Error('database is down'),
       );
       const result = await session(
@@ -603,7 +647,7 @@ describe('market data endpoints', () => {
     });
 
     it('serves currently fired alerts for the notification centre', async () => {
-      const firedAt = new Date('2026-11-24T10:00:00Z');
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
       prisma.watchlistItem.findMany.mockResolvedValue([
         watchItem({ alert_fired_at: firedAt }),
       ]);
@@ -617,9 +661,10 @@ describe('market data endpoints', () => {
         where: {
           user_id: 'owner',
           alert_direction: { not: null },
-          alert_fired_at: { not: null },
+          alert_fired_at: { gte: expect.any(Date) },
         },
         orderBy: [{ alert_fired_at: 'desc' }, { id: 'asc' }],
+        take: 50,
       });
       expect(prisma.marketQuote.findMany).toHaveBeenCalledWith({
         where: { symbol: { in: ['RELIANCE.NS'] } },
@@ -632,9 +677,105 @@ describe('market data endpoints', () => {
           alertDirection: 'above',
           alertPrice: 2500,
           currency: 'INR',
-          firedAt: '2026-11-24T10:00:00.000Z',
+          firedAt: firedAt.toISOString(),
         },
       ]);
+    });
+
+    it('prefers the stored fire-time currency over the cached quote (B26)', async () => {
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: firedAt, alert_currency: 'USD' }),
+      ]);
+      // The cached quote says INR, but the alert fired on a USD quote.
+      prisma.marketQuote.findMany.mockResolvedValue([
+        { symbol: 'RELIANCE.NS', currency: 'INR' },
+      ]);
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/alerts'),
+      ).expect(200);
+      expect(result.body[0]).toMatchObject({
+        symbol: 'RELIANCE.NS',
+        currency: 'USD',
+      });
+    });
+
+    it('reports an unknown currency as null instead of guessing INR (B26)', async () => {
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: firedAt }),
+      ]);
+      prisma.marketQuote.findMany.mockResolvedValue([]);
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/alerts'),
+      ).expect(200);
+      expect(result.body[0]).toMatchObject({
+        symbol: 'RELIANCE.NS',
+        currency: null,
+      });
+    });
+
+    it('expires fired alerts older than seven days from the centre (B26)', async () => {
+      const expiredAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: expiredAt }),
+      ]);
+      // The service filters by recency; a store that honours the
+      // filter returns nothing for an expired alert.
+      prisma.watchlistItem.findMany.mockImplementation(async (args: any) => {
+        const gte = args.where.alert_fired_at.gte as Date;
+        return expiredAt >= gte
+          ? [watchItem({ alert_fired_at: expiredAt })]
+          : [];
+      });
+      const result = await session(
+        request(app.getHttpServer()).get('/api/market/alerts'),
+      ).expect(200);
+      expect(result.body).toEqual([]);
+    });
+
+    it('dismisses a fired alert, and a still-crossed price does not re-fire it (B26)', async () => {
+      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
+      const dismissed = await session(
+        request(app.getHttpServer()).delete('/api/market/alerts/watch-1'),
+      ).expect(200);
+      expect(dismissed.body).toEqual({ dismissed: true });
+      expect(prisma.watchlistItem.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'watch-1',
+          user_id: 'owner',
+          alert_fired_at: { not: null },
+        },
+        data: { alert_fired_at: expect.any(Date) },
+      });
+      // The dismiss ages the fired timestamp past the expiry window.
+      const writtenAt = (
+        prisma.watchlistItem.updateMany.mock.calls[0][0] as {
+          data: { alert_fired_at: Date };
+        }
+      ).data.alert_fired_at;
+      expect(Date.now() - writtenAt.getTime()).toBeGreaterThan(
+        7 * 24 * 60 * 60 * 1000,
+      );
+      // A still-crossed overview load must not re-fire it: the stored
+      // timestamp is non-null (aged), so the decision is "none".
+      prisma.watchlistItem.findMany.mockResolvedValue([
+        watchItem({ alert_fired_at: writtenAt }),
+      ]);
+      freshQuotes({ 'RELIANCE.NS': 2600 });
+      const overview = await session(
+        request(app.getHttpServer()).get('/api/market/overview'),
+      ).expect(200);
+      expect(overview.body.alerts).toEqual([]);
+      expect(overview.body.watchlist[0].alertFiredAt).toBeNull();
+    });
+
+    it('reports 404 when dismissing an alert that is not fired', async () => {
+      prisma.watchlistItem.updateMany.mockResolvedValue({ count: 0 });
+      await session(
+        request(app.getHttpServer()).delete('/api/market/alerts/watch-1'),
+      ).expect(404);
     });
   });
 });
