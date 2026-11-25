@@ -72,14 +72,20 @@ export function validateProfile(body: unknown) {
     return new Prisma.Decimal(value);
   }
 
+  // B47: an enum question that was not asked has no honest answer.
+  // Absent/null/empty stores as NULL ("unknown") instead of forcing
+  // the client to assert a false value; a present-but-invalid value
+  // is still an error. The first value is only a fallback so the
+  // remaining fields can still be validated and reported together.
   function choice<T extends string>(
     key: string,
     choices: Record<string, T>,
-  ): T {
+  ): T | null {
     const value = input[key];
+    if (value === undefined || value === null || value === '') return null;
     if (typeof value !== 'string' || !Object.hasOwn(choices, value)) {
       errors[key] = 'Choose a valid option.';
-      return Object.values(choices)[0];
+      return null;
     }
     return choices[value];
   }
@@ -142,7 +148,9 @@ export function validateProfile(body: unknown) {
     fixed_expenses: amount(input, 'fixed_expenses')!,
     variable_expenses: amount(input, 'variable_expenses')!,
     existing_debt_total: amount(input, 'existing_debt_total', true),
-    current_savings: amount(input, 'current_savings')!,
+    // B47: current_savings is optional — a user who was never asked
+    // how much they have saved stores NULL (unknown), not ₹0.
+    current_savings: amount(input, 'current_savings', true),
     monthly_savings_target: amount(input, 'monthly_savings_target')!,
     investment_experience: choice(
       'investment_experience',
@@ -158,6 +166,15 @@ export function validateProfile(body: unknown) {
       '6+': EmergencyFundMonths.six_plus,
     }),
   };
+  // B42: when a budget split is present it OWNS the three derived
+  // amounts — fixed expenses, variable expenses and the savings
+  // target are recomputed from income × split and any submitted
+  // values for them are ignored, not stored. This is deliberate
+  // (the split is the single source of truth, so the totals can never
+  // diverge from the allocation), and the effective split is returned
+  // in the save response (profile.budget_split) so the caller can see
+  // which split produced the amounts. A save that omits the split
+  // inherits the stored one (profile.service.ts).
   if (budgetSplit && profile.monthly_income) {
     const incomeCents = profile.monthly_income.times(100).toNumber();
     const allocations = budgetCategoryIds.map((key, index) => ({
@@ -263,6 +280,13 @@ export function validateProfile(body: unknown) {
     ) {
       errors[`${prefix}.target_date`] =
         'Enter a valid target date (YYYY-MM-DD), from year 1900 onwards.';
+    } else if (
+      // B39: a goal "due" today or in the past is nonsense — the
+      // target must be in the future. UTC date-only, the same
+      // convention as bill dates (see activity.validation.ts).
+      goal.target_date <= new Date().toISOString().slice(0, 10)
+    ) {
+      errors[`${prefix}.target_date`] = 'Choose a target date in the future.';
     }
     if (
       typeof goal.priority !== 'string' ||
@@ -277,6 +301,13 @@ export function validateProfile(body: unknown) {
       priority: goal.priority as GoalPriority,
     };
   });
+  // B43: two goals sharing one id would both update the same row and
+  // only one would survive, so duplicate ids are rejected.
+  const goalIds = goals
+    .map((goal) => goal.id)
+    .filter((id): id is string => Boolean(id));
+  if (new Set(goalIds).size !== goalIds.length)
+    errors.goals = 'Each goal can only appear once.';
   if (Object.keys(errors).length)
     throw new BadRequestException({
       message: 'Please correct the highlighted fields.',

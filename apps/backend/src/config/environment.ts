@@ -3,6 +3,12 @@ export function validateEnvironment(config: Record<string, unknown>) {
   if (!config.DATABASE_URL && config.NODE_ENV !== 'test') {
     throw new Error('DATABASE_URL is required.');
   }
+  // B46: schema.prisma references env("DIRECT_URL") for the direct
+  // (non-pooled) connection, so a deploy missing it fails late at the
+  // first Prisma query — validate it at boot like DATABASE_URL.
+  if (!config.DIRECT_URL && config.NODE_ENV !== 'test') {
+    throw new Error('DIRECT_URL is required.');
+  }
   if (production && !config.BETTER_AUTH_URL) {
     throw new Error('BETTER_AUTH_URL is required in production.');
   }

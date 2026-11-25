@@ -5,6 +5,7 @@ describe('deployment configuration', () => {
     NODE_ENV: 'production',
     DATABASE_URL: 'postgresql://localhost/finverse',
     BETTER_AUTH_URL: 'https://finance.example',
+    DIRECT_URL: 'postgresql://localhost/finverse',
   };
   it('normalizes the public origin and configurable port', () => {
     expect(validateEnvironment({ ...required, PORT: '4001' })).toMatchObject({
@@ -15,6 +16,7 @@ describe('deployment configuration', () => {
   it.each([
     { DATABASE_URL: undefined },
     { BETTER_AUTH_URL: undefined },
+    { DIRECT_URL: undefined },
     { BETTER_AUTH_URL: 'not-a-url' },
     { BETTER_AUTH_URL: 'http://finance.example' },
     { BETTER_AUTH_URL: 'https://user:secret@finance.example' },

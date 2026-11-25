@@ -21,6 +21,11 @@ export class SessionGuard implements CanActivate {
       this.config.get<string>('BETTER_AUTH_URL') ?? 'http://localhost:3000';
     if (!request.headers.cookie)
       throw new UnauthorizedException('Please log in to continue.');
+    // B62 (reviewed 2026-11-26): this is the same single source of
+    // truth the web forwarder now sends — webOrigin() in
+    // apps/web/lib/env.ts is `new URL(BETTER_AUTH_URL).origin`, and
+    // the forwarder rewrites the Origin header to it on the
+    // server-to-server fetch. No change needed here.
     if (
       request.method !== 'GET' &&
       request.headers.origin !== new URL(baseUrl).origin
@@ -37,7 +42,9 @@ export class SessionGuard implements CanActivate {
         {
           headers: { cookie: request.headers.cookie },
           cache: 'no-store',
-          redirect: 'error',
+          // B45: 'manual' so a redirect is visible as a 3xx response
+          // instead of throwing and being misreported as an outage.
+          redirect: 'manual',
           signal: AbortSignal.timeout(10000),
         },
       );
@@ -47,6 +54,13 @@ export class SessionGuard implements CanActivate {
       );
     }
     if (response.status === 401)
+      throw new UnauthorizedException(
+        'Your session has expired. Please log in again.',
+      );
+    // B45: a redirect from get-session means there is no usable
+    // session to verify (e.g. the auth service bounced to a login
+    // page) — that is unauthenticated (401), not an outage (503).
+    if (response.status >= 300 && response.status < 400)
       throw new UnauthorizedException(
         'Your session has expired. Please log in again.',
       );

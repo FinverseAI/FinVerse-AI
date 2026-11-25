@@ -67,7 +67,27 @@ function amount(value: unknown, signed = false) {
   return Number(value).toFixed(2);
 }
 
-function date(value: unknown) {
+/**
+ * DATE CONVENTION (B35/B39/B41): all bill/profile dates are UTC
+ * date-only values ("YYYY-MM-DD", midnight UTC). The server's "today"
+ * is the UTC calendar date, never a local date: mixing toISOString()
+ * (UTC) with local-day arithmetic shifts dates by a day between
+ * 00:00–05:30 IST. A client may send its local date, which can be up
+ * to one day ahead of the server UTC date around midnight IST, so
+ * dates up to today + 1 day are accepted as the caller's today; any
+ * date further in the future is rejected.
+ */
+function todayUtcKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function maxAcceptedDateKey(): string {
+  const max = new Date(`${todayUtcKey()}T00:00:00.000Z`);
+  max.setUTCDate(max.getUTCDate() + 1);
+  return max.toISOString().slice(0, 10);
+}
+
+function date(value: unknown, options: { allowFuture?: boolean } = {}) {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new BadRequestException('Enter a valid date.');
   }
@@ -79,6 +99,13 @@ function date(value: unknown) {
     value > '9999-12-31'
   ) {
     throw new BadRequestException('Enter a valid date.');
+  }
+  // B41: a record dated after today would land in a future month's
+  // spending/balance, so it is rejected (one day of grace for the
+  // caller's local date, see the convention above). Bill due dates
+  // are exempt — they may legitimately be in the future.
+  if (!options.allowFuture && value > maxAcceptedDateKey()) {
+    throw new BadRequestException('Enter a date no later than today.');
   }
   return parsed;
 }
@@ -102,7 +129,8 @@ export function validateBill(input: unknown) {
   return {
     name: name(body.name),
     amount: amount(body.amount),
-    due_date: date(body.dueDate),
+    // B41: a bill due date may legitimately be in the future.
+    due_date: date(body.dueDate, { allowFuture: true }),
     auto_pay: body.autoPay,
     recurrence: recurrence === 'monthly' ? 'monthly' : null,
   };
@@ -112,6 +140,13 @@ export function validateBill(input: unknown) {
  * The auto-pay run takes the caller's local date ("today"): a bill is
  * due by the user's calendar, not the server's UTC clock. When the
  * date is missing it defaults to the server's current UTC date.
+ *
+ * B35: `today` is clamped server-side and never trusted blindly. A
+ * date up to one day ahead of the server UTC date is the caller's
+ * local date around midnight IST, so it is clamped back to the server
+ * date; anything further ahead (e.g. 9999-12-31) is rejected, so one
+ * forged request can never mass-pay every future bill. Past dates are
+ * accepted as sent — they can only pay bills already due by then.
  */
 export function validateAutoPayRun(input: unknown) {
   const now = new Date();
@@ -123,7 +158,13 @@ export function validateAutoPayRun(input: unknown) {
   const body = record(input);
   if (body.today === undefined || body.today === null)
     return { today: fallback };
-  return { today: date(body.today) };
+  const today = date(body.today, { allowFuture: true });
+  if (today.toISOString().slice(0, 10) > maxAcceptedDateKey()) {
+    throw new BadRequestException(
+      'Enter an auto-pay date no later than today.',
+    );
+  }
+  return { today: today > fallback ? fallback : today };
 }
 
 export function validateGoalContribution(input: unknown) {
@@ -160,9 +201,24 @@ export function validateTransaction(input: unknown) {
   if (!categories.has(category)) {
     throw new BadRequestException('Choose a valid category.');
   }
+  const amountValue = amount(body.amount, true);
+  // B40: sign and category are reconciled cross-field — Income is
+  // money in (amount > 0), every other category is money out
+  // (amount < 0). Downstream (budgets, AI tools, readiness) filters
+  // purely on sign, so a positive "Food & Dining" entry would
+  // otherwise be silently counted as income.
+  if (
+    category === 'Income' ? Number(amountValue) <= 0 : Number(amountValue) >= 0
+  ) {
+    throw new BadRequestException(
+      category === 'Income'
+        ? 'Income must be a positive amount.'
+        : 'Spending must be a negative amount.',
+    );
+  }
   return {
     name: name(body.name),
-    amount: amount(body.amount, true),
+    amount: amountValue,
     date: date(body.date),
     category,
   };

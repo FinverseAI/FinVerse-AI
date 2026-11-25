@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from './profile.service';
 
@@ -28,6 +32,7 @@ describe('ProfileService', () => {
     $queryRaw: jest.fn(),
     userFinancialProfile: { findUnique: jest.fn(), upsert: jest.fn() },
     userGoal: {
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
       updateMany: jest.fn(),
       create: jest.fn(),
@@ -47,6 +52,7 @@ describe('ProfileService', () => {
     jest.clearAllMocks();
     tx.userFinancialProfile.findUnique.mockResolvedValue(null);
     tx.user.findUnique.mockResolvedValue(null);
+    tx.userGoal.findMany.mockResolvedValue([]);
     tx.userGoal.updateMany.mockResolvedValue({ count: 1 });
     tx.userGoal.create.mockResolvedValue({});
     tx.userGoalContribution.findMany.mockResolvedValue([]);
@@ -255,5 +261,85 @@ describe('ProfileService', () => {
       'insert failed',
     );
     expect(tx.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete a goal that still has contributions (B38)', async () => {
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+    });
+    tx.userGoal.findMany.mockResolvedValue([{ id: 'goal-1' }]);
+    tx.userGoalContribution.findMany.mockResolvedValue([{ goal_id: 'goal-1' }]);
+    // The incoming list omits goal-1, which would have deleted it
+    // (and cascade-deleted its contributions) under the old code.
+    await expect(service.save('owner', input, false)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(tx.userGoal.deleteMany).not.toHaveBeenCalled();
+    expect(tx.userFinancialProfile.upsert).not.toHaveBeenCalled();
+  });
+
+  it('lets a contribution-free goal be removed by a save (B38)', async () => {
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+    });
+    tx.userGoal.findMany.mockResolvedValue([{ id: 'goal-1' }]);
+    tx.userGoalContribution.findMany.mockResolvedValue([]);
+    await service.save('owner', input, false);
+    expect(tx.userGoal.deleteMany).toHaveBeenCalledWith({
+      where: { user_id: 'owner' },
+    });
+  });
+
+  it('returns the effective budget split and unknown fields as null (B42/B47)', async () => {
+    const split = {
+      food: 10,
+      groceries: 10,
+      transport: 5,
+      shopping: 5,
+      bills: 10,
+      rent: 30,
+      health: 5,
+      entertainment: 5,
+      travel: 5,
+      education: 5,
+      investments: 5,
+      others: 5,
+    };
+    tx.userFinancialProfile.findUnique.mockResolvedValue({
+      onboarding_completed: true,
+      budget_split: split,
+    });
+    tx.user.findUnique.mockResolvedValue({
+      financialProfile: {
+        employment_type: null,
+        monthly_income: '60000',
+        other_monthly_income: null,
+        fixed_expenses: '24000',
+        variable_expenses: '33000',
+        existing_debt_total: null,
+        current_savings: null,
+        monthly_savings_target: '3000',
+        investment_experience: null,
+        risk_tolerance: null,
+        already_investing: false,
+        invested_amount: null,
+        emergency_fund_months: null,
+        onboarding_completed: true,
+        payday: null,
+        budget_split: split,
+      },
+      goals: [],
+    });
+    const saved = await service.save('owner', input, false);
+    // The save inherited the stored split (B42) and the response
+    // carries it, so the caller can see which split produced the
+    // amounts; unasked questions come back as null (B47), not as
+    // invented defaults.
+    expect(saved.profile).not.toBeNull();
+    const returned = saved.profile!;
+    expect(returned.budget_split).toEqual(split);
+    expect(returned.employment_type).toBeNull();
+    expect(returned.emergency_fund_months).toBeNull();
+    expect(returned.current_savings).toBeNull();
   });
 });

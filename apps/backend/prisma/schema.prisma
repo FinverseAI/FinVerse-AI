@@ -2,6 +2,27 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// B46 — DATABASE INVARIANT: Prisma cannot express CHECK constraints,
+// so the following live ONLY in migration SQL and are NOT visible in
+// this file. They are part of the schema contract; any change to them
+// needs a new migration, and apps/backend/src/activity/schema-invariants.spec.ts
+// asserts they still exist:
+//   profile_budget_check (20261112000000): fixed + variable expenses +
+//     savings target <= monthly income + other income
+//   profile_investments_check (20261112000000): invested_amount is 0
+//     unless already_investing
+//   user_financial_profile_payday_check (20261113000000): payday 1–28
+//   user_bills_positive_amount (20261113120000): bill amount > 0
+//   user_transactions_nonzero_amount (20261113120000): amount <> 0
+//   user_bill_payments_positive_amount (20261117130000): amount > 0
+//   user_goal_contributions_positive_amount (20261117131000): amount > 0
+//   user_bills_recurrence_check (20261123193600): recurrence IS NULL
+//     OR 'monthly'
+//   watchlist_alert_pair (20261123120000): alert_direction and
+//     alert_price are set together or not at all
+// The ivfflat vector index (20261119130000) likewise lives only in SQL;
+// `prisma migrate` will report it as drift, which is expected.
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -30,6 +51,7 @@ model User {
   watchlist        WatchlistItem[]
   ragDocuments     RagDocument[]
   guardrailChecks  GuardrailCheck[]
+  idempotencyKeys  IdempotencyKey[]
 }
 
 model Session {
@@ -116,19 +138,23 @@ enum EmergencyFundMonths {
 model UserFinancialProfile {
   user_id                String               @id
   user                   User                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  employment_type        EmploymentType
+  // B47: NULL means "unknown / not asked" — these questions are not
+  // always put to the user, so a missing answer must not be stored as
+  // a false salaried/low-risk/zero-savings value. Downstream readers
+  // must treat NULL as unknown, never as a default.
+  employment_type        EmploymentType?
   monthly_income         Decimal              @db.Decimal(12, 2)
   other_monthly_income   Decimal?             @db.Decimal(12, 2)
   fixed_expenses         Decimal              @db.Decimal(12, 2)
   variable_expenses      Decimal              @db.Decimal(12, 2)
   existing_debt_total    Decimal?             @db.Decimal(12, 2)
-  current_savings        Decimal              @db.Decimal(12, 2)
+  current_savings        Decimal?             @db.Decimal(12, 2)
   monthly_savings_target Decimal              @db.Decimal(12, 2)
-  investment_experience  InvestmentExperience
-  risk_tolerance         RiskTolerance
+  investment_experience  InvestmentExperience?
+  risk_tolerance         RiskTolerance?
   already_investing      Boolean
   invested_amount        Decimal?             @db.Decimal(12, 2)
-  emergency_fund_months  EmergencyFundMonths
+  emergency_fund_months  EmergencyFundMonths?
   onboarding_completed   Boolean              @default(false)
   payday                 Int?
   budget_split           Json?
@@ -183,10 +209,18 @@ model UserBill {
   // date one month on). Only "monthly" exists today; the CHECK
   // constraint in the migration enforces it at the database level.
   recurrence String?
+  // B37: the bill this occurrence was generated from (null for a bill
+  // the user created directly). Deleting the parent deletes the
+  // generated occurrence, so a removed payment/bill leaves no phantom
+  // next bill behind.
+  parent_bill_id String?
+  parent         UserBill?  @relation("BillOccurrence", fields: [parent_bill_id], references: [id], onDelete: Cascade)
+  children       UserBill[] @relation("BillOccurrence")
   created_at DateTime          @default(now())
   payments   UserBillPayment[]
 
   @@index([user_id, due_date])
+  @@index([parent_bill_id])
   @@map("user_bills")
 }
 
@@ -199,6 +233,10 @@ model UserBillPayment {
   amount     Decimal  @db.Decimal(12, 2)
   paid_date  DateTime @db.Date
   created_at DateTime @default(now())
+  // B37: the expense transaction this payment generated (if any).
+  // Deleting the payment deletes the expense via the FK on the
+  // transaction side.
+  expenseTransaction UserTransaction?
 
   @@index([bill_id])
   @@index([user_id])
@@ -214,6 +252,11 @@ model UserTransaction {
   amount     Decimal  @db.Decimal(12, 2)
   date       DateTime @db.Date
   created_at DateTime @default(now())
+  // B37: the bill payment that generated this expense (null for an
+  // expense the user entered directly). One payment generates at most
+  // one expense; deleting the payment deletes this row.
+  bill_payment_id String?          @unique
+  payment         UserBillPayment? @relation(fields: [bill_payment_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, date])
   @@map("user_transactions")
@@ -254,6 +297,10 @@ model WatchlistItem {
   // Evaluated on the market-overview load — there is no background
   // job system, so a fired alert notifies once per crossing.
   alert_fired_at DateTime?
+  // The quote currency at the moment the alert last fired (B26) —
+  // stored so the notification centre never has to guess a currency.
+  // Cleared on re-arm; null means unknown.
+  alert_currency String? @db.VarChar(3)
   created_at DateTime @default(now())
 
   @@unique([user_id, symbol])
@@ -321,6 +368,26 @@ model RagDocument {
   @@index([symbol])
   @@index([source_type, published_at])
   @@map("rag_documents")
+}
+
+// B44: idempotency keys for POST creates (bill, payment, transaction,
+// goal contribution). A client sends a unique X-Idempotency-Key header
+// per request; the UNIQUE(user_id, key) constraint rejects a replay
+// within 24 hours with 409 DUPLICATE_REQUEST. Keys older than 24 hours
+// are expired and may be reused. Rows are never read for any other
+// purpose; there is intentionally no response-caching of the original
+// result — the client retries with a fresh key after a failure.
+model IdempotencyKey {
+  id         String   @id @default(cuid())
+  user_id    String
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  key        String
+  endpoint   String
+  created_at DateTime @default(now())
+
+  @@unique([user_id, key])
+  @@index([user_id, created_at])
+  @@map("idempotency_keys")
 }
 
 // One guardrail check on one LLM claim (Phase 3). Every check the

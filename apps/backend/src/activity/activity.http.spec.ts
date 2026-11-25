@@ -11,12 +11,14 @@ describe('account-scoped dashboard activity', () => {
   let app: INestApplication;
   const originalFetch = global.fetch;
   const prisma = {
+    $queryRaw: jest.fn(),
     userBill: {
       findMany: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
       findFirst: jest.fn(),
       deleteMany: jest.fn(),
+      count: jest.fn(),
     },
     userBillPayment: {
       findMany: jest.fn(),
@@ -34,6 +36,11 @@ describe('account-scoped dashboard activity', () => {
       create: jest.fn(),
       updateMany: jest.fn(),
       findFirst: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    idempotencyKey: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
       deleteMany: jest.fn(),
     },
     // Runs the callback against this same mock, so both writes in a
@@ -61,7 +68,7 @@ describe('account-scoped dashboard activity', () => {
     bill_id: 'bill-1',
     user_id: 'owner',
     amount: '1850.50',
-    paid_date: new Date('2026-11-27T00:00:00Z'),
+    paid_date: new Date('2026-11-24T00:00:00Z'),
   };
   const storedGoal = {
     id: 'goal-1',
@@ -79,6 +86,11 @@ describe('account-scoped dashboard activity', () => {
     date: new Date('2026-11-17T00:00:00Z'),
     note: 'Salary day',
   };
+  // The payment rows the mocked findMany serves, filtered by its
+  // where clause like a real query would — recordPayment re-reads
+  // payments inside the transaction, so a where-blind mock would
+  // hand every bill the same payment and trip the overpay check.
+  let paymentRows: (typeof storedPayment)[] = [];
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -102,18 +114,38 @@ describe('account-scoped dashboard activity', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
-    prisma.userBill.findMany.mockResolvedValue([storedBill]);
+    // A lookup for generated next occurrences (parent_bill_id) finds
+    // none by default; every other bill lookup finds the stored bill.
+    prisma.userBill.findMany.mockImplementation(
+      (args: { where?: { parent_bill_id?: string } }) =>
+        Promise.resolve(args?.where?.parent_bill_id ? [] : [storedBill]),
+    );
     prisma.userBill.create.mockResolvedValue(storedBill);
     prisma.userBill.updateMany.mockResolvedValue({ count: 1 });
     prisma.userBill.findFirst.mockResolvedValue(storedBill);
     prisma.userBill.deleteMany.mockResolvedValue({ count: 1 });
-    prisma.userBillPayment.findMany.mockResolvedValue([]);
+    prisma.userBill.count.mockResolvedValue(0);
+    prisma.$queryRaw.mockResolvedValue([]);
+    paymentRows = [];
+    prisma.userBillPayment.findMany.mockImplementation(
+      ({ where }: { where?: { bill_id?: string; user_id?: string } }) =>
+        Promise.resolve(
+          paymentRows.filter(
+            (row) =>
+              (!where?.bill_id || row.bill_id === where.bill_id) &&
+              (!where?.user_id || row.user_id === where.user_id),
+          ),
+        ),
+    );
     prisma.userBillPayment.create.mockResolvedValue(storedPayment);
     prisma.userBillPayment.deleteMany.mockResolvedValue({ count: 1 });
     prisma.userGoal.findFirst.mockResolvedValue(storedGoal);
     prisma.userGoalContribution.findMany.mockResolvedValue([]);
     prisma.userGoalContribution.create.mockResolvedValue(storedContribution);
     prisma.userGoalContribution.deleteMany.mockResolvedValue({ count: 1 });
+    prisma.idempotencyKey.findFirst.mockResolvedValue(null);
+    prisma.idempotencyKey.create.mockResolvedValue({});
+    prisma.idempotencyKey.deleteMany.mockResolvedValue({ count: 0 });
     prisma.userTransaction.findMany.mockResolvedValue([]);
     prisma.userTransaction.updateMany.mockResolvedValue({ count: 1 });
     prisma.userTransaction.findFirst.mockResolvedValue({
@@ -211,7 +243,7 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'https://other.example')
-      .send({ amount: 1850.5, paidDate: '2026-11-27' })
+      .send({ amount: 1850.5, paidDate: '2026-11-24' })
       .expect(403);
     await request(app.getHttpServer())
       .post('/api/bills/auto-pay')
@@ -436,7 +468,7 @@ describe('account-scoped dashboard activity', () => {
       // reports autoPay: true while the test expects false.
       auto_pay: false,
     });
-    prisma.userBillPayment.findMany.mockResolvedValue([storedPayment]);
+    paymentRows = [storedPayment];
     const result = await request(app.getHttpServer())
       .put('/api/bills/bill-1')
       .set('Cookie', 'session=test')
@@ -448,7 +480,7 @@ describe('account-scoped dashboard activity', () => {
       ...updated,
       recurrence: null,
       paidTotal: 1850.5,
-      payments: [{ id: 'payment-1', amount: 1850.5, paidDate: '2026-11-27' }],
+      payments: [{ id: 'payment-1', amount: 1850.5, paidDate: '2026-11-24' }],
     });
     expect(prisma.userBill.updateMany).toHaveBeenCalledWith({
       where: { id: 'bill-1', user_id: 'owner' },
@@ -478,13 +510,13 @@ describe('account-scoped dashboard activity', () => {
       .expect(404);
   });
   it('lists payments only for a bill belonging to the owner', async () => {
-    prisma.userBillPayment.findMany.mockResolvedValue([storedPayment]);
+    paymentRows = [storedPayment];
     const result = await request(app.getHttpServer())
       .get('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .expect(200);
     expect(result.body).toEqual([
-      { id: 'payment-1', amount: 1850.5, paidDate: '2026-11-27' },
+      { id: 'payment-1', amount: 1850.5, paidDate: '2026-11-24' },
     ]);
     expect(prisma.userBillPayment.findMany).toHaveBeenCalledWith({
       where: { bill_id: 'bill-1', user_id: 'owner' },
@@ -501,32 +533,34 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
-      .send({ amount: 1850.5, paidDate: '2026-11-27', user_id: 'someone-else' })
+      .send({ amount: 1850.5, paidDate: '2026-11-24', user_id: 'someone-else' })
       .expect(201);
     expect(result.body).toEqual({
       id: 'payment-1',
       amount: 1850.5,
-      paidDate: '2026-11-27',
+      paidDate: '2026-11-24',
       nextBill: null,
     });
     expect(prisma.userBillPayment.create).toHaveBeenCalledWith({
       data: {
         amount: '1850.50',
-        paid_date: new Date('2026-11-27T00:00:00Z'),
+        paid_date: new Date('2026-11-24T00:00:00Z'),
         bill_id: 'bill-1',
         user_id: 'owner',
       },
     });
     // The payment and its matching expense transaction are written
-    // together, in one database transaction.
+    // together, in one database transaction. The expense carries the
+    // payment's id (B37) so deleting the payment can undo it.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.userTransaction.create).toHaveBeenCalledWith({
       data: {
         name: 'Rent',
         amount: '-1850.50',
         category: 'Bills & Utilities',
-        date: new Date('2026-11-27T00:00:00Z'),
+        date: new Date('2026-11-24T00:00:00Z'),
         user_id: 'owner',
+        bill_payment_id: 'payment-1',
       },
     });
   });
@@ -545,7 +579,7 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
-      .send({ amount: 1850.5, paidDate: '2026-11-27' })
+      .send({ amount: 1850.5, paidDate: '2026-11-24' })
       .expect(201);
     expect(result.body.nextBill).toEqual({
       id: 'bill-next',
@@ -558,6 +592,8 @@ describe('account-scoped dashboard activity', () => {
       payments: [],
     });
     // Payment, transaction and next occurrence: one transaction.
+    // The next occurrence carries the paid bill's id (B37) so
+    // deleting the payment can undo it.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
     expect(prisma.userTransaction.create).toHaveBeenCalledTimes(1);
@@ -568,6 +604,7 @@ describe('account-scoped dashboard activity', () => {
         due_date: new Date('2026-12-28T00:00:00Z'),
         auto_pay: true,
         recurrence: 'monthly',
+        parent_bill_id: 'bill-1',
         user_id: 'owner',
       },
     });
@@ -577,7 +614,7 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
-      .send({ amount: 1850.5, paidDate: '2026-11-27' })
+      .send({ amount: 1850.5, paidDate: '2026-11-24' })
       .expect(201);
     expect(prisma.userBill.create).not.toHaveBeenCalled();
   });
@@ -634,9 +671,9 @@ describe('account-scoped dashboard activity', () => {
       noAutoPay,
       alreadyPaid,
     ]);
-    prisma.userBillPayment.findMany.mockResolvedValue([
+    paymentRows = [
       { ...storedPayment, bill_id: 'bill-paid', amount: '299.00' },
-    ]);
+    ];
     prisma.userBill.create.mockResolvedValue({
       ...storedBill,
       id: 'bill-next',
@@ -647,7 +684,7 @@ describe('account-scoped dashboard activity', () => {
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .send({ today: '2026-11-24' })
-      .expect(201);
+      .expect(200);
     expect(result.body).toEqual({
       paid: [
         {
@@ -686,6 +723,7 @@ describe('account-scoped dashboard activity', () => {
         category: 'Bills & Utilities',
         date: new Date('2026-11-24T00:00:00Z'),
         user_id: 'owner',
+        bill_payment_id: 'payment-1',
       },
     });
     expect(prisma.userBill.create).toHaveBeenCalledTimes(1);
@@ -696,6 +734,7 @@ describe('account-scoped dashboard activity', () => {
         due_date: new Date('2026-12-20T00:00:00Z'),
         auto_pay: true,
         recurrence: 'monthly',
+        parent_bill_id: 'bill-monthly',
         user_id: 'owner',
       },
     });
@@ -712,15 +751,15 @@ describe('account-scoped dashboard activity', () => {
         recurrence: null,
       },
     ]);
-    prisma.userBillPayment.findMany.mockResolvedValue([
+    paymentRows = [
       { ...storedPayment, bill_id: 'bill-partial', amount: '400.00' },
-    ]);
+    ];
     const result = await request(app.getHttpServer())
       .post('/api/bills/auto-pay')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .send({ today: '2026-11-24' })
-      .expect(201);
+      .expect(200);
     expect(result.body).toEqual({
       paid: [
         {
@@ -753,27 +792,26 @@ describe('account-scoped dashboard activity', () => {
         recurrence: null,
       },
     ]);
-    prisma.userBillPayment.findMany.mockResolvedValueOnce([]);
     await request(app.getHttpServer())
       .post('/api/bills/auto-pay')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .send({ today: '2026-11-24' })
-      .expect(201);
+      .expect(200);
     expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
     // The payment is now recorded: the next run sees it and pays nothing.
-    prisma.userBillPayment.findMany.mockResolvedValue([
-      { ...storedPayment, bill_id: 'bill-due', amount: '999.00' },
-    ]);
+    paymentRows = [{ ...storedPayment, bill_id: 'bill-due', amount: '999.00' }];
     const result = await request(app.getHttpServer())
       .post('/api/bills/auto-pay')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .send({ today: '2026-11-24' })
-      .expect(201);
+      .expect(200);
     expect(result.body).toEqual({ paid: [] });
     expect(prisma.userBillPayment.create).toHaveBeenCalledTimes(1);
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // Both runs open a transaction: the second one locks, re-reads,
+    // and finds nothing due inside it (B34).
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
   });
   it('auto-pay rejects an invalid run date before any database write', async () => {
     await request(app.getHttpServer())
@@ -790,7 +828,7 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/bill-1/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
-      .send({ amount: 0, paidDate: '2026-11-27' })
+      .send({ amount: 0, paidDate: '2026-11-24' })
       .expect(400);
     expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
     prisma.userBill.findFirst.mockResolvedValue(null);
@@ -798,7 +836,7 @@ describe('account-scoped dashboard activity', () => {
       .post('/api/bills/other-users-bill/payments')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
-      .send({ amount: 100, paidDate: '2026-11-27' })
+      .send({ amount: 100, paidDate: '2026-11-24' })
       .expect(404);
     expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
   });
@@ -811,12 +849,75 @@ describe('account-scoped dashboard activity', () => {
     expect(prisma.userBillPayment.deleteMany).toHaveBeenCalledWith({
       where: { id: 'payment-1', bill_id: 'bill-1', user_id: 'owner' },
     });
+    // B37: deleting the payment also deletes the expense transaction
+    // it generated, in the same database transaction.
+    expect(prisma.userTransaction.deleteMany).toHaveBeenCalledWith({
+      where: { bill_payment_id: 'payment-1', user_id: 'owner' },
+    });
     prisma.userBillPayment.deleteMany.mockResolvedValue({ count: 0 });
     await request(app.getHttpServer())
       .delete('/api/bills/bill-1/payments/other-payment')
       .set('Cookie', 'session=test')
       .set('Origin', 'http://localhost:3000')
       .expect(404);
+  });
+  it('rejects a payment larger than the amount still owed (B36)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/bills/bill-1/payments')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 2000, paidDate: '2026-11-25' })
+      .expect(400);
+    expect(prisma.userBillPayment.create).not.toHaveBeenCalled();
+    expect(prisma.userTransaction.create).not.toHaveBeenCalled();
+    // A payment that exactly covers the remaining balance is fine.
+    await request(app.getHttpServer())
+      .post('/api/bills/bill-1/payments')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ amount: 1850.5, paidDate: '2026-11-25' })
+      .expect(201);
+  });
+  it('rejects lowering a bill below what is already paid (B36)', async () => {
+    paymentRows = [storedPayment];
+    await request(app.getHttpServer())
+      .put('/api/bills/bill-1')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .send({ ...bill, amount: 1000 })
+      .expect(400);
+    expect(prisma.userBill.updateMany).not.toHaveBeenCalled();
+  });
+  it('rejects a replayed idempotency key with 409 DUPLICATE_REQUEST (B44)', async () => {
+    prisma.idempotencyKey.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({
+        id: 'key-row-1',
+        user_id: 'owner',
+        key: 'bill-key-1',
+        endpoint: 'POST /api/bills',
+        created_at: new Date().toISOString(),
+      });
+    await request(app.getHttpServer())
+      .post('/api/bills')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .set('X-Idempotency-Key', 'bill-key-1')
+      .send(bill)
+      .expect(201);
+    expect(prisma.userBill.create).toHaveBeenCalledTimes(1);
+    const replay = await request(app.getHttpServer())
+      .post('/api/bills')
+      .set('Cookie', 'session=test')
+      .set('Origin', 'http://localhost:3000')
+      .set('X-Idempotency-Key', 'bill-key-1')
+      .send(bill)
+      .expect(409);
+    expect(replay.body).toMatchObject({
+      message: 'duplicate request',
+      code: 'DUPLICATE_REQUEST',
+    });
+    expect(prisma.userBill.create).toHaveBeenCalledTimes(1);
   });
   it('lists contributions only for a goal belonging to the owner', async () => {
     prisma.userGoalContribution.findMany.mockResolvedValue([

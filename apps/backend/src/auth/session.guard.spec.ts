@@ -85,4 +85,29 @@ describe('SessionGuard', () => {
       ServiceUnavailableException,
     );
   });
+
+  it('treats a redirect from get-session as unauthenticated, not an outage (B45)', async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(null, {
+        status: 302,
+        headers: { location: '/login' },
+      }),
+    );
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({ redirect: 'manual' }),
+    );
+  });
+
+  it('treats a 500 from get-session as an outage (B45)', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValue(new Response('error', { status: 500 }));
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -46,7 +47,11 @@ export class ProfileService {
           profile.employment_type === 'self_employed'
             ? 'self-employed'
             : profile.employment_type,
-        emergency_fund_months: emergency[profile.emergency_fund_months],
+        // B47: NULL stays NULL (unknown / not asked) — it must never
+        // be mapped to a default band.
+        emergency_fund_months: profile.emergency_fund_months
+          ? emergency[profile.emergency_fund_months]
+          : null,
       },
       goals: user.goals.map((goal) => ({
         ...goal,
@@ -94,6 +99,38 @@ export class ProfileService {
           throw new NotFoundException(
             'Complete onboarding before updating your profile.',
           );
+        // Goals are upserted by id so a profile save never wipes their
+        // contributions: only goals absent from the incoming list are
+        // removed (their contributions cascade), known goals are updated
+        // in place, and new ones are created.
+        const incomingIds = goals
+          .map((goal) => goal.id)
+          .filter((id): id is string => Boolean(id));
+        // B38: never delete a goal that has contributions. The old
+        // code trusted the client to echo every goal id — any client
+        // that omitted ids silently wiped all contribution history.
+        // A save that would drop a goal with saved contributions is
+        // rejected (400) instead; remove the contributions first, or
+        // keep the goal. This runs before any write, so a rejected
+        // save leaves the stored profile and goals untouched.
+        const existingGoals = await tx.userGoal.findMany({
+          where: { user_id: userId },
+          select: { id: true },
+        });
+        const doomedIds = existingGoals
+          .map((goal) => goal.id)
+          .filter((id) => !incomingIds.includes(id));
+        if (doomedIds.length) {
+          const doomedContributions = await tx.userGoalContribution.findMany({
+            where: { user_id: userId, goal_id: { in: doomedIds } },
+            select: { goal_id: true },
+          });
+          if (doomedContributions.length) {
+            throw new BadRequestException(
+              'One of the goals you removed still has saved contributions. Remove those contributions first, or keep the goal.',
+            );
+          }
+        }
         if (displayName !== undefined)
           await tx.user.update({
             where: { id: userId },
@@ -104,13 +141,6 @@ export class ProfileService {
           create: { ...profile, user_id: userId, onboarding_completed: true },
           update: { ...profile, onboarding_completed: true },
         });
-        // Goals are upserted by id so a profile save never wipes their
-        // contributions: only goals absent from the incoming list are
-        // removed (their contributions cascade), known goals are updated
-        // in place, and new ones are created.
-        const incomingIds = goals
-          .map((goal) => goal.id)
-          .filter((id): id is string => Boolean(id));
         await tx.userGoal.deleteMany({
           where: {
             user_id: userId,

@@ -14,6 +14,7 @@ describe('protected financial profile HTTP endpoints', () => {
     $queryRaw: jest.fn(),
     userFinancialProfile: { findUnique: jest.fn(), upsert: jest.fn() },
     userGoal: {
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
       createMany: jest.fn(),
       updateMany: jest.fn(),
@@ -75,6 +76,7 @@ describe('protected financial profile HTTP endpoints', () => {
     jest.clearAllMocks();
     tx.user.findUnique.mockResolvedValue(null);
     tx.userFinancialProfile.findUnique.mockResolvedValue(null);
+    tx.userGoal.findMany.mockResolvedValue([]);
     tx.userGoal.updateMany.mockResolvedValue({ count: 1 });
     tx.userGoalContribution.findMany.mockResolvedValue([]);
     global.fetch = jest.fn(() =>
