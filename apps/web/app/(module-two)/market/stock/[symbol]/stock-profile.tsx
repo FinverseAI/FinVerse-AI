@@ -417,7 +417,7 @@ export default function StockProfile({
                 <MiniStat
                   label="Latest close"
                   value={
-                    latestBar ? formatPrice(latestBar.close, currency) : ""
+                    latestBar ? formatPrice(latestBar.close, currency) : "—"
                   }
                 />
                 <MiniStat
@@ -426,7 +426,7 @@ export default function StockProfile({
                     latestBar?.volume !== null &&
                     latestBar?.volume !== undefined
                       ? volumeFormat.format(latestBar.volume)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -462,6 +462,17 @@ export default function StockProfile({
                   }
                 />
               </div>
+              <p className="mt-4 text-xs leading-5 text-dash-muted">
+                SMA 20 and SMA 50 are the average closes of the last 20 and 50
+                trading days — a price above its average is in an uptrend
+                against that window, below it in a downtrend. When the shorter
+                average (20) sits above the longer one (50), the recent trend is
+                stronger than the longer-term one. EMA 12 and EMA 26 are the
+                same idea but weight recent days more heavily, so they react
+                faster; the 12-day EMA above the 26-day EMA points the same way
+                as a rising MACD. The EMAs are not drawn on the chart — they are
+                the two lines whose difference is the MACD below.
+              </p>
             </div>
           ) : (
             <p className="mt-4 text-sm text-dash-muted">
@@ -496,7 +507,7 @@ export default function StockProfile({
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <MiniStat
                   label="Latest RSI"
-                  value={latestRsi !== null ? latestRsi.toFixed(1) : ""}
+                  value={latestRsi !== null ? latestRsi.toFixed(1) : "—"}
                 />
                 <MiniStat label="Reading" value={rsiReading(latestRsi)} />
               </div>
@@ -514,15 +525,15 @@ export default function StockProfile({
               <div className="mt-4 grid gap-2 sm:grid-cols-3">
                 <MiniStat
                   label="MACD"
-                  value={latestMacd ? latestMacd.macd.toFixed(2) : ""}
+                  value={latestMacd ? latestMacd.macd.toFixed(2) : "—"}
                 />
                 <MiniStat
                   label="Signal"
-                  value={latestMacd ? latestMacd.signal.toFixed(2) : ""}
+                  value={latestMacd ? latestMacd.signal.toFixed(2) : "—"}
                 />
                 <MiniStat
                   label="Histogram"
-                  value={latestMacd ? latestMacd.histogram.toFixed(2) : ""}
+                  value={latestMacd ? latestMacd.histogram.toFixed(2) : "—"}
                 />
               </div>
               <p className="mt-4 text-xs leading-5 text-dash-muted">
@@ -560,17 +571,17 @@ export default function StockProfile({
           ) : (
             <>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <MiniStat label="Sector" value={fundamentals.sector ?? ""} />
+                <MiniStat label="Sector" value={fundamentals.sector ?? "—"} />
                 <MiniStat
                   label="Industry"
-                  value={fundamentals.industry ?? ""}
+                  value={fundamentals.industry ?? "—"}
                 />
                 <MiniStat
                   label="Market cap"
                   value={
                     fundamentals.marketCap !== null
                       ? formatCompact(fundamentals.marketCap, currency)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -578,7 +589,7 @@ export default function StockProfile({
                   value={
                     fundamentals.trailingPE !== null
                       ? fundamentals.trailingPE.toFixed(2)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -586,7 +597,7 @@ export default function StockProfile({
                   value={
                     fundamentals.forwardPE !== null
                       ? fundamentals.forwardPE.toFixed(2)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -594,7 +605,7 @@ export default function StockProfile({
                   value={
                     fundamentals.dividendYield !== null
                       ? formatPercent(fundamentals.dividendYield * 100, false)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -602,7 +613,7 @@ export default function StockProfile({
                   value={
                     fundamentals.fiftyTwoWeekHigh !== null
                       ? formatPrice(fundamentals.fiftyTwoWeekHigh, currency)
-                      : ""
+                      : "—"
                   }
                 />
                 <MiniStat
@@ -610,7 +621,7 @@ export default function StockProfile({
                   value={
                     fundamentals.fiftyTwoWeekLow !== null
                       ? formatPrice(fundamentals.fiftyTwoWeekLow, currency)
-                      : ""
+                      : "—"
                   }
                 />
               </div>
@@ -719,6 +730,10 @@ export default function StockProfile({
             name: profile?.name ?? undefined,
             sector: profile?.sector ?? fundamentals?.sector ?? undefined,
             buyPrice: profile?.price ?? undefined,
+            currency:
+              profile?.currency === "INR" || profile?.currency === "USD"
+                ? profile.currency
+                : undefined,
           }}
           onSubmit={addHolding}
           onClose={() => setShowHoldingForm(false)}

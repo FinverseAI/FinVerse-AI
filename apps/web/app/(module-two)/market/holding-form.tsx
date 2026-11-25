@@ -3,15 +3,26 @@
 import { useState } from "react";
 import { Modal } from "../../(module-one)/dashboard/modal";
 import { activityError } from "../../(module-one)/dashboard/use-activity";
+import { todayIst } from "../../../lib/market";
 
 export type HoldingFormData = {
   symbol: string;
   quantity: number;
   buyPrice: number;
   buyDate: string;
+  currency: string;
   name?: string;
   sector?: string;
 };
+
+const CURRENCIES = [
+  { code: "INR", label: "INR — Indian rupee (₹)" },
+  { code: "USD", label: "USD — US dollar ($)" },
+] as const;
+
+function currencySymbol(currency: string) {
+  return currency === "USD" ? "$" : "₹";
+}
 
 export function HoldingForm({
   title,
@@ -28,10 +39,14 @@ export function HoldingForm({
   onSubmit: (data: HoldingFormData) => Promise<void>;
   onClose: () => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  // IST-pinned "today": the UTC date runs a day behind IST between
+  // 00:00 and 05:30, so a UTC today would reject a legitimate IST-today
+  // purchase late at night.
+  const today = todayIst();
   const [symbol, setSymbol] = useState(initial.symbol ?? "");
   const [name, setName] = useState(initial.name ?? "");
   const [sector, setSector] = useState(initial.sector ?? "");
+  const [currency, setCurrency] = useState(initial.currency ?? "INR");
   const [quantity, setQuantity] = useState(
     initial.quantity === undefined ? "" : String(initial.quantity),
   );
@@ -70,6 +85,7 @@ export function HoldingForm({
         quantity: quantityValue,
         buyPrice: buyPriceValue,
         buyDate,
+        currency,
         name: name.trim() || undefined,
         sector: sector.trim() || undefined,
       });
@@ -114,7 +130,7 @@ export function HoldingForm({
             />
           </label>
           <label>
-            Average purchase cost (₹)
+            Average purchase cost ({currencySymbol(currency)})
             <input
               className="dash-input"
               type="number"
@@ -126,6 +142,25 @@ export function HoldingForm({
             />
           </label>
         </div>
+        <label>
+          Currency
+          <select
+            className="dash-input"
+            value={currency}
+            onChange={(event) => setCurrency(event.target.value)}
+            aria-describedby="holding-currency-help"
+          >
+            {CURRENCIES.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <span id="holding-currency-help" className="text-xs text-dash-muted">
+            The currency your purchase cost is in. Gains and portfolio totals
+            are shown in each holding&apos;s own currency.
+          </span>
+        </label>
         <label>
           Buy date
           <input

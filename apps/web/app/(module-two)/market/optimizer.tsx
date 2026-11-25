@@ -78,7 +78,26 @@ function FrontierChart({
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
         role="img"
-        aria-label={`Efficient frontier: ${frontier.length} portfolios from ${(frontier[0]?.volatility ?? 0) * 100}% volatility to ${(frontier[frontier.length - 1]?.volatility ?? 0) * 100}% volatility`}
+        tabIndex={0}
+        aria-label={`Efficient frontier: ${frontier.length} portfolios from ${(frontier[0]?.volatility ?? 0) * 100}% volatility to ${(frontier[frontier.length - 1]?.volatility ?? 0) * 100}% volatility${hovered ? `. Selected point: ${formatPercent(hovered.expectedReturn * 100, false)} return at ${formatPercent(hovered.volatility * 100, false)} volatility, Sharpe ${hovered.sharpe !== null ? hovered.sharpe.toFixed(2) : "—"}` : ". Use the left and right arrow keys to move along the frontier."}`}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+            event.preventDefault();
+            setHover((current) => {
+              const start = current ?? (event.key === "ArrowRight" ? -1 : 0);
+              const next = event.key === "ArrowRight" ? start + 1 : start - 1;
+              return Math.max(0, Math.min(frontier.length - 1, next));
+            });
+          } else if (event.key === "Home") {
+            event.preventDefault();
+            setHover(0);
+          } else if (event.key === "End") {
+            event.preventDefault();
+            setHover(frontier.length - 1);
+          }
+        }}
+        onFocus={() => setHover((current) => current ?? frontier.length - 1)}
+        onBlur={() => setHover(null)}
         onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           const x = ((event.clientX - rect.left) / rect.width) * width;
@@ -242,11 +261,48 @@ function FrontierChart({
           <p className="mt-0.5 text-dash-muted">
             Sharpe{" "}
             <span className="text-dash-text">
-              {hovered.sharpe !== null ? hovered.sharpe.toFixed(2) : ""}
+              {hovered.sharpe !== null ? hovered.sharpe.toFixed(2) : "—"}
             </span>
           </p>
         </div>
       )}
+      <details className="mt-3">
+        <summary className="cursor-pointer text-xs text-dash-muted">
+          Frontier values (table)
+        </summary>
+        <div className="mt-2 overflow-x-auto" tabIndex={0}>
+          <table className="w-full min-w-[420px] text-left text-xs">
+            <thead>
+              <tr className="border-b border-dash-border text-dash-muted">
+                <th scope="col" className="py-1.5 pr-3 font-medium">
+                  Volatility
+                </th>
+                <th scope="col" className="py-1.5 pr-3 text-right font-medium">
+                  Expected return
+                </th>
+                <th scope="col" className="py-1.5 text-right font-medium">
+                  Sharpe
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-dash-border">
+              {frontier.map((point, i) => (
+                <tr key={i}>
+                  <td className="py-1.5 pr-3 font-mono">
+                    {formatPercent(point.volatility * 100, false)}
+                  </td>
+                  <td className="py-1.5 pr-3 text-right font-mono">
+                    {formatPercent(point.expectedReturn * 100, false)}
+                  </td>
+                  <td className="py-1.5 text-right font-mono">
+                    {point.sharpe !== null ? point.sharpe.toFixed(2) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
       <div className="mt-2 flex flex-wrap gap-4 text-xs text-dash-muted">
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-0.5 w-4 rounded-full bg-dash-accent" />
@@ -269,7 +325,20 @@ function FrontierChart({
   );
 }
 
-export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
+export function OptimizerSection({
+  holdings,
+  loading = false,
+  error = "",
+  onRetry = () => {},
+}: {
+  holdings: ValuedHolding[];
+  /** True while the portfolio summary fetch is still running. */
+  loading?: boolean;
+  /** The portfolio summary fetch error, if it failed. */
+  error?: string;
+  /** Re-fetch the portfolio summary. */
+  onRetry?: () => void;
+}) {
   const priced = useMemo(
     () =>
       holdings.filter(
@@ -286,7 +355,8 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
     new Map(),
   );
   const [failed, setFailed] = useState<string[]>([]);
-  const [error, setError] = useState("");
+  const [historyError, setHistoryError] = useState("");
+  const [historyRevision, setHistoryRevision] = useState(0);
   const riskFreeRate = Number(riskFreePercent) / 100;
   const riskFreeValid =
     Number.isFinite(riskFreeRate) && riskFreeRate >= 0 && riskFreeRate <= 0.3;
@@ -317,15 +387,22 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
         });
         setHistories(next);
         setFailed(missing);
-        setError("");
+        setHistoryError("");
       })
       .catch((caught: unknown) => {
-        if (active) setError(activityError(caught));
+        if (active) setHistoryError(activityError(caught));
       });
     return () => {
       active = false;
     };
-  }, [symbols]);
+  }, [symbols, historyRevision]);
+
+  function retryHistory() {
+    setHistories(new Map());
+    setFailed([]);
+    setHistoryError("");
+    setHistoryRevision((current) => current + 1);
+  }
 
   const result = useMemo(() => {
     if (symbols.length < 2 || histories.size < 2 || !riskFreeValid) {
@@ -405,12 +482,8 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
   }, [histories, symbols, riskFreeRate, riskFreeValid, priced]);
 
   return (
-    <section
-      id="optimizer"
-      aria-label="Suggested allocation"
-      className="scroll-mt-24"
-    >
-      <PanelHeading icon="target" title="Suggested allocation" />
+    <section id="optimizer" aria-label="Optimizer" className="scroll-mt-24">
+      <PanelHeading icon="target" title="Optimizer" />
       <p className="mt-3 text-sm leading-6 text-dash-muted">
         A Markowitz mean-variance optimisation over your holdings&apos; last
         year of daily prices: the maximum-Sharpe (tangency) portfolio, long
@@ -438,7 +511,21 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
         </label>
         {error ? (
           <p role="alert" className="mt-4 text-sm text-dash-red">
-            {error}
+            {error}{" "}
+            <button className="desk-link" onClick={onRetry}>
+              Try again
+            </button>
+          </p>
+        ) : loading ? (
+          <p role="status" className="mt-4 text-sm text-dash-muted">
+            Loading your holdings…
+          </p>
+        ) : historyError ? (
+          <p role="alert" className="mt-4 text-sm text-dash-red">
+            {historyError}{" "}
+            <button className="desk-link" onClick={retryHistory}>
+              Retry price history
+            </button>
           </p>
         ) : !riskFreeValid ? (
           <p className="mt-4 text-sm text-dash-muted">
@@ -452,7 +539,10 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
         ) : failed.length > 0 && histories.size < 2 ? (
           <p className="mt-4 text-sm text-dash-muted">
             Could not fetch price history for {failed.join(", ")} — the
-            optimiser needs history for at least two holdings. Try again later.
+            optimiser needs history for at least two holdings.{" "}
+            <button className="desk-link" onClick={retryHistory}>
+              Retry price history
+            </button>
           </p>
         ) : !result ? (
           <p role="status" className="mt-4 text-sm text-dash-muted">
@@ -559,7 +649,7 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
                     value={
                       result.suggested.sharpe !== null
                         ? result.suggested.sharpe.toFixed(2)
-                        : ""
+                        : "—"
                     }
                   />
                   <MiniStat
@@ -581,7 +671,7 @@ export function OptimizerSection({ holdings }: { holdings: ValuedHolding[] }) {
                     value={
                       result.current.sharpe !== null
                         ? result.current.sharpe.toFixed(2)
-                        : ""
+                        : "—"
                     }
                   />
                 </div>

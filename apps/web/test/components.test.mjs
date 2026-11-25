@@ -195,15 +195,15 @@ function renderSummaryCards(overrides = {}) {
 test("SummaryCards shows recorded actuals beside the plan", () => {
   const html = renderSummaryCards();
   // Plan headlines stay: income ₹90,000, target ₹20,000, surplus ₹20,000.
-  assert.match(html, /₹90,000\.00/);
+  assert.match(html, /₹90,000/);
   // Recorded November: income ₹85,000 (₹5,000 below plan), kept
   // ₹83,650 (₹63,650 above the ₹20,000 target), surplus ₹63,650.
   assert.match(html, /Recorded income · November 2026/);
-  assert.match(html, /₹85,000\.00/);
-  assert.match(html, /₹5,000\.00 below plan/);
-  assert.match(html, /Actually kept · November 2026/);
-  assert.match(html, /₹83,650\.00/);
-  assert.match(html, /₹63,650\.00 above plan/);
+  assert.match(html, /₹85,000/);
+  assert.match(html, /₹5,000 below plan/);
+  assert.match(html, /Net kept · November 2026/);
+  assert.match(html, /₹83,650/);
+  assert.match(html, /₹63,650 above plan/);
   assert.match(html, /Recorded surplus · November 2026/);
   // The current-savings snapshot stays a snapshot: no actuals row.
   assert.match(html, /A snapshot you entered in your financial profile/);
@@ -949,6 +949,8 @@ test("PortfolioSection values the holdings and shows the return metrics", () => 
     }),
   );
   assert.match(empty, /No holdings yet/);
+  assert.match(empty, /₹0/);
+  assert.match(empty, /Add your first holding/);
 });
 
 test("HoldingsSection lists each holding with its gain or loss", () => {
@@ -995,8 +997,24 @@ test("OptimizerSection asks for two priced holdings and fetches history for them
   const fetching = render(
     createElement(OptimizerSection, { holdings: valuedHoldings }),
   );
-  assert.match(fetching, /Suggested allocation/);
+  assert.match(fetching, /Optimizer/);
   assert.match(fetching, /Fetching a year of prices for your holdings…/);
+  const loading = render(
+    createElement(OptimizerSection, { holdings: [], loading: true }),
+  );
+  assert.match(loading, /Loading your holdings…/);
+  assert.doesNotMatch(loading, /Add at least two holdings/);
+  const failed = render(
+    createElement(OptimizerSection, {
+      holdings: [],
+      loading: false,
+      error: "Portfolio summary failed.",
+      onRetry: noop,
+    }),
+  );
+  assert.match(failed, /Portfolio summary failed\./);
+  assert.match(failed, /Try again/);
+  assert.doesNotMatch(failed, /Add at least two holdings/);
 });
 
 test("ScreenerSection renders the filter mode with its screen button", () => {

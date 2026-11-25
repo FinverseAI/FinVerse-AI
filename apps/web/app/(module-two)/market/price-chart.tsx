@@ -90,6 +90,27 @@ function useHoverIndex(count: number) {
       setIndex(Math.max(0, Math.min(count - 1, i)));
     },
     onLeave: () => setIndex(null),
+    // Keyboard access: the chart is focusable (tabIndex 0) and the arrow
+    // keys step through trading days; Home/End jump to the ends.
+    onKeyDown: (event: React.KeyboardEvent<SVGSVGElement>) => {
+      if (
+        event.key === "ArrowRight" ||
+        event.key === "ArrowLeft" ||
+        event.key === "Home" ||
+        event.key === "End"
+      ) {
+        event.preventDefault();
+        setIndex((current) => {
+          if (event.key === "Home") return 0;
+          if (event.key === "End") return count - 1;
+          const start = current ?? (event.key === "ArrowRight" ? -1 : count);
+          const next = event.key === "ArrowRight" ? start + 1 : start - 1;
+          return Math.max(0, Math.min(count - 1, next));
+        });
+      }
+    },
+    onFocus: () => setIndex((current) => current ?? count - 1),
+    onBlur: () => setIndex(null),
   };
 }
 
@@ -221,9 +242,13 @@ export function PriceChart({
         viewBox={`0 0 ${WIDTH} ${height}`}
         className="w-full"
         role="img"
-        aria-label={`Price chart, ${bars.length} trading days from ${formatFullDate(dates[0]!)} to ${formatFullDate(dates[dates.length - 1]!)}, low ${formatPrice(Math.min(...closes), currency)}, high ${formatPrice(Math.max(...closes), currency)}`}
+        tabIndex={0}
+        aria-label={`Price chart, ${bars.length} trading days from ${formatFullDate(dates[0]!)} to ${formatFullDate(dates[dates.length - 1]!)}, low ${formatPrice(Math.min(...closes), currency)}, high ${formatPrice(Math.max(...closes), currency)}${hovered ? `. Selected: ${formatFullDate(hovered.date)}, close ${formatPrice(hovered.close, currency)}` : ". Focus the chart and use the left and right arrow keys to inspect a day."}`}
         onMouseMove={hover.onMove}
         onMouseLeave={hover.onLeave}
+        onKeyDown={hover.onKeyDown}
+        onFocus={hover.onFocus}
+        onBlur={hover.onBlur}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -353,9 +378,13 @@ export function RsiChart({
         viewBox={`0 0 ${WIDTH} ${height}`}
         className="w-full"
         role="img"
-        aria-label={`RSI (14) chart, latest value ${defined[defined.length - 1]!.toFixed(1)}`}
+        tabIndex={0}
+        aria-label={`RSI (14) chart, latest value ${defined[defined.length - 1]!.toFixed(1)}${hovered !== null && hover.index !== null ? `. Selected: ${formatFullDate(dates[hover.index]!)}, RSI ${hovered.toFixed(1)}` : ". Focus the chart and use the left and right arrow keys to inspect a day."}`}
         onMouseMove={hover.onMove}
         onMouseLeave={hover.onLeave}
+        onKeyDown={hover.onKeyDown}
+        onFocus={hover.onFocus}
+        onBlur={hover.onBlur}
       >
         <AxisLabels
           dates={dates}
@@ -462,9 +491,13 @@ export function MacdChart({
         viewBox={`0 0 ${WIDTH} ${height}`}
         className="w-full"
         role="img"
-        aria-label={`MACD (12, 26, 9) chart, latest MACD ${defined[defined.length - 1]!.macd.toFixed(2)}`}
+        tabIndex={0}
+        aria-label={`MACD (12, 26, 9) chart, latest MACD ${defined[defined.length - 1]!.macd.toFixed(2)}${hovered && hover.index !== null ? `. Selected: ${formatFullDate(dates[hover.index]!)}, MACD ${hovered.macd.toFixed(2)}, signal ${hovered.signal.toFixed(2)}` : ". Focus the chart and use the left and right arrow keys to inspect a day."}`}
         onMouseMove={hover.onMove}
         onMouseLeave={hover.onLeave}
+        onKeyDown={hover.onKeyDown}
+        onFocus={hover.onFocus}
+        onBlur={hover.onBlur}
       >
         <AxisLabels
           dates={dates}

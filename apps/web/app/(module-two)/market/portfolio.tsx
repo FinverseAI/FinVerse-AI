@@ -2,15 +2,17 @@
 
 import { useMemo } from "react";
 import { HoldingsSection } from "./holdings";
-import type { PortfolioSummary } from "../../../lib/market";
+import type { CurrencyTotals, PortfolioSummary } from "../../../lib/market";
 import {
   earliestBuyDate,
   formatFetchedAt,
+  formatMoney,
   formatPercent,
   portfolioCashFlows,
+  todayIst,
+  totalsByCurrency,
 } from "../../../lib/market";
 import { cagrFromDates, xirr } from "../../../lib/portfolio";
-import { money } from "../../(module-one)/dashboard/data";
 import { PanelHeading, ProgressBar } from "../../(module-one)/dashboard/ui";
 
 const allocationColors = [
@@ -22,13 +24,40 @@ const allocationColors = [
   "#e59ab8",
 ];
 
-function GainText({ value, percent }: { value: number; percent: number }) {
+function GainText({
+  value,
+  percent,
+  currency = "INR",
+}: {
+  value: number;
+  percent: number;
+  currency?: string;
+}) {
   const up = value >= 0;
   return (
     <span className={up ? "market-positive" : "market-negative"}>
       {up ? "+" : "−"}
-      {money(Math.abs(value), 2)} ({formatPercent(percent)})
+      {formatMoney(Math.abs(value), currency)} ({formatPercent(percent)})
     </span>
+  );
+}
+
+/** One total per currency, joined — never a mixed-currency sum. */
+function CurrencyAmounts({
+  groups,
+  pick,
+}: {
+  groups: CurrencyTotals[];
+  pick: "totalValue" | "totalInvested";
+}) {
+  return (
+    <>
+      {groups.map((group) => (
+        <span key={group.currency} className="block">
+          {formatMoney(group[pick], group.currency)}
+        </span>
+      ))}
+    </>
   );
 }
 
@@ -45,16 +74,30 @@ export function PortfolioSection({
 }) {
   const returns = useMemo(() => {
     if (!summary || summary.holdings.length === 0) {
-      return { xirrValue: null, cagrValue: null, priced: 0, total: 0 };
+      return {
+        xirrValue: null,
+        cagrValue: null,
+        priced: 0,
+        total: 0,
+        mixedCurrency: false,
+      };
     }
     const priced = summary.holdings.filter((holding) => holding.priced);
-    const today = new Date().toISOString().slice(0, 10);
-    const flows = portfolioCashFlows(summary.holdings, today);
+    // XIRR and CAGR combine cash flows into one rate, which is only
+    // meaningful when every priced holding shares one currency.
+    const mixedCurrency =
+      new Set(priced.map((holding) => holding.currency ?? "INR")).size > 1;
+    // IST-pinned "today": the UTC date runs a day behind IST between
+    // 00:00 and 05:30.
+    const today = todayIst();
+    const flows = mixedCurrency
+      ? []
+      : portfolioCashFlows(summary.holdings, today);
     const start = earliestBuyDate(summary.holdings);
     return {
-      xirrValue: start && start < today ? xirr(flows) : null,
+      xirrValue: !mixedCurrency && start && start < today ? xirr(flows) : null,
       cagrValue:
-        start !== null
+        !mixedCurrency && start !== null
           ? cagrFromDates(
               summary.totals.totalInvested,
               summary.totals.totalValue,
@@ -64,15 +107,24 @@ export function PortfolioSection({
           : null,
       priced: priced.length,
       total: summary.holdings.length,
+      mixedCurrency,
     };
   }, [summary]);
+
+  const currencyGroups = useMemo(
+    () => (summary ? totalsByCurrency(summary.holdings) : []),
+    [summary],
+  );
+  const mixedCurrency = currencyGroups.length > 1;
+  const singleCurrency =
+    currencyGroups.length === 1 ? currencyGroups[0]! : null;
 
   return (
     <section id="portfolio" aria-label="Portfolio" className="scroll-mt-24">
       <div className="desk-heading">
         <h3>Portfolio valuation</h3>
         <a className="dash-small-button" href="#optimizer">
-          Open optimizer →
+          Open Optimizer →
         </a>
       </div>
       {loading ? (
@@ -90,77 +142,144 @@ export function PortfolioSection({
         </div>
       ) : !summary ? null : (
         <div className="mt-4 space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <article className="dash-panel value-feature">
-              <h3 className="dash-eyebrow">
-                {summary.unavailable.length
-                  ? "Priced holdings value"
-                  : "Current value"}
-              </h3>
-              <p className="mt-4 text-3xl font-medium tracking-tight break-words">
-                {returns.priced ? money(summary.totals.totalValue, 2) : ""}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-dash-muted">
-                {returns.priced} of {returns.total} holdings priced
-                {summary.asOf
-                  ? ` · as of ${formatFetchedAt(summary.asOf)}`
-                  : ""}
-              </p>
-            </article>
-            <article className="dash-panel">
-              <h3 className="dash-eyebrow">Invested</h3>
-              <p className="mt-4 text-3xl font-medium tracking-tight break-words">
-                {money(
-                  summary.holdings.reduce(
-                    (sum, h) => sum + Math.round(h.investedValue * 100),
-                    0,
-                  ) / 100,
-                  2,
+          {(() => {
+            const isEmpty = summary.holdings.length === 0;
+            return (
+              <>
+                {mixedCurrency && (
+                  <p role="note" className="dash-panel text-sm text-dash-muted">
+                    Your holdings are in more than one currency, so totals are
+                    shown per currency below — they are not combined into a
+                    single figure, and XIRR needs holdings in one currency.
+                  </p>
                 )}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-dash-muted">
-                Purchase cost across all holdings.
-              </p>
-            </article>
-            <article className="dash-panel">
-              <h3 className="dash-eyebrow">Gain / loss</h3>
-              <p className="mt-4 text-2xl font-medium tracking-tight break-words">
-                {returns.priced ? (
-                  <GainText
-                    value={summary.totals.totalGainLoss}
-                    percent={summary.totals.totalGainLossPercent}
-                  />
-                ) : (
-                  ""
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <article className="dash-panel value-feature">
+                    <h3 className="dash-eyebrow">
+                      {summary.unavailable.length
+                        ? "Priced holdings value"
+                        : "Current value"}
+                    </h3>
+                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                      {isEmpty ? (
+                        formatMoney(0)
+                      ) : returns.priced ? (
+                        singleCurrency ? (
+                          formatMoney(
+                            singleCurrency.totalValue,
+                            singleCurrency.currency,
+                          )
+                        ) : (
+                          <CurrencyAmounts
+                            groups={currencyGroups}
+                            pick="totalValue"
+                          />
+                        )
+                      ) : (
+                        "—"
+                      )}
+                    </p>
+                    <p className="mt-3 text-xs leading-5 text-dash-muted">
+                      {isEmpty
+                        ? "No holdings yet — add a holding to track its value."
+                        : `${returns.priced} of ${returns.total} holdings priced${summary.asOf ? ` · as of ${formatFetchedAt(summary.asOf)}` : ""}`}
+                    </p>
+                  </article>
+                  <article className="dash-panel">
+                    <h3 className="dash-eyebrow">Invested</h3>
+                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                      {isEmpty ? (
+                        formatMoney(0)
+                      ) : singleCurrency ? (
+                        formatMoney(
+                          singleCurrency.totalInvested,
+                          singleCurrency.currency,
+                        )
+                      ) : (
+                        <CurrencyAmounts
+                          groups={currencyGroups}
+                          pick="totalInvested"
+                        />
+                      )}
+                    </p>
+                    <p className="mt-3 text-xs leading-5 text-dash-muted">
+                      {isEmpty
+                        ? "No holdings yet — add a holding to see what you put in."
+                        : "Purchase cost across all holdings."}
+                    </p>
+                  </article>
+                  <article className="dash-panel">
+                    <h3 className="dash-eyebrow">Gain / loss</h3>
+                    <p className="mt-4 text-2xl font-medium tracking-tight break-words">
+                      {isEmpty ? (
+                        formatMoney(0)
+                      ) : returns.priced ? (
+                        singleCurrency ? (
+                          <GainText
+                            value={singleCurrency.totalGainLoss}
+                            percent={singleCurrency.totalGainLossPercent}
+                            currency={singleCurrency.currency}
+                          />
+                        ) : (
+                          <>
+                            {currencyGroups.map((group) => (
+                              <span key={group.currency} className="block">
+                                <GainText
+                                  value={group.totalGainLoss}
+                                  percent={group.totalGainLossPercent}
+                                  currency={group.currency}
+                                />
+                              </span>
+                            ))}
+                          </>
+                        )
+                      ) : (
+                        "—"
+                      )}
+                    </p>
+                    <p className="mt-3 text-xs leading-5 text-dash-muted">
+                      {isEmpty
+                        ? "No holdings yet — gains appear once you add one."
+                        : "Unrealised return on priced holdings."}
+                    </p>
+                  </article>
+                  <article className="dash-panel">
+                    <h3 className="dash-eyebrow">XIRR</h3>
+                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                      {returns.xirrValue !== null
+                        ? formatPercent(returns.xirrValue * 100)
+                        : "—"}
+                    </p>
+                    <p className="mt-3 text-xs leading-5 text-dash-muted">
+                      {isEmpty
+                        ? "Add a holding with a buy date to see your annualised return."
+                        : returns.mixedCurrency
+                          ? "XIRR needs holdings in a single currency."
+                          : returns.xirrValue !== null
+                            ? "Annualised from dated purchases."
+                            : "Needs at least one dated buy and a current value."}
+                    </p>
+                    <p
+                      className="desk-muted mt-2"
+                      title="Simple annualised growth from the earliest priced purchase, treating the invested cost as one sum."
+                    >
+                      Simple CAGR ·{" "}
+                      {returns.mixedCurrency || returns.cagrValue === null
+                        ? "—"
+                        : formatPercent(returns.cagrValue * 100)}
+                    </p>
+                  </article>
+                </div>
+                {isEmpty && (
+                  <p className="text-sm text-dash-muted">
+                    <a className="desk-link" href="#holdings">
+                      Add your first holding →
+                    </a>
+                  </p>
                 )}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-dash-muted">
-                Unrealised return on priced holdings.
-              </p>
-            </article>
-            <article className="dash-panel">
-              <h3 className="dash-eyebrow">XIRR</h3>
-              <p className="mt-4 text-3xl font-medium tracking-tight break-words">
-                {returns.xirrValue !== null
-                  ? formatPercent(returns.xirrValue * 100)
-                  : ""}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-dash-muted">
-                {returns.xirrValue !== null
-                  ? "Annualised from dated purchases."
-                  : "Needs at least one dated buy and a current value."}
-              </p>
-              <p
-                className="desk-muted mt-2"
-                title="Simple annualised growth from the earliest priced purchase, treating the invested cost as one sum."
-              >
-                Simple CAGR ·{" "}
-                {returns.cagrValue === null
-                  ? ""
-                  : formatPercent(returns.cagrValue * 100)}
-              </p>
-            </article>
-          </div>
+              </>
+            );
+          })()}
 
           <HoldingsSection
             summary={summary}
@@ -184,7 +303,10 @@ export function PortfolioSection({
                           {sector.sector}
                         </span>
                         <span className="font-mono text-xs text-dash-muted">
-                          {money(sector.value, 2)} · {sector.weight.toFixed(1)}%
+                          {singleCurrency
+                            ? `${formatMoney(sector.value, singleCurrency.currency)} · `
+                            : ""}
+                          {sector.weight.toFixed(1)}%
                         </span>
                       </div>
                       <div className="mt-2">
@@ -200,6 +322,9 @@ export function PortfolioSection({
               )}
               <p className="mt-4 text-xs leading-5 text-dash-muted">
                 Weights use the current value of priced holdings.
+                {mixedCurrency
+                  ? " Holdings span more than one currency, so these weights mix currencies — use the per-currency totals above for comparable figures."
+                  : ""}
               </p>
             </article>
             <article className="dash-panel">
@@ -249,6 +374,13 @@ export function PortfolioSection({
               </ul>
               {!returns.priced && (
                 <p className="desk-muted">Allocation needs a priced holding.</p>
+              )}
+              {mixedCurrency && (
+                <p className="mt-3 text-xs text-dash-muted">
+                  Holdings span more than one currency, so these shares mix
+                  currencies — use the per-currency totals above for comparable
+                  figures.
+                </p>
               )}
               {summary.stale && (
                 <p className="mt-3 text-xs text-dash-warning">

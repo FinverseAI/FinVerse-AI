@@ -50,7 +50,7 @@ export function StockSnapshot({
           {loading
             ? "Loading…"
             : periodChange === null
-              ? ""
+              ? "—"
               : formatPercent(periodChange)}
         </p>
         {!loading && !unavailable && first && last && (
@@ -65,7 +65,7 @@ export function StockSnapshot({
           <dd>
             {profile?.previousClose != null
               ? formatPrice(profile.previousClose, currency)
-              : ""}
+              : "—"}
           </dd>
         </div>
         <div>
@@ -73,7 +73,7 @@ export function StockSnapshot({
           <dd>
             {fundamentals?.marketCap != null
               ? formatCompact(fundamentals.marketCap, currency)
-              : ""}
+              : "—"}
           </dd>
         </div>
         <div>
@@ -81,7 +81,7 @@ export function StockSnapshot({
           <dd>
             {fundamentals?.trailingPE != null
               ? fundamentals.trailingPE.toFixed(2)
-              : ""}
+              : "—"}
           </dd>
         </div>
         <div>
@@ -89,7 +89,7 @@ export function StockSnapshot({
           <dd>
             {fundamentals?.dividendYield != null
               ? formatPercent(fundamentals.dividendYield * 100, false)
-              : ""}
+              : "—"}
           </dd>
         </div>
       </dl>

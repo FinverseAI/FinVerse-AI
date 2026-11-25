@@ -114,9 +114,12 @@ export default function Market({ user }: { user?: AuthUser }) {
             loading={overview.loading}
           />
           {history.error && (
-            <button className="desk-link" onClick={history.refresh}>
-              Retry index history
-            </button>
+            <p role="alert" className="desk-muted">
+              {history.error}{" "}
+              <button className="desk-link" onClick={history.refresh}>
+                Retry index history
+              </button>
+            </p>
           )}
           {snapshot.loading && (
             <p role="status" className="dash-panel">
@@ -151,7 +154,12 @@ export default function Market({ user }: { user?: AuthUser }) {
         />
       )}
       {section.id === "optimizer" && (
-        <OptimizerSection holdings={summary.data?.holdings ?? []} />
+        <OptimizerSection
+          holdings={summary.data?.holdings ?? []}
+          loading={summary.loading}
+          error={summary.error}
+          onRetry={summary.refresh}
+        />
       )}
       {section.id === "screener" && (
         <ScreenerSection

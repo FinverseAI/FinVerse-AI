@@ -3,7 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { PortfolioSummary, ValuedHolding } from "../../../lib/market";
-import { formatPercent, formatPrice } from "../../../lib/market";
+import {
+  formatMoney,
+  formatPercent,
+  formatPrice,
+  totalsByCurrency,
+} from "../../../lib/market";
 import {
   activityError,
   activityRequest,
@@ -14,12 +19,14 @@ import { HoldingForm, type HoldingFormData } from "./holding-form";
 
 function GainCell({ holding }: { holding: ValuedHolding }) {
   if (!holding.priced || holding.gainLoss === null) {
-    return <span className="text-dash-muted"></span>;
+    return <span className="text-dash-muted">—</span>;
   }
   const up = holding.gainLoss >= 0;
+  const currency = holding.currency ?? "INR";
   return (
     <span className={up ? "market-positive" : "market-negative"}>
-      {up ? "+" : "−"}₹{Math.abs(holding.gainLoss).toFixed(2)}
+      {up ? "+" : "−"}
+      {formatMoney(Math.abs(holding.gainLoss), currency)}
       {holding.gainLossPercent !== null &&
         ` (${formatPercent(holding.gainLossPercent)})`}
     </span>
@@ -94,7 +101,7 @@ export function HoldingsSection({
           Add holding
         </button>
       </PanelHeading>
-      <div className="dash-panel mt-4 overflow-x-auto p-0">
+      <div className="dash-panel mt-4 overflow-x-auto p-0" tabIndex={0}>
         {loading ? (
           <p role="status" className="p-6 text-sm text-dash-muted">
             Loading holdings…
@@ -153,12 +160,15 @@ export function HoldingsSection({
                     {holding.quantity}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
-                    {formatPrice(holding.buyPrice)}
+                    {formatPrice(holding.buyPrice, holding.currency ?? "INR")}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
                     {holding.priced && holding.currentPrice !== null ? (
                       <>
-                        {formatPrice(holding.currentPrice)}
+                        {formatPrice(
+                          holding.currentPrice,
+                          holding.currency ?? "INR",
+                        )}
                         {holding.stale && (
                           <span className="mt-0.5 block text-xs text-dash-warning">
                             Last known
@@ -166,13 +176,16 @@ export function HoldingsSection({
                         )}
                       </>
                     ) : (
-                      <span className="text-xs text-dash-muted"></span>
+                      <span className="text-xs text-dash-muted">—</span>
                     )}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
                     {holding.priced && holding.currentValue !== null
-                      ? formatPrice(holding.currentValue)
-                      : ""}
+                      ? formatMoney(
+                          holding.currentValue,
+                          holding.currency ?? "INR",
+                        )
+                      : "—"}
                   </td>
                   <td className="px-3 py-3 text-right font-mono">
                     <GainCell holding={holding} />
@@ -208,13 +221,21 @@ export function HoldingsSection({
                 <td colSpan={3} />
                 <td className="text-right">
                   {holdings.some((h) => h.priced)
-                    ? formatPrice(summary!.totals.totalValue)
-                    : ""}
+                    ? totalsByCurrency(holdings)
+                        .map((group) =>
+                          formatMoney(group.totalValue, group.currency),
+                        )
+                        .join(" · ")
+                    : "—"}
                 </td>
                 <td className="px-3 text-right">
                   {holdings.some((h) => h.priced)
-                    ? formatPrice(summary!.totals.totalGainLoss)
-                    : ""}
+                    ? totalsByCurrency(holdings)
+                        .map((group) =>
+                          formatMoney(group.totalGainLoss, group.currency),
+                        )
+                        .join(" · ")
+                    : "—"}
                 </td>
                 <td />
               </tr>
@@ -230,7 +251,9 @@ export function HoldingsSection({
       <p className="mt-3 text-xs leading-5 text-dash-muted">
         One row per symbol: adding the same symbol again is rejected, so edit
         the row instead when you buy more. Values come from the portfolio
-        summary, so they always match the totals above.
+        summary, so they always match the totals above. Each holding is valued
+        in its own currency — totals are shown per currency, never added across
+        currencies.
       </p>
 
       {showAdd && (
@@ -253,6 +276,7 @@ export function HoldingsSection({
             quantity: editing.quantity,
             buyPrice: editing.buyPrice,
             buyDate: editing.buyDate,
+            currency: editing.currency ?? "INR",
           }}
           lockSymbol
           onSubmit={updateHolding}
@@ -268,8 +292,8 @@ export function HoldingsSection({
           <p className="text-sm leading-6 text-dash-muted">
             This deletes the holding record for{" "}
             {removing.name ?? removing.symbol} ({removing.quantity} ×{" "}
-            {formatPrice(removing.buyPrice)} bought {removing.buyDate}). Your
-            portfolio totals will update right away.
+            {formatPrice(removing.buyPrice, removing.currency ?? "INR")} bought{" "}
+            {removing.buyDate}). Your portfolio totals will update right away.
           </p>
           {actionError && (
             <p role="alert" className="mt-4 text-sm text-dash-red">

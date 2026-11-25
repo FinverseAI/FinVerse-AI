@@ -38,7 +38,7 @@ export const sections = [
     id: "optimizer",
     label: "Optimizer",
     icon: "target",
-    title: "Portfolio optimizer",
+    title: "Optimizer",
     description:
       "Explore how changes to your holdings affect portfolio allocation.",
   },

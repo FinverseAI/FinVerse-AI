@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StockTable } from "./market-board";
 import { aiRequest } from "../../(module-one)/dashboard/ai-chat";
 import {
@@ -126,6 +126,12 @@ export function ScreenerSection({
   const [aiResponse, setAiResponse] = useState<AiChatResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // The last results from valid bounds, kept on screen while the user is
+  // mid-edit on invalid bounds instead of hiding everything.
+  const [lastValidManual, setLastValidManual] = useState<ScreenResponse | null>(
+    null,
+  );
+  const lastValidKey = useRef("");
 
   function setField(key: keyof ScreenerFormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -184,11 +190,24 @@ export function ScreenerSection({
       (!Number.isInteger(filters.limit) ||
         filters.limit < 1 ||
         filters.limit > 50));
+  useEffect(() => {
+    if (invalid || !manual) return;
+    // `manual` is a fresh object every render, so only store it when the
+    // matched symbols actually change — otherwise this would set state
+    // on every render.
+    const key = manual.matches.map((stock) => stock.symbol).join(",");
+    if (key !== lastValidKey.current) {
+      lastValidKey.current = key;
+      setLastValidManual(manual);
+    }
+  }, [invalid, manual]);
   function reset() {
     setForm(EMPTY_SCREENER_FORM);
     setQuery("");
     setScreen(null);
     setAiResponse(null);
+    setLastValidManual(null);
+    lastValidKey.current = "";
     setError("");
   }
 
@@ -481,6 +500,15 @@ export function ScreenerSection({
               </p>
             )
           ))}
+        {mode === "filters" && invalid && lastValidManual && (
+          <>
+            <p role="note" className="text-sm text-dash-muted">
+              Showing your previous results — the bounds above are invalid, so
+              these are from the last valid filters.
+            </p>
+            <ScreenTable screen={lastValidManual} />
+          </>
+        )}
         {mode === "filters" && snapshotError && (
           <p role="alert" className="desk-muted">
             {snapshotError}{" "}

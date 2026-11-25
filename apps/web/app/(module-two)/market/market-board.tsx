@@ -71,6 +71,13 @@ function RangeTrack({ stock }: { stock: ScreenedStock }) {
   );
 }
 
+function rsiReading(value: number | null) {
+  if (value === null) return "Not enough history";
+  if (value >= 70) return "Overbought (above 70)";
+  if (value <= 30) return "Oversold (below 30)";
+  return "Neutral (30–70)";
+}
+
 function trend(s: ScreenedStock) {
   if (s.sma20 === null || s.price === null) return "";
   const relation =
@@ -137,81 +144,105 @@ export function StockTable({
     );
   });
   return (
-    <div className="stock-table-scroll">
-      <table className="stock-table">
-        <thead>
-          <tr>
-            {columns.map(([key, label]) => (
-              <th
-                key={key}
-                scope="col"
-                aria-sort={
-                  sort.key === key
-                    ? sort.ascending
-                      ? "ascending"
-                      : "descending"
-                    : undefined
-                }
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSort({
-                      key,
-                      ascending:
-                        sort.key === key ? !sort.ascending : key === "symbol",
-                    })
+    <>
+      <div
+        className="stock-table-scroll"
+        tabIndex={0}
+        role="region"
+        aria-label="Stocks table, scrollable"
+      >
+        <table className="stock-table">
+          <thead>
+            <tr>
+              {columns.map(([key, label]) => (
+                <th
+                  key={key}
+                  scope="col"
+                  aria-sort={
+                    sort.key === key
+                      ? sort.ascending
+                        ? "ascending"
+                        : "descending"
+                      : undefined
                   }
                 >
-                  {label} {sort.key === key ? (sort.ascending ? "↑" : "↓") : ""}
-                </button>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((s) => (
-            <tr
-              key={s.symbol}
-              onClick={(event) => {
-                if (
-                  event.target instanceof Element &&
-                  !event.target.closest("a,button") &&
-                  !window.getSelection()?.toString()
-                ) {
-                  event.currentTarget.querySelector("a")?.click();
-                }
-              }}
-            >
-              <td>
-                <StockName stock={s} />
-              </td>
-              <td>
-                {s.price === null ? "" : formatPrice(s.price, s.currency)}
-                <small>
-                  {s.stale ? "Last known · " : ""}
-                  {s.fetchedAt && formatFetchedAt(s.fetchedAt)}
-                </small>
-              </td>
-              <td>
-                <Change value={s.changePercent} />
-              </td>
-              <td>
-                <Change value={s.change1moPercent} />
-              </td>
-              <td>
-                {s.currency && s.currency !== "INR" && s.marketCap !== null
-                  ? formatPrice(s.marketCap, s.currency)
-                  : formatMarketCapCrore(s.marketCap)}
-              </td>
-              <td>{s.trailingPE?.toFixed(2) ?? ""}</td>
-              <td>{s.rsi14?.toFixed(1) ?? ""}</td>
-              <td>{screening ? trend(s) : <RangeTrack stock={s} />}</td>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSort({
+                        key,
+                        ascending:
+                          sort.key === key ? !sort.ascending : key === "symbol",
+                      })
+                    }
+                  >
+                    {label}{" "}
+                    {sort.key === key ? (sort.ascending ? "↑" : "↓") : ""}
+                  </button>
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {sorted.map((s) => (
+              <tr
+                key={s.symbol}
+                tabIndex={0}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.currentTarget.querySelector("a")?.click();
+                  }
+                }}
+                onClick={(event) => {
+                  if (
+                    event.target instanceof Element &&
+                    !event.target.closest("a,button") &&
+                    !window.getSelection()?.toString()
+                  ) {
+                    event.currentTarget.querySelector("a")?.click();
+                  }
+                }}
+              >
+                <td>
+                  <StockName stock={s} />
+                </td>
+                <td>
+                  {s.price === null ? "" : formatPrice(s.price, s.currency)}
+                  <small>
+                    {s.stale ? "Last known · " : ""}
+                    {s.fetchedAt && formatFetchedAt(s.fetchedAt)}
+                  </small>
+                </td>
+                <td>
+                  <Change value={s.changePercent} />
+                </td>
+                <td>
+                  <Change value={s.change1moPercent} />
+                </td>
+                <td>
+                  {s.currency && s.currency !== "INR" && s.marketCap !== null
+                    ? formatPrice(s.marketCap, s.currency)
+                    : formatMarketCapCrore(s.marketCap)}
+                </td>
+                <td>{s.trailingPE?.toFixed(2) ?? "—"}</td>
+                <td title={`RSI 14: ${rsiReading(s.rsi14)}`}>
+                  {s.rsi14?.toFixed(1) ?? "—"}
+                </td>
+                <td>{screening ? trend(s) : <RangeTrack stock={s} />}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-xs leading-5 text-dash-muted">
+        RSI 14 is a 0–100 momentum score over the last 14 trading days: above 70
+        is often called overbought, below 30 oversold, and 30–70 neutral — it
+        describes momentum, not a buy or sell instruction.
+        {screening &&
+          " Trend compares the price with its moving averages: “Above SMA-20” means the price is above its 20-day average; “20 > 50” means the 20-day average is above the 50-day average (the short-term trend is above the longer-term one), “20 < 50” the reverse, and “20 = 50” that the two averages are equal."}
+      </p>
+    </>
   );
 }
 

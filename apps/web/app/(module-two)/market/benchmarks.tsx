@@ -33,7 +33,7 @@ function CloseChart({ history }: { history: HistoryResponse }) {
         viewBox="0 0 400 90"
         preserveAspectRatio="none"
         role="img"
-        aria-label={`NIFTY 50 closes from ${bars[0]!.date} to ${bars.at(-1)?.date}, ranging from ${min} to ${max} points`}
+        aria-label={`NIFTY 50 closes from ${bars[0]!.date} to ${bars.at(-1)?.date}, ranging from ${min.toLocaleString("en-IN", { maximumFractionDigits: 2 })} to ${max.toLocaleString("en-IN", { maximumFractionDigits: 2 })} points`}
       >
         <defs>
           <linearGradient id="nifty-fill" x1="0" y1="0" x2="0" y2="1">

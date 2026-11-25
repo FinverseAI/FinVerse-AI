@@ -168,7 +168,8 @@ export function Watchlist({
         setSearchError("");
       } catch (caught) {
         if (!active) return;
-        setResults([]);
+        // Keep the previous results on a failed search; only the error
+        // is new.
         setSearchError(activityError(caught));
       } finally {
         if (active) setSearching(false);
@@ -289,7 +290,12 @@ export function Watchlist({
             Find a stock below to start your watchlist.
           </p>
         ) : (
-          <div className="stock-table-scroll">
+          <div
+            className="stock-table-scroll"
+            tabIndex={0}
+            role="region"
+            aria-label="Watched stocks table, scrollable"
+          >
             <table className="stock-table watch-table">
               <thead>
                 <tr>
@@ -379,8 +385,10 @@ export function Watchlist({
             className="dash-input w-full py-3 pl-10"
             value={query}
             onChange={(event) => {
+              // Do not clear the previous results here: they stay on
+              // screen until the debounced fetch returns, so typing
+              // does not flicker the list away on every keystroke.
               setQuery(event.target.value);
-              setResults([]);
               setSearchError("");
               setSearching(event.target.value.trim().length >= 2);
             }}

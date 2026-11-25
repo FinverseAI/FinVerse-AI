@@ -481,6 +481,11 @@
   max-width: 100%;
   margin-top: 1rem;
 }
+.stock-table-scroll:focus-visible,
+.stock-table tbody tr:focus-visible {
+  outline: 2px solid var(--color-dash-accent);
+  outline-offset: 2px;
+}
 .stock-table {
   width: 100%;
   border-collapse: collapse;
