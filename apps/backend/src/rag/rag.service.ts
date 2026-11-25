@@ -77,6 +77,20 @@ export interface ScreenResponse {
   matches: ScreenedStock[];
   unavailable: string[];
   evaluatedAt: string;
+  /**
+   * True when the Yahoo active-symbols fetch failed and the universe
+   * fell back to holdings + watchlist only — the screen ran over a
+   * reduced universe and the UI should say so. Optional in the type
+   * so hand-built ScreenResponse literals elsewhere keep compiling;
+   * the service always sets it.
+   */
+  universeDegraded?: boolean;
+  /**
+   * How many of the returned matches rest on stale price/history.
+   * Same optionality note as universeDegraded; the service always
+   * sets it.
+   */
+  staleCount?: number;
 }
 
 function round2(value: number) {
@@ -134,11 +148,19 @@ export class RagService {
       refreshed = result.available;
     }
     const rows = await this.repository.listRecentNews(symbol, NEWS_LIST_LIMIT);
-    const articles: NewsArticle[] = rows.map((row) => {
+    // One article can span several stored chunks (one row per chunk),
+    // so collapse rows back to one article per url — first row wins,
+    // and rows arrive newest first.
+    const seenUrls = new Set<string>();
+    const articles: NewsArticle[] = [];
+    for (const row of rows) {
+      const key = row.url ?? row.title ?? row.content;
+      if (seenUrls.has(key)) continue;
+      seenUrls.add(key);
       const metadata = (row.metadata ?? {}) as Record<string, unknown>;
       const publisher =
         typeof metadata.publisher === 'string' ? metadata.publisher : 'Unknown';
-      return {
+      articles.push({
         title: row.title ?? row.content,
         publisher,
         publishedAt: row.published_at
@@ -146,8 +168,16 @@ export class RagService {
           : null,
         url: row.url,
         sentiment: scoreSentiment(row.title ?? row.content),
-      };
-    });
+      });
+    }
+    // fetchedAt is when the served rows were actually indexed (the
+    // newest row's created_at), not "now" — the rows may be hours old.
+    const fetchedAt =
+      rows.length > 0
+        ? new Date(
+            Math.max(...rows.map((row) => row.created_at.getTime())),
+          ).toISOString()
+        : new Date().toISOString();
     return {
       symbol,
       articles,
@@ -157,21 +187,33 @@ export class RagService {
         articles.length === 0
           ? 'No recent news was found for this stock.'
           : null,
-      fetchedAt: new Date().toISOString(),
+      fetchedAt,
     };
   }
 
-  /** The screener universe: holdings + watchlist + provider-reported active Indian equities. */
-  async screenerUniverse(userId: string): Promise<string[]> {
+  /**
+   * The screener universe: holdings + watchlist + provider-reported
+   * active Indian equities. When the provider fetch fails the universe
+   * silently shrinks to holdings + watchlist — `universeDegraded`
+   * reports that, so the caller can warn instead of screening a
+   * reduced universe as if it were the whole market.
+   */
+  async screenerUniverse(
+    userId: string,
+  ): Promise<{ symbols: string[]; universeDegraded: boolean }> {
+    let universeDegraded = false;
     const [active, holdings, watchlist] = await Promise.all([
-      this.market.activeIndianSymbols().catch(() => []),
+      this.market.activeIndianSymbols().catch(() => {
+        universeDegraded = true;
+        return [];
+      }),
       this.portfolio.holdings(userId).catch(() => []),
       this.portfolio.watchlist(userId).catch(() => []),
     ]);
     const symbols = new Set<string>(active);
     for (const holding of holdings) symbols.add(holding.symbol);
     for (const item of watchlist) symbols.add(item.symbol);
-    return [...symbols];
+    return { symbols: [...symbols], universeDegraded };
   }
 
   /** Deterministic screen over the universe. Never fails outright. */
@@ -184,25 +226,42 @@ export class RagService {
       );
     }
     const filters = parsed.data;
-    const universe =
-      filters.symbols && filters.symbols.length > 0
-        ? [...new Set(filters.symbols.map((symbol) => normalizeSymbol(symbol)))]
-        : await this.screenerUniverse(userId);
-    const snapshot = await this.snapshot(universe);
+    // An explicit symbol list is the user's own universe — it cannot
+    // be degraded by a provider failure. The default universe can.
+    let universe: string[];
+    let universeDegraded = false;
+    if (filters.symbols && filters.symbols.length > 0) {
+      universe = [
+        ...new Set(filters.symbols.map((symbol) => normalizeSymbol(symbol))),
+      ];
+    } else {
+      const defaultUniverse = await this.screenerUniverse(userId);
+      universe = defaultUniverse.symbols;
+      universeDegraded = defaultUniverse.universeDegraded;
+    }
+    const snapshot = await this.snapshot(universe, universeDegraded);
+    const matches = snapshot.matches
+      .filter((stock) => passesFilters(stock, filters))
+      .slice(0, filters.limit ?? 20);
     return {
       ...snapshot,
       filters,
-      matches: snapshot.matches
-        .filter((stock) => passesFilters(stock, filters))
-        .slice(0, filters.limit ?? 20),
+      matches,
+      // staleCount counts the matches actually returned, after the
+      // filters and limit — that is what the UI warns about.
+      staleCount: matches.filter((stock) => stock.stale).length,
     };
   }
 
   async marketSnapshot(userId: string) {
-    return this.snapshot(await this.screenerUniverse(userId));
+    const { symbols, universeDegraded } = await this.screenerUniverse(userId);
+    return this.snapshot(symbols, universeDegraded);
   }
 
-  private async snapshot(universe: string[]): Promise<ScreenResponse> {
+  private async snapshot(
+    universe: string[],
+    universeDegraded = false,
+  ): Promise<ScreenResponse> {
     const evaluated = await mapInBatches(
       universe,
       SCREENER_BATCH_SIZE,
@@ -226,6 +285,8 @@ export class RagService {
       matches,
       unavailable,
       evaluatedAt: new Date().toISOString(),
+      universeDegraded,
+      staleCount: matches.filter((stock) => stock.stale).length,
     };
   }
 

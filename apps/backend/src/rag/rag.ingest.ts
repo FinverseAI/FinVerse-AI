@@ -78,6 +78,21 @@ export class RagIngestService {
         reason: 'embeddings-not-configured',
       };
     }
+    try {
+      return await this.indexNewsInner(symbol);
+    } catch {
+      // A repository/DB blip must not throw out of a path documented
+      // as "never throws" — report it as unavailable instead.
+      return {
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      };
+    }
+  }
+
+  private async indexNewsInner(symbol: string): Promise<IngestResult> {
     let items;
     try {
       items = await this.provider.news(symbol);
@@ -98,10 +113,13 @@ export class RagIngestService {
         item.publisher,
         item.publishedAt,
       );
-      for (const chunk of chunkText(text)) {
+      // Every chunk gets its own identity (`${link}#${index}`) so the
+      // chunks of one article do not overwrite each other under the
+      // (source_type, source_id) unique key.
+      for (const [index, chunk] of chunkText(text).entries()) {
         documents.push({
           sourceType: 'news',
-          sourceId: item.link,
+          sourceId: `${item.link}#${index}`,
           userId: null,
           symbol,
           title: item.title,
@@ -135,6 +153,21 @@ export class RagIngestService {
         reason: 'embeddings-not-configured',
       };
     }
+    try {
+      return await this.indexProfileInner(symbol);
+    } catch {
+      // A repository/DB blip must not throw out of a path documented
+      // as "never throws" — report it as unavailable instead.
+      return {
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      };
+    }
+  }
+
+  private async indexProfileInner(symbol: string): Promise<IngestResult> {
     let profile;
     try {
       profile = await this.market.profile(symbol);
@@ -160,9 +193,13 @@ export class RagIngestService {
       fundamentals?.industry ?? null,
       description,
     );
-    const documents = chunkText(text).map((chunk): NewRagDocument => ({
+    // Every chunk gets its own identity (`${symbol}#${index}`) so the
+    // chunks of one profile do not overwrite each other under the
+    // (source_type, source_id) unique key — previously only the last
+    // ~500 chars of a long description survived.
+    const documents = chunkText(text).map((chunk, index): NewRagDocument => ({
       sourceType: 'profile',
-      sourceId: symbol,
+      sourceId: `${symbol}#${index}`,
       userId: null,
       symbol,
       title: profile.name ?? symbol,
@@ -195,6 +232,21 @@ export class RagIngestService {
         reason: 'embeddings-not-configured',
       };
     }
+    try {
+      return await this.indexTransactionsInner(userId);
+    } catch {
+      // Same "never throws" contract as the other ingest paths: a
+      // repository/DB blip reports as unavailable instead of throwing.
+      return {
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      };
+    }
+  }
+
+  private async indexTransactionsInner(userId: string): Promise<IngestResult> {
     let transactions;
     try {
       transactions = await this.activity.transactions(userId);
@@ -221,10 +273,11 @@ export class RagIngestService {
         transaction.amount,
         transaction.date,
       );
-      for (const chunk of chunkText(text)) {
+      // Same per-chunk identity as news/profiles (`${id}#${index}`).
+      for (const [index, chunk] of chunkText(text).entries()) {
         documents.push({
           sourceType: 'transaction',
-          sourceId: transaction.id,
+          sourceId: `${transaction.id}#${index}`,
           userId,
           symbol: null,
           title: transaction.name,
@@ -253,10 +306,12 @@ export class RagIngestService {
   async ensureProfileIndexed(symbol: string): Promise<void> {
     try {
       if (await this.repository.hasPublicSource('profile', symbol)) return;
+      await this.indexProfile(symbol);
     } catch {
+      // Never throws: a DB blip here just means the profile is not
+      // indexed yet — the caller degrades to raw metrics.
       return;
     }
-    await this.indexProfile(symbol);
   }
 
   /** Drop news older than the retention window. Never throws. */

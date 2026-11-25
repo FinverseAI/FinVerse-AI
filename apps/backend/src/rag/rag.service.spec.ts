@@ -131,8 +131,10 @@ describe('RagService', () => {
         newsRow(),
         newsRow({
           id: 'doc-2',
+          source_id: 'https://example.test/a2',
           title: 'Reliance shares fall on weak outlook',
           content: 'Reliance shares fall on weak outlook.',
+          url: 'https://example.test/a2',
           metadata: { publisher: 'Bloomberg' },
         }),
       ]);
@@ -151,6 +153,38 @@ describe('RagService', () => {
       });
       expect(result.articles[0].publisher).toBe('Reuters');
       expect(result.articles[0].publishedAt).toBe('2026-11-18');
+      // B27: fetchedAt is when the served rows were indexed, not now.
+      expect(result.fetchedAt).toBe('2026-11-18T10:05:00.000Z');
+    });
+
+    it('collapses the chunks of one article back to a single article', async () => {
+      const { service, repository } = makeService();
+      repository.newsFreshness.mockResolvedValue({
+        count: 2,
+        newestAt: new Date(),
+      });
+      // Two stored rows for the same url = two chunks of one article.
+      repository.listRecentNews.mockResolvedValue([
+        newsRow(),
+        newsRow({ id: 'doc-2' }),
+      ]);
+      const result = await service.newsForSymbol('RELIANCE.NS');
+      expect(result.articles).toHaveLength(1);
+      expect(result.articles[0].url).toBe('https://example.test/a1');
+    });
+
+    it('reports the newest indexed row as fetchedAt, not the request time', async () => {
+      const { service, repository } = makeService();
+      const indexedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      repository.newsFreshness.mockResolvedValue({
+        count: 1,
+        newestAt: indexedAt,
+      });
+      repository.listRecentNews.mockResolvedValue([
+        newsRow({ created_at: indexedAt }),
+      ]);
+      const result = await service.newsForSymbol('RELIANCE.NS');
+      expect(result.fetchedAt).toBe(indexedAt.toISOString());
     });
 
     it('refreshes the index when the stored news is stale', async () => {
@@ -200,10 +234,25 @@ describe('RagService', () => {
   });
 
   describe('screenerUniverse', () => {
-    it('leaves the universe empty when no symbols are available', async () => {
+    it('leaves the universe empty and degraded when no symbols are available', async () => {
       const { service, market } = makeService();
       market.activeIndianSymbols.mockRejectedValue(new Error('offline'));
-      expect(await service.screenerUniverse('owner-1')).toEqual([]);
+      await expect(service.screenerUniverse('owner-1')).resolves.toEqual({
+        symbols: [],
+        universeDegraded: true,
+      });
+    });
+
+    it('reports a degraded universe when the provider fetch fails but holdings exist', async () => {
+      const { service, market, portfolio } = makeService();
+      market.activeIndianSymbols.mockRejectedValue(new Error('offline'));
+      portfolio.holdings.mockResolvedValue([{ symbol: 'RELIANCE.NS' }]);
+      // B22: the screen still runs, but the caller must know the
+      // 15-company provider universe is missing.
+      await expect(service.screenerUniverse('owner-1')).resolves.toEqual({
+        symbols: ['RELIANCE.NS'],
+        universeDegraded: true,
+      });
     });
 
     it('merges holdings, watchlist and provider symbols without duplicates', async () => {
@@ -216,21 +265,25 @@ describe('RagService', () => {
         { symbol: 'TCS.NS' },
         { symbol: 'MYSTOCK.NS' },
       ]);
-      const universe = await service.screenerUniverse('owner-1');
-      expect(universe).toContain('RELIANCE.NS');
-      expect(universe).toContain('TCS.NS');
-      expect(universe).toContain('MYSTOCK.NS');
-      expect(universe).toContain('INFY.NS');
-      expect(new Set(universe).size).toBe(universe.length);
+      const { symbols, universeDegraded } =
+        await service.screenerUniverse('owner-1');
+      expect(symbols).toContain('RELIANCE.NS');
+      expect(symbols).toContain('TCS.NS');
+      expect(symbols).toContain('MYSTOCK.NS');
+      expect(symbols).toContain('INFY.NS');
+      expect(new Set(symbols).size).toBe(symbols.length);
+      expect(universeDegraded).toBe(false);
     });
 
     it('falls back to provider symbols when portfolio reads fail', async () => {
       const { service, portfolio } = makeService();
       portfolio.holdings.mockRejectedValue(new Error('db down'));
       portfolio.watchlist.mockRejectedValue(new Error('db down'));
-      const universe = await service.screenerUniverse('owner-1');
-      expect(universe).toEqual(['INFY.NS', 'RELIANCE.NS']);
-      expect(universe).toContain('RELIANCE.NS');
+      const { symbols, universeDegraded } =
+        await service.screenerUniverse('owner-1');
+      expect(symbols).toEqual(['INFY.NS', 'RELIANCE.NS']);
+      expect(symbols).toContain('RELIANCE.NS');
+      expect(universeDegraded).toBe(false);
     });
   });
 
@@ -334,6 +387,60 @@ describe('RagService', () => {
       await expect(
         service.screen('owner-1', { minPrice: 500, maxPrice: 100 }),
       ).rejects.toThrow('minimum price must not exceed the maximum');
+    });
+
+    it('flags a degraded universe when the provider fetch fails', async () => {
+      const { service, market, portfolio } = makeService();
+      market.activeIndianSymbols.mockRejectedValue(new Error('offline'));
+      portfolio.holdings.mockResolvedValue([{ symbol: 'RELIANCE.NS' }]);
+      // B22: no explicit symbols, so the screen runs over the reduced
+      // holdings-only universe — and says so.
+      const result = await service.screen('owner-1', {});
+      expect(result.universe).toEqual(['RELIANCE.NS']);
+      expect(result.universeDegraded).toBe(true);
+      expect(result.matches.map((m) => m.symbol)).toEqual(['RELIANCE.NS']);
+    });
+
+    it('does not flag degradation for an explicit symbol list', async () => {
+      const { service, market } = makeService();
+      market.activeIndianSymbols.mockRejectedValue(new Error('offline'));
+      const result = await service.screen('owner-1', {
+        symbols: ['RELIANCE.NS'],
+      });
+      expect(result.universeDegraded).toBe(false);
+      expect(market.activeIndianSymbols).not.toHaveBeenCalled();
+    });
+
+    it('counts stale matches instead of excluding them from price filters', async () => {
+      const { service, market } = makeService();
+      market.profile.mockImplementation(async (symbol: string) => ({
+        ...profileFor(symbol),
+        // RELIANCE's quote is hours-old cached data (Yahoo down).
+        stale: symbol === 'RELIANCE.NS',
+      }));
+      // B33 (flag option, not exclusion): the stale symbol still
+      // passes its price filter, but the response says one match is
+      // stale so the UI can warn.
+      const result = await service.screen('owner-1', {
+        symbols: ['RELIANCE.NS', 'TCS.NS'],
+        minPrice: 150,
+      });
+      expect(result.matches.map((m) => m.symbol)).toEqual(['RELIANCE.NS']);
+      expect(result.staleCount).toBe(1);
+      const unfiltered = await service.screen('owner-1', {
+        symbols: ['RELIANCE.NS', 'TCS.NS'],
+      });
+      expect(unfiltered.matches).toHaveLength(2);
+      expect(unfiltered.staleCount).toBe(1);
+    });
+
+    it('reports zero stale matches when every price is fresh', async () => {
+      const { service } = makeService();
+      const result = await service.screen('owner-1', {
+        symbols: ['RELIANCE.NS', 'TCS.NS'],
+      });
+      expect(result.staleCount).toBe(0);
+      expect(result.universeDegraded).toBe(false);
     });
   });
 });

@@ -152,6 +152,9 @@ describe('RagRepository', () => {
       const sql = sqlOf(queryRaw.mock.calls[0]);
       expect(sql).toContain('"source_type" = \'news\'');
       expect(sql).toContain('ORDER BY "published_at" DESC NULLS LAST');
+      // B28: news reads are public-only — a future user-scoped news
+      // row must never leak to every user.
+      expect(sql).toContain('"user_id" IS NULL');
       const values = valuesOf(queryRaw.mock.calls[0]);
       expect(values).toEqual(['RELIANCE.NS', 8]);
     });
@@ -167,6 +170,8 @@ describe('RagRepository', () => {
         count: 4,
         newestAt: new Date('2026-11-19T08:00:00Z'),
       });
+      // B28: public rows only.
+      expect(sqlOf(queryRaw.mock.calls[0])).toContain('"user_id" IS NULL');
     });
 
     it('returns zero and null when nothing is indexed', async () => {
@@ -191,6 +196,17 @@ describe('RagRepository', () => {
       const values = valuesOf(queryRaw.mock.calls[0]);
       expect(values).toEqual(['transaction', 'owner-1']);
     });
+
+    it('strips the per-chunk suffix so dedupe compares base ids', async () => {
+      const { repo, queryRaw } = makeRepo();
+      queryRaw.mockResolvedValue([{ source_id: 'tx-1' }]);
+      await repo.existingSourceIds('transaction', 'owner-1');
+      // Chunks are stored as `${base}#${index}`; the query must strip
+      // the suffix, otherwise a re-ingest would never see tx-1 as done.
+      expect(sqlOf(queryRaw.mock.calls[0])).toContain(
+        `regexp_replace("source_id", '#[0-9]+$', '')`,
+      );
+    });
   });
 
   describe('existingNewsSourceIds', () => {
@@ -199,6 +215,17 @@ describe('RagRepository', () => {
       queryRaw.mockResolvedValue([{ source_id: 'https://example.test/a1' }]);
       const ids = await repo.existingNewsSourceIds('RELIANCE.NS');
       expect(ids).toEqual(new Set(['https://example.test/a1']));
+    });
+
+    it('strips chunk suffixes and reads public rows only', async () => {
+      const { repo, queryRaw } = makeRepo();
+      queryRaw.mockResolvedValue([]);
+      await repo.existingNewsSourceIds('RELIANCE.NS');
+      const sql = sqlOf(queryRaw.mock.calls[0]);
+      // B17: stored ids are `${link}#${index}` — strip the suffix so
+      // the caller compares base urls. B28: public rows only.
+      expect(sql).toContain(`regexp_replace("source_id", '#[0-9]+$', '')`);
+      expect(sql).toContain('"user_id" IS NULL');
     });
   });
 
@@ -214,7 +241,21 @@ describe('RagRepository', () => {
       expect(valuesOf(queryRaw.mock.calls[0])).toEqual([
         'profile',
         'RELIANCE.NS',
+        'RELIANCE.NS#',
       ]);
+    });
+
+    it('matches a chunked source id by its base id prefix', async () => {
+      const { repo, queryRaw } = makeRepo();
+      queryRaw.mockResolvedValue([{ found: 1 }]);
+      await repo.hasPublicSource('profile', 'RELIANCE.NS');
+      // B17: chunks are stored as `RELIANCE.NS#0`, `RELIANCE.NS#1`,
+      // … — a bare base id must still match any of its chunks, so the
+      // profile is not re-indexed on every call.
+      expect(sqlOf(queryRaw.mock.calls[0])).toContain(
+        'starts_with("source_id", ?)',
+      );
+      expect(valuesOf(queryRaw.mock.calls[0])).toContain('RELIANCE.NS#');
     });
 
     it('returns false when no public document exists', async () => {

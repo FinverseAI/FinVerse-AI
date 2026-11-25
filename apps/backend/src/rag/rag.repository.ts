@@ -92,7 +92,10 @@ export class RagRepository {
   /**
    * Insert or replace documents by (source_type, source_id). Re-ingesting
    * the same source replaces its chunk and embedding instead of
-   * duplicating it, so ingestion is idempotent.
+   * duplicating it, so ingestion is idempotent. Every chunk carries its
+   * own identity — `${base}#${index}` — so the chunks of one source no
+   * longer overwrite each other under the (source_type, source_id)
+   * unique key; lookups below strip or prefix-match that suffix.
    */
   async upsertDocuments(documents: NewRagDocument[]): Promise<number> {
     let count = 0;
@@ -169,6 +172,7 @@ export class RagRepository {
              "created_at", "updated_at"
       FROM "rag_documents"
       WHERE "source_type" = 'news' AND "symbol" = ${symbol}
+        AND "user_id" IS NULL
       ORDER BY "published_at" DESC NULLS LAST, "created_at" DESC
       LIMIT ${limit}
     `;
@@ -185,6 +189,7 @@ export class RagRepository {
       SELECT COUNT(*)::int AS "count", MAX("created_at") AS "newest_at"
       FROM "rag_documents"
       WHERE "source_type" = 'news' AND "symbol" = ${symbol}
+        AND "user_id" IS NULL
     `;
     const row = rows[0];
     return {
@@ -193,28 +198,43 @@ export class RagRepository {
     };
   }
 
-  /** Source ids already indexed for one user (ingestion dedupe). */
+  /**
+   * Source ids already indexed for one user (ingestion dedupe). Chunks
+   * are stored as `${base}#${index}`, so the suffix is stripped and the
+   * base ids are returned.
+   */
   async existingSourceIds(
     sourceType: RagSourceType,
     userId: string,
   ): Promise<Set<string>> {
     const rows = await this.prisma.$queryRaw<Array<{ source_id: string }>>`
-      SELECT "source_id" FROM "rag_documents"
+      SELECT DISTINCT regexp_replace("source_id", '#[0-9]+$', '')
+        AS "source_id" FROM "rag_documents"
       WHERE "source_type" = ${sourceType} AND "user_id" = ${userId}
     `;
     return new Set(rows.map((row) => row.source_id));
   }
 
-  /** News urls already indexed for one symbol (ingestion dedupe). */
+  /**
+   * News urls already indexed for one symbol (ingestion dedupe). The
+   * chunk suffix is stripped so the caller compares base urls, and
+   * only public (user_id NULL) rows are considered.
+   */
   async existingNewsSourceIds(symbol: string): Promise<Set<string>> {
     const rows = await this.prisma.$queryRaw<Array<{ source_id: string }>>`
-      SELECT "source_id" FROM "rag_documents"
+      SELECT DISTINCT regexp_replace("source_id", '#[0-9]+$', '')
+        AS "source_id" FROM "rag_documents"
       WHERE "source_type" = 'news' AND "symbol" = ${symbol}
+        AND "user_id" IS NULL
     `;
     return new Set(rows.map((row) => row.source_id));
   }
 
-  /** Whether a public (user_id NULL) document already exists. */
+  /**
+   * Whether a public (user_id NULL) document already exists. Chunks are
+   * stored as `${sourceId}#${index}`, so a bare base id matches any of
+   * its chunks via an exact prefix match.
+   */
   async hasPublicSource(
     sourceType: RagSourceType,
     sourceId: string,
@@ -222,7 +242,8 @@ export class RagRepository {
     const rows = await this.prisma.$queryRaw<Array<{ found: number }>>`
       SELECT 1 AS "found" FROM "rag_documents"
       WHERE "source_type" = ${sourceType}
-        AND "source_id" = ${sourceId}
+        AND ("source_id" = ${sourceId}
+          OR starts_with("source_id", ${`${sourceId}#`}))
         AND "user_id" IS NULL
       LIMIT 1
     `;

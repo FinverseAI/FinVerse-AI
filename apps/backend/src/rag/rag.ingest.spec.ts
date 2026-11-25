@@ -1,5 +1,6 @@
 import { RagEmbeddingError } from './rag.embeddings';
 import { RagIngestService } from './rag.ingest';
+import { buildProfileChunkText, chunkText } from './rag.chunking';
 
 const newsItem = (overrides: Record<string, unknown> = {}) => ({
   title: 'Reliance profit jumps 12%',
@@ -105,6 +106,41 @@ describe('RagIngestService', () => {
       expect(provider.news).not.toHaveBeenCalled();
     });
 
+    it('returns embeddings-unavailable instead of throwing when the dedupe read fails', async () => {
+      const { service, repository, provider } = withKey();
+      provider.news.mockResolvedValue([newsItem()]);
+      repository.existingNewsSourceIds.mockRejectedValue(new Error('db down'));
+      // B61: a repository/DB blip must surface as a fallback object,
+      // never as a thrown 500 out of a "never throws" path.
+      const result = await service.indexNews('RELIANCE.NS');
+      expect(result).toEqual({
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      });
+    });
+
+    it('gives each chunk of a long news title its own id', async () => {
+      const { service, repository, provider } = withKey();
+      const longTitle = Array.from(
+        { length: 12 },
+        () => 'Reliance profit jumps on strong retail sales',
+      ).join(' ');
+      provider.news.mockResolvedValue([newsItem({ title: longTitle })]);
+      repository.upsertDocuments.mockImplementation(
+        async (docs: Array<Record<string, unknown>>) => docs.length,
+      );
+      await service.indexNews('RELIANCE.NS');
+      const [docs] = repository.upsertDocuments.mock.calls[0] as [
+        Array<Record<string, unknown>>,
+      ];
+      expect(docs.length).toBeGreaterThan(1);
+      expect(docs.map((doc) => doc.sourceId)).toEqual(
+        docs.map((_, i) => `https://example.test/a1#${i}`),
+      );
+    });
+
     it('reports unavailable when the news provider fails', async () => {
       const { service, provider } = withKey();
       provider.news.mockRejectedValue(new Error('yahoo down'));
@@ -162,8 +198,85 @@ describe('RagIngestService', () => {
         Array<Record<string, unknown>>,
       ];
       expect(docs[0].sourceType).toBe('profile');
-      expect(docs[0].sourceId).toBe('RELIANCE.NS');
+      // B17: the single chunk of a short profile is chunk #0.
+      expect(docs[0].sourceId).toBe('RELIANCE.NS#0');
       expect(docs[0].userId).toBeNull();
+    });
+
+    it('stores every chunk of a long profile under its own id — the first chunk survives', async () => {
+      const { service, repository, market } = withKey();
+      const sentence =
+        'Reliance Industries operates refineries, petrochemical plants, retail stores and telecom networks across India.';
+      const description = Array.from({ length: 15 }, () => sentence).join(' ');
+      market.profile.mockResolvedValue({
+        symbol: 'RELIANCE.NS',
+        name: 'Reliance Industries',
+        sector: 'Energy',
+        fundamentals: {
+          sector: 'Energy',
+          industry: 'Oil & Gas',
+          description,
+        },
+        fundamentalsAvailable: true,
+      });
+      repository.upsertDocuments.mockImplementation(
+        async (docs: Array<Record<string, unknown>>) => docs.length,
+      );
+      const result = await service.indexProfile('RELIANCE.NS');
+      const expectedChunks = chunkText(
+        buildProfileChunkText(
+          'Reliance Industries',
+          'Energy',
+          'Oil & Gas',
+          description,
+        ),
+      );
+      expect(expectedChunks.length).toBeGreaterThan(1);
+      expect(result.indexed).toBe(expectedChunks.length);
+      const [docs] = repository.upsertDocuments.mock.calls[0] as [
+        Array<Record<string, unknown>>,
+      ];
+      // B17 regression: before the fix every chunk shared sourceId
+      // 'RELIANCE.NS', so the upsert overwrote all but the last chunk
+      // and only the tail of the description survived. Now each chunk
+      // has its own identity and the head of the description survives
+      // alongside the rest.
+      expect(new Set(docs.map((doc) => doc.sourceId)).size).toBe(docs.length);
+      expect(docs[0].sourceId).toBe('RELIANCE.NS#0');
+      expect(docs[0].content as string).toContain(
+        'Reliance Industries operates refineries',
+      );
+      expect(docs[docs.length - 1].sourceId).toBe(
+        `RELIANCE.NS#${docs.length - 1}`,
+      );
+      expect(docs.map((doc) => doc.content).join(' ')).toContain(
+        'telecom networks across India',
+      );
+    });
+
+    it('returns embeddings-unavailable instead of throwing when the store fails', async () => {
+      const { service, repository, market } = withKey();
+      market.profile.mockResolvedValue({
+        symbol: 'RELIANCE.NS',
+        name: 'Reliance Industries',
+        sector: 'Energy',
+        fundamentals: {
+          sector: 'Energy',
+          industry: 'Oil & Gas',
+          description: 'Operates refineries and retail.',
+        },
+        fundamentalsAvailable: true,
+      });
+      // B61: a repository/DB blip during the store must surface as a
+      // fallback object, never as a thrown 500.
+      repository.upsertDocuments.mockRejectedValue(new Error('db down'));
+      const result = await service.indexProfile('RELIANCE.NS');
+      expect(result).toEqual({
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      });
     });
 
     it('skips a profile with no description and no sector', async () => {
@@ -215,7 +328,7 @@ describe('RagIngestService', () => {
       ];
       expect(docs[0].sourceType).toBe('transaction');
       expect(docs[0].userId).toBe('owner-1');
-      expect(docs[0].sourceId).toBe('tx-2');
+      expect(docs[0].sourceId).toBe('tx-2#0');
       expect(docs[0].symbol).toBeNull();
       const [texts] = embeddings.embed.mock.calls[0] as [string[]];
       expect(texts[0]).toContain('Salary');
@@ -258,6 +371,19 @@ describe('RagIngestService', () => {
       expect(result.available).toBe(false);
       expect(result.reason).toBe('source-unavailable');
     });
+
+    it('returns embeddings-unavailable instead of throwing when the store fails', async () => {
+      const { service, repository, activity } = withKey();
+      activity.transactions.mockResolvedValue([transaction()]);
+      repository.upsertDocuments.mockRejectedValue(new Error('db down'));
+      const result = await service.indexTransactions('owner-1');
+      expect(result).toEqual({
+        indexed: 0,
+        skipped: 0,
+        available: false,
+        reason: 'embeddings-unavailable',
+      });
+    });
   });
 
   describe('ensureProfileIndexed', () => {
@@ -296,6 +422,28 @@ describe('RagIngestService', () => {
         service.ensureProfileIndexed('RELIANCE.NS'),
       ).resolves.toBeUndefined();
       expect(market.profile).not.toHaveBeenCalled();
+    });
+
+    it('never throws when indexing itself fails', async () => {
+      const { service, repository, market } = withKey();
+      repository.hasPublicSource.mockResolvedValue(false);
+      market.profile.mockResolvedValue({
+        symbol: 'RELIANCE.NS',
+        name: 'Reliance Industries',
+        sector: 'Energy',
+        fundamentals: {
+          sector: 'Energy',
+          industry: 'Oil & Gas',
+          description: 'Operates refineries and retail.',
+        },
+        fundamentalsAvailable: true,
+      });
+      // B61: a DB blip during the index must not throw out of a
+      // "never throws" path.
+      repository.upsertDocuments.mockRejectedValue(new Error('db down'));
+      await expect(
+        service.ensureProfileIndexed('RELIANCE.NS'),
+      ).resolves.toBeUndefined();
     });
   });
 
