@@ -34,7 +34,7 @@ export default function BudgetFields({
             <span className="min-w-0 flex-1 text-xs text-dash-text">
               {label}
               <span className="mt-1 block text-xs text-dash-muted">
-                {money((amounts[id] ?? 0) / 100, 2)} / month
+                {money((amounts[id] ?? 0) / 100)} / month
               </span>
             </span>
             <input

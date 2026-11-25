@@ -59,6 +59,7 @@ export default function RecentTransactions({
   onSeeAll,
   onEdit,
   onRemove,
+  month,
 }: {
   transactions: Transaction[];
   loading: boolean;
@@ -68,12 +69,27 @@ export default function RecentTransactions({
   onSeeAll: () => void;
   onEdit: (transaction: Transaction) => void;
   onRemove: (transaction: Transaction) => void;
+  /** The dashboard month this list is scoped to; without it, all months show. */
+  month?: string;
 }) {
-  const recent = [...transactions]
+  const monthLabel = month
+    ? new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+  // Scoped to the selected month: picking January shows January's
+  // transactions, not the current month's.
+  const scoped = month
+    ? transactions.filter((item) => item.date.startsWith(`${month}-`))
+    : transactions;
+  const recent = [...scoped]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
   return (
     <article
+      id="recent-transactions"
+      tabIndex={-1}
       className="dash-panel flex min-h-120 flex-col p-5 xl:min-h-120"
       aria-busy={loading}
     >
@@ -92,6 +108,12 @@ export default function RecentTransactions({
           </button>
         </div>
       </PanelHeading>
+      {monthLabel && (
+        <p className="mt-3 text-xs leading-5 text-dash-muted">
+          Showing {monthLabel} only — change the month above to see another
+          month.
+        </p>
+      )}
       {loading ? (
         <p role="status" className="m-auto text-xs text-dash-muted">
           Loading transactions…
@@ -99,40 +121,42 @@ export default function RecentTransactions({
       ) : error ? (
         <ActivityError error={error} onRetry={onRetry} />
       ) : !recent.length ? (
-        <ActivityEmpty
-          title="Your activity starts here"
-          description="Add your first transaction to see your recent spending and income at a glance."
-          onAdd={onAdd}
-          action="Add transaction"
-        />
+        monthLabel && transactions.length ? (
+          <p className="m-auto px-5 py-8 text-center text-xs leading-6 text-dash-muted">
+            No transactions recorded in {monthLabel} yet.
+          </p>
+        ) : (
+          <ActivityEmpty
+            title="Your activity starts here"
+            description="Add your first transaction to see your recent spending and income at a glance."
+            onAdd={onAdd}
+            action="Add transaction"
+          />
+        )
       ) : (
         <>
           <div className="mt-4 min-h-0 flex-1 overflow-x-auto">
-            <table className="w-full min-w-xl text-left text-xs">
+            <table className="w-full text-left text-xs">
               <caption className="sr-only">
                 Your five most recent transactions
+                {monthLabel ? ` in ${monthLabel}` : ""}
               </caption>
               <thead className="font-mono text-xs tracking-widest text-dash-muted uppercase">
                 <tr>
-                  {[
-                    "Merchant",
-                    "Category",
-                    "Date",
-                    "Amount",
-                    "Status",
-                    "Actions",
-                  ].map((label) => (
-                    <th
-                      key={label}
-                      className={`pb-3 font-normal ${label === "Amount" || label === "Status" || label === "Actions" ? "text-right" : ""}`}
-                    >
-                      {label === "Actions" ? (
-                        <span className="sr-only">Actions</span>
-                      ) : (
-                        label
-                      )}
-                    </th>
-                  ))}
+                  {["Merchant", "Category", "Date", "Amount", "Actions"].map(
+                    (label) => (
+                      <th
+                        key={label}
+                        className={`pb-3 font-normal ${label === "Amount" || label === "Actions" ? "text-right" : ""}`}
+                      >
+                        {label === "Actions" ? (
+                          <span className="sr-only">Actions</span>
+                        ) : (
+                          label
+                        )}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -179,12 +203,7 @@ export default function RecentTransactions({
                       className={`pr-4 text-right font-mono whitespace-nowrap ${item.amount > 0 ? "text-dash-accent" : ""}`}
                     >
                       {item.amount > 0 ? "+" : "−"}
-                      {money(Math.abs(item.amount), 2)}
-                    </td>
-                    <td className="text-right">
-                      <span className="dash-badge text-dash-accent">
-                        Recorded
-                      </span>
+                      {money(Math.abs(item.amount))}
                     </td>
                     <td className="text-right whitespace-nowrap">
                       <button
@@ -212,7 +231,8 @@ export default function RecentTransactions({
             </table>
           </div>
           <p className="border-t border-dash-border pt-3 text-xs text-dash-muted">
-            Showing {recent.length} of {transactions.length} transactions
+            Showing {recent.length} of {scoped.length} transactions
+            {monthLabel ? ` in ${monthLabel}` : ""}
           </p>
         </>
       )}

@@ -85,7 +85,7 @@ function BillRow({
             className="mt-1 text-left text-xs text-dash-accent underline underline-offset-2"
             onClick={() => onHistory(bill)}
           >
-            Paid {money(paidTotal, 2)} of {money(bill.amount, 2)}
+            Paid {money(paidTotal)} of {money(bill.amount)}
             {payments.length
               ? ` · ${payments.length} payment${payments.length === 1 ? "" : "s"}`
               : ""}
@@ -93,7 +93,7 @@ function BillRow({
         )}
       </div>
       <div className="shrink-0 text-right">
-        <p className="mb-1.5 font-mono text-xs">{money(bill.amount, 2)}</p>
+        <p className="mb-1.5 font-mono text-xs">{money(bill.amount)}</p>
         <span
           className={`dash-badge !px-2 !py-1 !text-xs ${fullyPaid ? "text-dash-accent" : overdue ? "text-dash-red" : dueSoon ? "text-dash-warning" : bill.autoPay ? "text-dash-blue" : "text-dash-muted"}`}
         >
@@ -313,9 +313,9 @@ function PaymentForm({
         <strong className="break-words font-medium text-dash-text">
           {bill.name}
         </strong>{" "}
-        ({money(bill.amount, 2)} due
+        ({money(bill.amount)} due
         {(bill.paidTotal ?? 0) > 0 &&
-          `, ${money(bill.paidTotal ?? 0, 2)} already paid`}
+          `, ${money(bill.paidTotal ?? 0)} already paid`}
         ). Recording it also adds a matching expense transaction — it does not
         pay your provider.
       </p>
@@ -387,7 +387,7 @@ function PaymentHistory({
         <strong className="break-words font-medium text-dash-text">
           {bill.name}
         </strong>{" "}
-        — {money(bill.paidTotal ?? 0, 2)} of {money(bill.amount, 2)}.
+        — {money(bill.paidTotal ?? 0)} of {money(bill.amount)}.
       </p>
       <p className="mt-2 text-xs leading-6 text-dash-muted">
         Removing a payment record does not remove the expense transaction it
@@ -410,7 +410,7 @@ function PaymentHistory({
               className="surface-inset flex items-center gap-2 border px-3 py-2"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-mono text-xs">{money(payment.amount, 2)}</p>
+                <p className="font-mono text-xs">{money(payment.amount)}</p>
                 <p className="mt-1 text-xs text-dash-muted">
                   Paid{" "}
                   {new Date(`${payment.paidDate}T12:00:00`).toLocaleDateString(
@@ -426,7 +426,7 @@ function PaymentHistory({
               <button
                 type="button"
                 className="dash-icon-button !size-7 !min-w-7 !border-transparent !bg-none !shadow-none hover:!text-dash-red"
-                aria-label={`Remove payment of ${money(payment.amount, 2)}`}
+                aria-label={`Remove payment of ${money(payment.amount)}`}
                 title="Remove this payment record"
                 disabled={!!deletingId}
                 onClick={async () => {
@@ -476,15 +476,36 @@ export default function UpcomingBills({
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
   const bills = [...items].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const isFullyPaid = (bill: Bill) =>
+    (bill.paidTotal ?? 0) >= bill.amount - 0.005;
+  // "Upcoming Bills" is unpaid bills only — a fully-paid bill is done,
+  // it must not take a slot or inflate what is due.
+  const unpaidBills = bills.filter((bill) => !isFullyPaid(bill));
+  const paidBills = bills.filter(isFullyPaid);
   const filtered = bills.filter((bill) =>
     bill.name.toLowerCase().includes(query.trim().toLowerCase()),
   );
+  const filteredUnpaid = filtered.filter((bill) => !isFullyPaid(bill));
+  const filteredPaid = filtered.filter(isFullyPaid);
+  // "Total due" is the unpaid remainder of unpaid bills due by the
+  // end of the current month (overdue included) — not every bill on
+  // the books regardless of date. The label says the scope.
+  const monthEndKey = (() => {
+    const now = new Date();
+    return dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  })();
+  const dueByMonthEnd = unpaidBills.filter(
+    (bill) => bill.dueDate <= monthEndKey,
+  );
   const total =
-    bills.reduce(
+    dueByMonthEnd.reduce(
       (sum, bill) =>
         sum + Math.round((bill.amount - (bill.paidTotal ?? 0)) * 100),
       0,
     ) / 100;
+  // Auto-pay counts only bills actually scheduled — unpaid bills with
+  // auto-pay on. A fully-paid bill is not scheduled for anything.
+  const autoPayCount = unpaidBills.filter((bill) => bill.autoPay).length;
   // The selected bill is re-read from the live list so payment history
   // stays fresh after a payment is added or removed.
   const selectedBill = selected
@@ -600,16 +621,22 @@ export default function UpcomingBills({
           </p>
         ) : error ? (
           <ActivityError error={error} onRetry={retry} />
-        ) : !bills.length ? (
-          <ActivityEmpty
-            title="A little less to remember"
-            description="Add your upcoming bills and keep every due date in one place."
-            onAdd={() => openAdd()}
-            action="Add your first bill"
-          />
+        ) : !unpaidBills.length ? (
+          paidBills.length ? (
+            <p className="m-auto px-5 py-8 text-center text-xs leading-6 text-dash-muted">
+              No upcoming bills — everything due is paid.
+            </p>
+          ) : (
+            <ActivityEmpty
+              title="A little less to remember"
+              description="Add your upcoming bills and keep every due date in one place."
+              onAdd={() => openAdd()}
+              action="Add your first bill"
+            />
+          )
         ) : (
           <ul className="mt-3 flex-1 space-y-2">
-            {bills.slice(0, 5).map((bill) => (
+            {unpaidBills.slice(0, 5).map((bill) => (
               <BillRow
                 key={bill.id}
                 bill={bill}
@@ -621,16 +648,38 @@ export default function UpcomingBills({
             ))}
           </ul>
         )}
+        {paidBills.length > 0 && !loading && !error && (
+          <div className="mt-4 border-t border-dash-border pt-3">
+            <p className="mb-2 text-xs text-dash-muted">
+              Paid · {paidBills.length} bill{paidBills.length === 1 ? "" : "s"}
+            </p>
+            <ul className="space-y-2">
+              {paidBills.slice(0, 3).map((bill) => (
+                <BillRow
+                  key={bill.id}
+                  bill={bill}
+                  onRemove={(item) => openEditor(item, "remove")}
+                  onEdit={(item) => openEditor(item, "edit")}
+                  onPay={(item) => openEditor(item, "pay")}
+                  onHistory={(item) => openEditor(item, "history")}
+                />
+              ))}
+            </ul>
+            {paidBills.length > 3 && (
+              <p className="mt-2 text-xs text-dash-muted">
+                And {paidBills.length - 3} more paid bill
+                {paidBills.length - 3 === 1 ? "" : "s"} — see all bills.
+              </p>
+            )}
+          </div>
+        )}
         {!error && !loading && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <MiniStat
-              label={`Total due · ${bills.length} bills`}
-              value={money(total, 2)}
+              label={`Total due by month-end · ${dueByMonthEnd.length} unpaid bill${dueByMonthEnd.length === 1 ? "" : "s"}`}
+              value={money(total)}
             />
-            <MiniStat
-              label="Auto-pay"
-              value={`${bills.filter((bill) => bill.autoPay).length} scheduled`}
-            />
+            <MiniStat label="Auto-pay" value={`${autoPayCount} scheduled`} />
           </div>
         )}
         <span role="status" className="sr-only">
@@ -641,7 +690,8 @@ export default function UpcomingBills({
         <Modal title="All bills" onClose={() => setDialog(null)}>
           <div className="mb-5 flex items-center justify-between gap-3">
             <p className="text-xs text-dash-muted">
-              {bills.length} bills · {money(total, 2)} total due
+              {unpaidBills.length} upcoming · {money(total)} due by month-end ·{" "}
+              {paidBills.length} paid
             </p>
             <button
               className="dash-small-button gap-1.5"
@@ -672,18 +722,46 @@ export default function UpcomingBills({
             <ActivityError error={error} onRetry={retry} />
           ) : (
             <>
-              <ul className="mt-4 space-y-3">
-                {filtered.map((bill) => (
-                  <BillRow
-                    key={bill.id}
-                    bill={bill}
-                    onRemove={(item) => openEditor(item, "remove")}
-                    onEdit={(item) => openEditor(item, "edit")}
-                    onPay={(item) => openEditor(item, "pay")}
-                    onHistory={(item) => openEditor(item, "history")}
-                  />
-                ))}
-              </ul>
+              {filteredUnpaid.length > 0 && (
+                <>
+                  <p className="mt-4 mb-2 text-xs text-dash-muted">
+                    Upcoming · {filteredUnpaid.length} unpaid bill
+                    {filteredUnpaid.length === 1 ? "" : "s"}
+                  </p>
+                  <ul className="space-y-3">
+                    {filteredUnpaid.map((bill) => (
+                      <BillRow
+                        key={bill.id}
+                        bill={bill}
+                        onRemove={(item) => openEditor(item, "remove")}
+                        onEdit={(item) => openEditor(item, "edit")}
+                        onPay={(item) => openEditor(item, "pay")}
+                        onHistory={(item) => openEditor(item, "history")}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
+              {filteredPaid.length > 0 && (
+                <>
+                  <p className="mt-5 mb-2 text-xs text-dash-muted">
+                    Paid · {filteredPaid.length} bill
+                    {filteredPaid.length === 1 ? "" : "s"}
+                  </p>
+                  <ul className="space-y-3">
+                    {filteredPaid.map((bill) => (
+                      <BillRow
+                        key={bill.id}
+                        bill={bill}
+                        onRemove={(item) => openEditor(item, "remove")}
+                        onEdit={(item) => openEditor(item, "edit")}
+                        onPay={(item) => openEditor(item, "pay")}
+                        onHistory={(item) => openEditor(item, "history")}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
               {!filtered.length && (
                 <p className="py-10 text-center text-sm text-dash-muted">
                   {bills.length
@@ -747,7 +825,7 @@ export default function UpcomingBills({
             <strong className="break-words font-medium text-dash-text">
               {selectedBill.name}
             </strong>{" "}
-            ({money(selectedBill.amount, 2)}) from your bills? This only removes
+            ({money(selectedBill.amount)}) from your bills? This only removes
             the reminder
             {(selectedBill.payments ?? []).length
               ? " and its payment history"

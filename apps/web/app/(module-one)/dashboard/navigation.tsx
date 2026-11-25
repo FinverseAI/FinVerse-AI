@@ -165,6 +165,13 @@ export function Header({
         </nav>
       </div>
       <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+        <span className="text-xs text-dash-muted" aria-live="polite">
+          Showing{" "}
+          {new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
+            month: "long",
+            year: "numeric",
+          })}
+        </span>
         <label className="relative">
           <span className="sr-only">Cash flow month</span>
           <input

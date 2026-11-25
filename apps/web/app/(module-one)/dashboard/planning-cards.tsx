@@ -26,6 +26,7 @@ export default function PlanningCards({
   loading,
   error,
   onRetry,
+  month,
 }: {
   budgets: Budget[];
   goals: FinancialGoal[];
@@ -35,6 +36,8 @@ export default function PlanningCards({
   loading: boolean;
   error: string;
   onRetry: () => void;
+  /** The dashboard month the budget spending is scoped to. */
+  month?: string;
 }) {
   return (
     <section
@@ -54,7 +57,7 @@ export default function PlanningCards({
           )}
         </article>
       ) : (
-        <BudgetCard budgets={budgets} onManage={onManage} />
+        <BudgetCard budgets={budgets} onManage={onManage} month={month} />
       )}
       <SavingsCard
         goals={goals}
@@ -68,10 +71,15 @@ export default function PlanningCards({
 function BudgetCard({
   budgets,
   onManage,
+  month,
 }: {
   budgets: Budget[];
   onManage: () => void;
+  month?: string;
 }) {
+  const monthLabel = new Date(
+    `${month ?? dateKey(new Date()).slice(0, 7)}-01T12:00:00`,
+  ).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   return (
     <article className="dash-panel p-5">
       <PanelHeading icon="target" title="Budget Status">
@@ -79,6 +87,10 @@ function BudgetCard({
           Manage budgets
         </button>
       </PanelHeading>
+      <p className="mt-3 text-xs leading-5 text-dash-muted">
+        Spending in {monthLabel} against each category budget — change the month
+        above to see another month.
+      </p>
       <div className="mt-3 space-y-5">
         {!budgets.length && (
           <p className="text-xs text-dash-muted">
@@ -182,8 +194,8 @@ function ContributionForm({
         <strong className="break-words font-medium text-dash-text">
           {goal.name}
         </strong>{" "}
-        — {money(cents(goal.saved_amount ?? "0") / 100, 2)} saved of{" "}
-        {money(Number(goal.target_amount), 2)}.
+        — {money(cents(goal.saved_amount ?? "0") / 100)} saved of{" "}
+        {money(Number(goal.target_amount))}.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label>
@@ -304,7 +316,7 @@ function ContributionHistory({
             >
               <div className="min-w-0 flex-1">
                 <p className="font-mono text-xs">
-                  {money(contribution.amount, 2)}
+                  {money(contribution.amount)}
                 </p>
                 <p className="mt-1 truncate text-xs text-dash-muted">
                   {new Date(`${contribution.date}T12:00:00`).toLocaleDateString(
@@ -321,7 +333,7 @@ function ContributionHistory({
               <button
                 type="button"
                 className="dash-icon-button !size-7 !min-w-7 !border-transparent !bg-none !shadow-none hover:!text-dash-red"
-                aria-label={`Remove contribution of ${money(contribution.amount, 2)}`}
+                aria-label={`Remove contribution of ${money(contribution.amount)}`}
                 title="Remove this contribution"
                 disabled={!!deletingId}
                 onClick={async () => {
@@ -418,7 +430,7 @@ function SavingsCard({
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 font-mono text-xs text-dash-muted">
                   <span>
-                    Saved {money(saved, 2)} of {money(target, 2)} · {deadline}
+                    Saved {money(saved)} of {money(target)} · {deadline}
                   </span>
                   <span
                     className={

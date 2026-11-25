@@ -255,6 +255,106 @@ export function spendingSummary(
   };
 }
 
+/**
+ * Spending for one explicit date range (the range the spending chart
+ * shows): the total spent inside it, the same-length period right
+ * before it for comparison, the daily average, and — only when the
+ * range reaches today — a projection to the range end from the
+ * recorded daily rate plus unpaid bills due by then. A range that
+ * ended in the past has no projection: its daily average is the
+ * honest figure instead. The comparison period is the same number of
+ * days immediately before the range starts, so weekly, monthly and
+ * custom ranges all compare like with like.
+ */
+export function spendingRangeSummary(
+  transactions: Transaction[],
+  start: string,
+  end: string,
+  bills: BillForForecast[] = [],
+) {
+  const startDate = new Date(`${start}T12:00:00`);
+  const endDate = new Date(`${end}T12:00:00`);
+  const days =
+    Math.round(
+      (Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate()) -
+        Date.UTC(
+          startDate.getFullYear(),
+          startDate.getMonth(),
+          startDate.getDate(),
+        )) /
+        86400000,
+    ) + 1;
+  const empty = {
+    total: 0,
+    previousTotal: 0,
+    difference: 0,
+    percentChange: null as number | null,
+    days: Number.isFinite(days) && days > 0 ? days : 0,
+    dailyAverage: 0,
+    projection: null as number | null,
+    committedBills: 0,
+    committedBillCount: 0,
+    categoryCount: 0,
+    previousStart: "",
+    previousEnd: "",
+  };
+  if (!Number.isFinite(days) || days < 1 || days > 366) return empty;
+  const totalCents = expenseCents(transactions, start, end);
+  const previousStart = dateKey(shiftDate(startDate, -days));
+  const previousEnd = dateKey(shiftDate(startDate, -1));
+  const previousCents = expenseCents(transactions, previousStart, previousEnd);
+  const today = dateKey(new Date());
+  const todayDate = new Date(`${today}T12:00:00`);
+  const elapsedDays =
+    start > today
+      ? 0
+      : Math.min(
+          days,
+          Math.round(
+            (Date.UTC(
+              todayDate.getFullYear(),
+              todayDate.getMonth(),
+              todayDate.getDate(),
+            ) -
+              Date.UTC(
+                startDate.getFullYear(),
+                startDate.getMonth(),
+                startDate.getDate(),
+              )) /
+              86400000,
+          ) + 1,
+        );
+  const committed = committedBills(bills, end);
+  const projection =
+    end >= today && elapsedDays > 0
+      ? Math.round((totalCents / elapsedDays) * days + committed.total * 100) /
+        100
+      : null;
+  return {
+    total: totalCents / 100,
+    previousTotal: previousCents / 100,
+    difference: (totalCents - previousCents) / 100,
+    percentChange: previousCents
+      ? ((totalCents - previousCents) / previousCents) * 100
+      : null,
+    days,
+    dailyAverage:
+      elapsedDays > 0 ? Math.round(totalCents / elapsedDays) / 100 : 0,
+    projection,
+    committedBills: committed.total,
+    committedBillCount: committed.count,
+    categoryCount: new Set(
+      transactions
+        .filter(
+          (item) => item.amount < 0 && item.date >= start && item.date <= end,
+        )
+        .map((item) => normalizeCategory(item.category)),
+    ).size,
+    previousStart,
+    previousEnd,
+  };
+}
+
 /** The bill fields a forecast needs: due date, amount, and what is already paid. */
 export type BillForForecast = {
   dueDate: string;

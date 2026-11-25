@@ -75,6 +75,10 @@ export default function Dashboard({
   // shows the fired alerts.
   const firedAlerts = useActivity<FiredAlert>("/api/market/alerts");
   const today = dateKey(new Date());
+  const monthLabel = new Date(`${month}-01T12:00:00`).toLocaleDateString(
+    "en-IN",
+    { month: "long", year: "numeric" },
+  );
   const notifications: DashboardNotification[] = useMemo(
     () => [
       ...billNotifications(bills.items, today),
@@ -82,10 +86,17 @@ export default function Dashboard({
     ],
     [bills.items, firedAlerts.items, today],
   );
+  // Budgets spend against the selected month: a past month counts its
+  // whole month, the current month counts up to today.
+  const budgetAsOf = useMemo(() => {
+    const [year, monthIndex] = month.split("-").map(Number);
+    const monthEnd = new Date(year!, monthIndex!, 0);
+    const now = new Date(`${today}T12:00:00`);
+    return dateKey(monthEnd) < today ? monthEnd : now;
+  }, [month, today]);
   const currentBudgets = useMemo(
-    () =>
-      budgetsWithSpending(budgets, transactions, new Date(`${today}T12:00:00`)),
-    [budgets, transactions, today],
+    () => budgetsWithSpending(budgets, transactions, budgetAsOf),
+    [budgets, transactions, budgetAsOf],
   );
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
@@ -170,6 +181,17 @@ export default function Dashboard({
     }
   }
 
+  // Balance-history jump: set the dashboard month to the chosen
+  // month, then scroll to and focus that month's transactions.
+  function jumpToMonthTransactions(targetMonth: string) {
+    setMonth(targetMonth);
+    window.setTimeout(() => {
+      const section = document.getElementById("recent-transactions");
+      section?.scrollIntoView({ behavior: "smooth", block: "start" });
+      section?.focus({ preventScroll: true });
+    }, 60);
+  }
+
   async function signOut() {
     setSignOutError("");
     setIsSigningOut(true);
@@ -225,6 +247,26 @@ export default function Dashboard({
           signOutError={signOutError}
         />
         <main id="dashboard-content" className="dashboard-body space-y-5">
+          {autoPayNotice && (
+            <div
+              role="status"
+              className="flex items-start justify-between gap-3 rounded-panel border border-dash-accent/50 bg-dash-accent/10 px-4 py-3"
+            >
+              <p className="text-sm leading-6">
+                <strong className="font-semibold">Auto-pay:</strong>{" "}
+                {autoPayNotice} These payments were recorded in FinVerse and
+                appear as expense transactions below.
+              </p>
+              <button
+                type="button"
+                className="dash-small-button shrink-0"
+                onClick={() => setAutoPayNotice("")}
+                aria-label="Dismiss auto-pay notice"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           <section
             className="dashboard-intro"
             aria-label="Welcome to your dashboard"
@@ -236,6 +278,14 @@ export default function Dashboard({
               <h2>Your money, in perspective.</h2>
               <p className="mt-3 text-sm leading-6 text-dash-muted">
                 A little clarity for today. A little more room for tomorrow.
+              </p>
+              <p
+                role="status"
+                className="mt-2 text-xs leading-5 text-dash-muted"
+              >
+                Showing {monthLabel} across the dashboard — summary, budgets,
+                spending and transactions all follow this month. Change it with
+                the month picker above.
               </p>
             </div>
             <button
@@ -265,6 +315,7 @@ export default function Dashboard({
               onRetry={activity.retry}
               month={month}
               onMonth={setMonth}
+              onJumpToMonth={jumpToMonthTransactions}
               profile={data.profile!}
             />
             <ExpenseBreakdownCard profile={data.profile!} />
@@ -274,6 +325,7 @@ export default function Dashboard({
             loading={activity.loading}
             error={activity.error}
             onRetry={activity.retry}
+            month={month}
             goals={data.goals}
             onManage={() => setDialog("budgets")}
             onAdd={() => setDialog("goal")}
@@ -291,6 +343,9 @@ export default function Dashboard({
           <ExpenseEntry
             onTransaction={addTransaction}
             disabled={activity.loading || !!activity.error}
+            loadError={activity.error}
+            loading={activity.loading}
+            onRetryLoad={activity.retry}
           />
           <section
             aria-label="Transactions and bills"
@@ -301,6 +356,7 @@ export default function Dashboard({
               loading={activity.loading}
               error={activity.error}
               onRetry={activity.retry}
+              month={month}
               onAdd={() => setDialog("transaction")}
               onSeeAll={() => {
                 setQuery("");
@@ -325,6 +381,7 @@ export default function Dashboard({
             loading={activity.loading}
             error={activity.error}
             onRetry={activity.retry}
+            month={month}
           />
           <ReadinessCard />
           <AiChat />
@@ -384,6 +441,7 @@ export default function Dashboard({
           query={query}
           onQuery={setQuery}
           profile={data.profile!}
+          month={month}
           bills={bills.items}
           onTransaction={addTransaction}
           editingTransaction={selectedTransaction}

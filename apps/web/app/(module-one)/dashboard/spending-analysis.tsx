@@ -8,7 +8,7 @@ import {
   dateKey,
   periodRange,
   spendingBreakdown,
-  spendingSummary,
+  spendingRangeSummary,
   type BillForForecast,
 } from "./spending-data";
 
@@ -32,12 +32,27 @@ const categoryTones: Record<string, Tone> = {
   Other: "muted",
 };
 
+function shortDate(date: string) {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+function monthLabelOf(month: string) {
+  return new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 export default function SpendingAnalysis({
   transactions,
   bills = [],
   loading,
   error,
   onRetry,
+  month,
 }: {
   transactions: Transaction[];
   /** Unpaid bills count as committed spending in the month-end projection. */
@@ -45,15 +60,27 @@ export default function SpendingAnalysis({
   loading: boolean;
   error: string;
   onRetry: () => void;
+  /** The dashboard month this panel is scoped to; defaults to the current month. */
+  month?: string;
 }) {
   const [period, setPeriod] = useState<"weekly" | "monthly" | "custom">(
     "weekly",
   );
-  const [now] = useState(() => new Date());
+  // The anchor is the end of the selected month, capped at today: a
+  // past month analyses its own last week/month, the current month
+  // analyses up to today. Never a frozen `new Date()` of mount time.
+  const now = useMemo(() => {
+    const today = new Date();
+    if (!month) return today;
+    const [year, monthIndex] = month.split("-").map(Number);
+    const monthEnd = new Date(year!, monthIndex!, 0);
+    return dateKey(monthEnd) < dateKey(today) ? monthEnd : today;
+  }, [month]);
   const [custom, setCustom] = useState(() => ({
     start: periodRange("monthly", now).start,
     end: dateKey(now),
   }));
+  const [activeBar, setActiveBar] = useState<string | null>(null);
   const range = period === "custom" ? custom : periodRange(period, now);
   const rangeDays =
     (Date.parse(range.end) - Date.parse(range.start)) / 86400000;
@@ -63,9 +90,14 @@ export default function SpendingAnalysis({
     !Number.isFinite(rangeDays) ||
     rangeDays < 0 ||
     rangeDays > 365;
+  // The stat cards read the SAME range as the chart below — weekly,
+  // monthly or custom — never the current month regardless of toggle.
   const summary = useMemo(
-    () => spendingSummary(transactions, now, bills),
-    [transactions, now, bills],
+    () =>
+      invalidRange
+        ? null
+        : spendingRangeSummary(transactions, range.start, range.end, bills),
+    [transactions, range.start, range.end, bills, invalidRange],
   );
   const breakdown = useMemo(
     () => spendingBreakdown(transactions, range.start, range.end),
@@ -78,41 +110,68 @@ export default function SpendingAnalysis({
       : period === "monthly"
         ? "This month"
         : "Selected dates";
-  const stats = [
-    {
-      label: "This month so far",
-      value: money(summary.monthTotal),
-      detail: `Across ${summary.categoryCount} spending categories`,
-    },
-    {
-      label: "Vs last month",
-      value: summary.previousMonthTotal
-        ? `${summary.monthDifference > 0 ? "+" : summary.monthDifference < 0 ? "−" : ""}${money(Math.abs(summary.monthDifference))}`
-        : "—",
-      detail: summary.previousMonthTotal
-        ? "Compared with the same days last month"
-        : "No expenses in the prior comparison period",
-    },
-    {
-      label: "Vs previous week",
-      value:
-        summary.weekChange === null
-          ? "—"
-          : `${summary.weekChange > 0 ? "+" : ""}${summary.weekChange.toFixed(1)}%`,
-      detail:
-        summary.weekChange === null
-          ? "No expenses in the prior comparison period"
-          : "Compared with the same weekdays",
-    },
-    {
-      label: "Projected month-end",
-      value: money(summary.projection),
-      detail:
-        summary.committedBills > 0
-          ? `Daily rate plus ${money(summary.committedBills)} in unpaid bills due by month-end`
-          : "Estimate based on recorded daily spending",
-    },
-  ];
+  const rangeDates =
+    period === "custom"
+      ? `${shortDate(range.start)} – ${new Date(`${range.end}T12:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+      : period === "weekly"
+        ? `${shortDate(range.start)} – ${shortDate(range.end)}`
+        : monthLabelOf(range.start.slice(0, 7));
+  const stats = summary
+    ? [
+        {
+          label:
+            period === "weekly"
+              ? "This week so far"
+              : period === "monthly"
+                ? "This month so far"
+                : `Total · ${rangeDates}`,
+          value: money(summary.total),
+          detail:
+            summary.categoryCount > 0
+              ? `Across ${summary.categoryCount} spending categor${summary.categoryCount === 1 ? "y" : "ies"} · ${rangeDates}`
+              : `No spending recorded · ${rangeDates}`,
+        },
+        {
+          label: "Vs previous period",
+          value: summary.previousTotal
+            ? `${summary.difference > 0 ? "+" : summary.difference < 0 ? "−" : ""}${money(Math.abs(summary.difference))}`
+            : "—",
+          detail: summary.previousTotal
+            ? `Compared with ${shortDate(summary.previousStart)} – ${shortDate(summary.previousEnd)}`
+            : "No expenses in the prior comparison period",
+        },
+        {
+          label: "Change vs previous period",
+          value:
+            summary.percentChange === null
+              ? "—"
+              : `${summary.percentChange > 0 ? "+" : ""}${summary.percentChange.toFixed(1)}%`,
+          detail:
+            summary.percentChange === null
+              ? "No expenses in the prior comparison period"
+              : `Compared with ${shortDate(summary.previousStart)} – ${shortDate(summary.previousEnd)}`,
+        },
+        summary.projection === null
+          ? {
+              label: "Daily average",
+              value: money(summary.dailyAverage),
+              detail: `Across ${summary.days} day${summary.days === 1 ? "" : "s"} · ${rangeDates}`,
+            }
+          : {
+              label:
+                period === "weekly"
+                  ? "Projected week-end"
+                  : period === "monthly"
+                    ? "Projected month-end"
+                    : "Projected range end",
+              value: money(summary.projection),
+              detail:
+                summary.committedBills > 0
+                  ? `Daily rate plus ${money(summary.committedBills)} in unpaid bills due by range end`
+                  : "Estimate based on recorded daily spending",
+            },
+      ]
+    : [];
 
   return (
     <section
@@ -139,6 +198,12 @@ export default function SpendingAnalysis({
             ))}
           </div>
         </PanelHeading>
+        {month && period !== "custom" && (
+          <p className="mt-3 text-xs leading-5 text-dash-muted">
+            Scoped to {monthLabelOf(month)} — change the month above to see
+            another month.
+          </p>
+        )}
         {period === "custom" && (
           <div className="mt-4 flex flex-wrap items-end gap-3">
             <label className="text-xs text-dash-muted">
@@ -231,7 +296,7 @@ export default function SpendingAnalysis({
                     ? { weekday: "short" }
                     : { day: "numeric", month: "short" },
                 );
-                const description = `${bar.date}${bar.end !== bar.date ? ` to ${bar.end}` : ""}: ${money(bar.amount, 2)}`;
+                const description = `${bar.date}${bar.end !== bar.date ? ` to ${bar.end}` : ""}: ${money(bar.amount)}`;
                 return (
                   <div
                     key={bar.date}
@@ -240,8 +305,23 @@ export default function SpendingAnalysis({
                   >
                     <div
                       tabIndex={0}
-                      aria-label={description}
-                      className="relative flex min-h-2 items-end rounded-t-lg outline-dash-accent"
+                      role="button"
+                      aria-label={`${description}. Activate to show the amount.`}
+                      aria-expanded={activeBar === bar.date}
+                      onClick={() =>
+                        setActiveBar((current) =>
+                          current === bar.date ? null : bar.date,
+                        )
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setActiveBar((current) =>
+                            current === bar.date ? null : bar.date,
+                          );
+                        }
+                      }}
+                      className="relative flex min-h-2 cursor-pointer items-end rounded-t-lg outline-dash-accent"
                       style={{
                         height: `${Math.max(3, (bar.amount / maximum) * 100)}%`,
                       }}
@@ -250,7 +330,7 @@ export default function SpendingAnalysis({
                         className={`w-full rounded-t-lg border border-dash-accent/20 bg-dash-accent transition-colors group-hover:bg-dash-accent/80 ${bar.amount ? "h-full" : "h-px opacity-30"}`}
                       />
                       <span
-                        className={`pointer-events-none absolute bottom-full z-10 mb-2 hidden w-max max-w-48 rounded-lg border border-dash-border bg-dash-surface px-2 py-1 text-xs text-dash-text shadow-lg group-hover:block group-focus-within:block ${index > breakdown.bars.length / 2 ? "right-0" : "left-0"}`}
+                        className={`pointer-events-none absolute bottom-full z-10 mb-2 w-max max-w-48 rounded-lg border border-dash-border bg-dash-surface px-2 py-1 text-xs text-dash-text shadow-lg ${activeBar === bar.date ? "block" : "hidden group-hover:block group-focus-within:block"} ${index > breakdown.bars.length / 2 ? "right-0" : "left-0"}`}
                       >
                         {description}
                       </span>
@@ -273,6 +353,9 @@ export default function SpendingAnalysis({
                 ? "Recorded expenses only. Income and unpaid bills are excluded."
                 : "No expenses recorded for these dates. Add a transaction to start tracking."}
             </p>
+            <p className="mt-1 text-xs leading-5 text-dash-muted">
+              Tap a bar — or focus it and press Enter — to see its amount.
+            </p>
           </div>
           <div className="min-w-0">
             <h3 className="dash-eyebrow !text-xs">
@@ -290,7 +373,7 @@ export default function SpendingAnalysis({
                     </span>
                     <ProgressBar
                       value={category.percentage}
-                      label={`${category.name}: ${money(category.amount, 2)}, ${category.percentage.toFixed(1)}%`}
+                      label={`${category.name}: ${money(category.amount)}, ${category.percentage.toFixed(1)}%`}
                       tone={categoryTones[category.name] ?? "muted"}
                     />
                     <span className="col-start-2 text-right font-mono text-xs text-dash-muted sm:col-auto">

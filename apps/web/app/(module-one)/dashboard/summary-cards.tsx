@@ -13,7 +13,7 @@ function monthLabelOf(month: string) {
 
 function differenceLabel(difference: number) {
   if (difference === 0) return "Exactly on plan";
-  const amount = money(Math.abs(difference), 2);
+  const amount = money(Math.abs(difference));
   return difference > 0 ? `${amount} above plan` : `${amount} below plan`;
 }
 
@@ -62,13 +62,13 @@ export default function SummaryCards({
       value: totals.target,
       tone: "purple" as Tone,
       details: [
-        { label: "Current savings", value: totals.savings },
+        { label: "Saved so far", value: totals.savings },
         { label: "Monthly target", value: totals.target },
       ],
       ratio: totals.income ? (totals.target / totals.income) * 100 : 0,
-      ratioLabel: "Income to savings",
+      ratioLabel: "Target as share of income",
       actual: actuals.savings,
-      actualLabel: "Actually kept",
+      actualLabel: "Net kept",
     },
     {
       label: "Monthly surplus",
@@ -79,7 +79,7 @@ export default function SummaryCards({
         { label: "Expenses", value: totals.expenses },
       ],
       ratio: totals.income ? (totals.surplus / totals.income) * 100 : 0,
-      ratioLabel: "Income remaining after savings",
+      ratioLabel: "Income left after expenses and savings target",
       actual: actuals.surplus,
       actualLabel: "Recorded surplus",
     },
@@ -115,7 +115,7 @@ export default function SummaryCards({
       <article className="dash-panel summary-card savings-card flex flex-col">
         <h2 className="dash-eyebrow">Current savings</h2>
         <p className="mt-4 text-3xl leading-9 font-medium tracking-tight break-words">
-          {money(totals.savings, 2)}
+          {money(totals.savings)}
         </p>
         <p className="mt-3 text-xs leading-5 text-dash-muted">
           A snapshot you entered in your financial profile — update it there
@@ -132,14 +132,14 @@ export default function SummaryCards({
         <article key={card.label} className="dash-panel summary-card">
           <h2 className="dash-eyebrow">{card.label}</h2>
           <p className="mt-4 text-3xl font-medium tracking-tight break-words">
-            {money(card.value, 2)}
+            {money(card.value)}
           </p>
           <div className="mb-3 mt-3 grid grid-cols-2 gap-2">
             {card.details.map((detail) => (
               <MiniStat
                 key={detail.label}
                 label={detail.label}
-                value={money(detail.value, 2)}
+                value={money(detail.value)}
               />
             ))}
           </div>
@@ -165,11 +165,17 @@ export default function SummaryCards({
             <div className="mt-3 border-t border-dash-border pt-3">
               <MiniStat
                 label={`${card.actualLabel} · ${monthLabel}`}
-                value={money(card.actual.actual, 2)}
+                value={money(card.actual.actual)}
               />
               <p className="mt-1.5 text-xs text-dash-muted">
                 {differenceLabel(card.actual.difference)}
               </p>
+              {card.label === "Savings target" && (
+                <p className="mt-1.5 text-xs leading-5 text-dash-muted">
+                  Recorded income minus recorded expenses — a negative value
+                  means spending exceeded income this month.
+                </p>
+              )}
             </div>
           )}
         </article>

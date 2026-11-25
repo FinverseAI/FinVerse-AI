@@ -41,7 +41,7 @@ export default function ExpenseBreakdownCard({
       <PanelHeading icon="filter" title="Planned Expense Breakdown">
         <p className="font-mono text-xs text-dash-muted">
           Monthly ·{" "}
-          <span className="text-dash-text">{money(expenseTotal, 2)}</span>
+          <span className="text-dash-text">{money(expenseTotal)}</span>
         </p>
       </PanelHeading>
       <p className="mt-2 text-xs leading-5 text-dash-muted">
@@ -49,35 +49,36 @@ export default function ExpenseBreakdownCard({
         spent is in Spending analysis below.
       </p>
       <div className="mt-3 space-y-3">
-        {expenseTotal === 0 && (
+        {expenseTotal === 0 ? (
           <p className="text-xs text-dash-muted">
             No monthly expenses entered.
           </p>
-        )}
-        {expenses.map((category) => {
-          const percent = expenseTotal
-            ? (category.amount / expenseTotal) * 100
-            : 0;
-          return (
-            <div key={category.name}>
-              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-                <span>{category.name}</span>
-                <span className="font-mono text-xs text-dash-muted">
-                  {money(category.amount, 2)} · {percent.toFixed(1)}%
-                </span>
+        ) : (
+          expenses.map((category) => {
+            const percent = expenseTotal
+              ? (category.amount / expenseTotal) * 100
+              : 0;
+            return (
+              <div key={category.name}>
+                <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                  <span>{category.name}</span>
+                  <span className="font-mono text-xs text-dash-muted">
+                    {money(category.amount)} · {percent.toFixed(1)}%
+                  </span>
+                </div>
+                <ProgressBar
+                  label={category.name + " share of expenses"}
+                  value={percent}
+                />
               </div>
-              <ProgressBar
-                label={category.name + " share of expenses"}
-                value={percent}
-              />
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
       <div className="mt-auto grid grid-cols-3 gap-2 pt-7">
-        <MiniStat label="Total expenses" value={money(expenseTotal, 2)} />
-        <MiniStat label="Savings target" value={money(totals.target, 2)} />
-        <MiniStat label="Monthly surplus" value={money(totals.surplus, 2)} />
+        <MiniStat label="Total expenses" value={money(expenseTotal)} />
+        <MiniStat label="Savings target" value={money(totals.target)} />
+        <MiniStat label="Monthly surplus" value={money(totals.surplus)} />
       </div>
     </article>
   );

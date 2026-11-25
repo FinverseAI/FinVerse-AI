@@ -28,6 +28,7 @@ export default function BalanceBreakdownCard({
   loading,
   error,
   onRetry,
+  onJumpToMonth,
 }: {
   month: string;
   onMonth: (month: string) => void;
@@ -36,6 +37,8 @@ export default function BalanceBreakdownCard({
   loading: boolean;
   error: string;
   onRetry: () => void;
+  /** Jump to a history month's transactions (sets the dashboard month and scrolls to them). */
+  onJumpToMonth?: (month: string) => void;
 }) {
   const totals = profileTotals(profile);
   const recorded = monthlyCashFlow(transactions, month);
@@ -87,19 +90,16 @@ export default function BalanceBreakdownCard({
             <div className="my-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <MiniStat
                 label="Recorded income"
-                value={money(recorded.income, 2)}
+                value={money(recorded.income)}
               />
               <MiniStat
                 label="Recorded expenses"
-                value={money(recorded.expenses, 2)}
+                value={money(recorded.expenses)}
               />
-              <MiniStat
-                label="Net recorded flow"
-                value={money(recorded.net, 2)}
-              />
+              <MiniStat label="Net recorded flow" value={money(recorded.net)} />
               <MiniStat
                 label="Balance change to date"
-                value={money(balanceToDate, 2)}
+                value={money(balanceToDate)}
               />
             </div>
           ) : (
@@ -110,7 +110,7 @@ export default function BalanceBreakdownCard({
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <MiniStat
                   label="Balance change to date"
-                  value={money(balanceToDate, 2)}
+                  value={money(balanceToDate)}
                 />
               </div>
             </div>
@@ -126,31 +126,53 @@ export default function BalanceBreakdownCard({
                 Balance history
                 {history.length > HISTORY_LIMIT &&
                   ` · last ${HISTORY_LIMIT} months of ${history.length}`}
+                {onJumpToMonth && " — select a month to see its transactions."}
               </p>
               <ul className="space-y-1.5">
-                {recentHistory.map((row) => (
-                  <li
-                    key={row.month}
-                    className="surface-inset flex items-center justify-between gap-3 border px-3 py-2 text-xs"
-                  >
-                    <span className="text-dash-text">
-                      {monthLabelOf(row.month)}
-                      <span className="text-dash-muted">
-                        {" "}
-                        · {row.count} transaction{row.count === 1 ? "" : "s"}
+                {recentHistory.map((row) => {
+                  const content = (
+                    <>
+                      <span className="text-dash-text">
+                        {monthLabelOf(row.month)}
+                        <span className="text-dash-muted">
+                          {" "}
+                          · {row.count} transaction{row.count === 1 ? "" : "s"}
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-right whitespace-nowrap">
-                      <span className="text-dash-muted">
-                        {row.net >= 0 ? "+" : "−"}
-                        {money(Math.abs(row.net), 2)} net ·{" "}
+                      <span className="text-right whitespace-nowrap">
+                        <span className="text-dash-muted">
+                          {row.net >= 0 ? "+" : "−"}
+                          {money(Math.abs(row.net))} net ·{" "}
+                        </span>
+                        <span className="font-mono font-medium">
+                          {money(row.runningTotal)}
+                        </span>
                       </span>
-                      <span className="font-mono font-medium">
-                        {money(row.runningTotal, 2)}
-                      </span>
-                    </span>
-                  </li>
-                ))}
+                    </>
+                  );
+                  return (
+                    <li
+                      key={row.month}
+                      className="surface-inset border text-xs"
+                    >
+                      {onJumpToMonth ? (
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-dash-raised focus-visible:outline-2 focus-visible:outline-dash-accent"
+                          onClick={() => onJumpToMonth(row.month)}
+                          aria-label={`View ${monthLabelOf(row.month)} transactions`}
+                          title={`View ${monthLabelOf(row.month)} transactions`}
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3 px-3 py-2">
+                          {content}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}
@@ -160,10 +182,10 @@ export default function BalanceBreakdownCard({
         Current monthly plan (separate from recorded activity)
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <MiniStat label="Monthly income" value={money(totals.income, 2)} />
-        <MiniStat label="Monthly expenses" value={money(totals.expenses, 2)} />
-        <MiniStat label="Savings target" value={money(totals.target, 2)} />
-        <MiniStat label="Monthly surplus" value={money(totals.surplus, 2)} />
+        <MiniStat label="Monthly income" value={money(totals.income)} />
+        <MiniStat label="Monthly expenses" value={money(totals.expenses)} />
+        <MiniStat label="Savings target" value={money(totals.target)} />
+        <MiniStat label="Monthly surplus" value={money(totals.surplus)} />
       </div>
     </article>
   );

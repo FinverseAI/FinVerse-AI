@@ -27,9 +27,16 @@ import { readReceiptText } from "../../../lib/receipt-ocr";
 export default function ExpenseEntry({
   onTransaction,
   disabled,
+  loadError,
+  loading,
+  onRetryLoad,
 }: {
   onTransaction: (transaction: Omit<Transaction, "id">) => Promise<void>;
   disabled: boolean;
+  /** Why the panel is disabled: the transactions fetch failed (V6). */
+  loadError?: string;
+  loading?: boolean;
+  onRetryLoad?: () => void;
 }) {
   const [text, setText] = useState("");
   const [extracting, setExtracting] = useState(false);
@@ -172,6 +179,34 @@ export default function ExpenseEntry({
         aria-busy={extracting}
       >
         <PanelHeading icon="edit" title="Add an expense in plain words" />
+        {loadError && (
+          <div
+            role="alert"
+            className="mt-4 rounded-panel border border-dash-red/40 bg-dash-red/10 px-4 py-3"
+          >
+            <p className="text-sm leading-6 text-dash-red">
+              Couldn&apos;t load your transactions: {loadError}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-dash-muted">
+              Expense entry is paused until your transactions load — anything
+              typed here can&apos;t be saved yet.
+            </p>
+            {onRetryLoad && (
+              <button
+                type="button"
+                className="dash-small-button mt-3"
+                onClick={onRetryLoad}
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        )}
+        {disabled && loading && !loadError && (
+          <p role="status" className="mt-4 text-sm text-dash-muted">
+            Loading your transactions…
+          </p>
+        )}
         <form
           className="mt-4"
           onSubmit={(event) => {
@@ -261,7 +296,7 @@ export default function ExpenseEntry({
             </p>
           )}
           {error && (
-            <p role="alert" className="text-sm text-red-500">
+            <p role="alert" className="text-sm text-dash-red">
               {error}
             </p>
           )}
@@ -282,7 +317,7 @@ export default function ExpenseEntry({
             Check the details before saving.
           </p>
           <p className="mb-4 text-sm text-dash-text">
-            {money(Math.abs(confirmed.amount), 2)} · {confirmed.category} ·{" "}
+            {money(Math.abs(confirmed.amount))} · {confirmed.category} ·{" "}
             {confirmed.date}
           </p>
           <TransactionForm
@@ -291,7 +326,7 @@ export default function ExpenseEntry({
             onSubmit={async (transaction) => {
               await onTransaction(transaction);
               setNotice(
-                `${transaction.name} (${money(Math.abs(transaction.amount), 2)}) saved.`,
+                `${transaction.name} (${money(Math.abs(transaction.amount))}) saved.`,
               );
               setText("");
               setExtraction(null);
