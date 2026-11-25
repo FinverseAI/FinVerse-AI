@@ -23,6 +23,11 @@ test("formatPrice honours the quote currency", () => {
   assert.equal(formatPrice(99.99, "USD"), "$99.99");
 });
 
+test("formatPrice renders a plain number when the currency is unknown (B26)", () => {
+  assert.equal(formatPrice(2500, null), "2,500.00");
+  assert.equal(formatPrice(2500, undefined), "₹2,500.00");
+});
+
 test("formatMoney is the canonical formatter: 0 decimals by default, 2 for prices", () => {
   assert.equal(formatMoney(1234567.89), "₹12,34,568");
   assert.equal(formatMoney(99.99, "USD"), "$100");

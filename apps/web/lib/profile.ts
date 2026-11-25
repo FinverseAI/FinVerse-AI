@@ -84,8 +84,16 @@ export function profileInput(data: ProfileResponse): ProfileInput {
 }
 
 export function cents(value: string | null): number {
-  const [whole = "0", fraction = ""] = (value || "0").split(".");
-  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+  // The sign is handled separately: "-5.50" is -(500 + 50), not
+  // -500 + 50, and the fraction is truncated to two digits, so "10.125"
+  // is 1012 paise — never 1125.
+  const text = (value || "0").trim();
+  const sign = text.startsWith("-") ? -1 : 1;
+  const unsigned = text.replace(/^[+-]/, "");
+  const [whole = "0", fraction = ""] = unsigned.split(".");
+  return (
+    sign * (Number(whole) * 100 + Number(fraction.slice(0, 2).padEnd(2, "0")))
+  );
 }
 
 export function profileTotals(profile: FinancialProfile) {

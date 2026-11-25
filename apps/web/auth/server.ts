@@ -20,11 +20,16 @@ const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
 export const googleAuthEnabled = Boolean(googleClientId && googleClientSecret);
 
 if (
-  (googleAuthEnabled || process.env.NODE_ENV === "production") &&
+  process.env.NODE_ENV !== "development" &&
   (!betterAuthSecret || betterAuthSecret.length < 32)
 ) {
+  // Fail closed everywhere except an explicit local development run:
+  // the placeholder below is repo-public, so any other environment
+  // (production, an unset NODE_ENV on a deploy, staging, test) without
+  // a real secret must refuse to boot instead of signing sessions
+  // with a secret anyone can read.
   throw new Error(
-    "BETTER_AUTH_SECRET must contain at least 32 characters when authentication is configured or in production.",
+    "BETTER_AUTH_SECRET must contain at least 32 characters outside local development.",
   );
 }
 
@@ -35,6 +40,9 @@ export const auth = betterAuth({
   baseURL: webOrigin(),
   secret:
     betterAuthSecret ??
+    // Repo-public placeholder, usable only in explicit local
+    // development — the guard above throws before this is reached
+    // anywhere else.
     "finverse-local-auth-placeholder-do-not-use-in-production-2026",
   socialProviders:
     googleClientId && googleClientSecret

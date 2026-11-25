@@ -63,6 +63,14 @@ test("cents converts exact-paise strings without float drift", () => {
   assert.equal(cents(null), 0);
 });
 
+test("cents handles negative amounts and fractions beyond two decimals", () => {
+  assert.equal(cents("-5.50"), -550);
+  assert.equal(cents("-0.07"), -7);
+  assert.equal(cents("10.125"), 1012);
+  assert.equal(cents("-10.125"), -1012);
+  assert.equal(cents("10.129"), 1012);
+});
+
 test("profileTotals adds other income and derives the surplus", () => {
   const totals = profileTotals(profile);
   assert.equal(totals.income, 90000);

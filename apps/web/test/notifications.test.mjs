@@ -110,11 +110,11 @@ test("a fired alert maps to a price-alert notification", () => {
   });
 });
 
-test("an alert without a currency defaults to INR", () => {
+test("an alert without a currency stays currency-less instead of guessing INR (B26)", () => {
   const [notification] = priceAlertNotifications([
     firedAlert({ currency: null }),
   ]);
-  assert.equal(notification.currency, "INR");
+  assert.equal(notification.currency, null);
 });
 
 test("rows missing direction, target or fired time are dropped", () => {

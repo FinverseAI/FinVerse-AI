@@ -23,3 +23,14 @@ test("explicit pool settings are retained", () => {
   assert.equal(url.searchParams.get("pool_timeout"), "8");
   assert.equal(databaseUrl(undefined), undefined);
 });
+
+test("a malformed DATABASE_URL fails with a clear error, not an opaque TypeError", () => {
+  assert.throws(
+    () => databaseUrl("not a url at all ::"),
+    /DATABASE_URL is not a valid database URL/,
+  );
+  assert.throws(
+    () => databaseUrl("http://[invalid"),
+    /DATABASE_URL is not a valid database URL/,
+  );
+});

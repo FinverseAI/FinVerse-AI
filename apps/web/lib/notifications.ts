@@ -51,7 +51,8 @@ export type PriceAlertNotification = {
   name: string | null;
   alertDirection: "above" | "below";
   alertPrice: number;
-  currency: string;
+  // Null when the currency is unknown (B26) — never a guessed ₹.
+  currency: string | null;
   firedAt: string;
 };
 
@@ -80,7 +81,7 @@ export function priceAlertNotifications(
       name: alert.name,
       alertDirection: alert.alertDirection as "above" | "below",
       alertPrice: alert.alertPrice as number,
-      currency: alert.currency ?? "INR",
+      currency: alert.currency ?? null,
       firedAt: alert.firedAt as string,
     }));
 }

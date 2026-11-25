@@ -1,4 +1,5 @@
 import type { ExportTransaction } from "./export-csv";
+import { dateKey } from "../app/(module-one)/dashboard/spending-data.ts";
 
 /**
  * Renders transactions as a PDF statement (jsPDF, loaded on demand so
@@ -51,7 +52,9 @@ export async function transactionsToPdf(
   const loaded = await import("jspdf");
   const JsPdf = loaded.jsPDF ?? loaded.default;
   const doc = new JsPdf({ unit: "pt", format: "a4" });
-  const today = new Date().toISOString().slice(0, 10);
+  // The export date is the user's local date (dateKey), never UTC:
+  // toISOString() runs a day behind between 00:00 and 05:30 IST.
+  const today = dateKey(new Date());
 
   function headerRow(y: number): number {
     doc.setFont("helvetica", "bold");

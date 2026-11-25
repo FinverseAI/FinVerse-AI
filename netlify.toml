@@ -1,4 +1,14 @@
 [build]
+  # B53: the backend function imports ../../apps/backend/dist/app.factory,
+  # so the build must produce that dist before function bundling, and the
+  # web app must be built too. `npm run build` is the root script
+  # ("turbo run build"): backend `nest build` -> apps/backend/dist and
+  # web `next build` -> apps/web/.next. Nothing here may rely on a
+  # dashboard-only build setting — the dist dependency is explicit in
+  # the repo. Publish is the Next.js output the Netlify Next.js Runtime
+  # serves.
+  command = "npm run build"
+  publish = "apps/web/.next"
   functions = "netlify/functions"
 
 [functions]

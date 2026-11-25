@@ -29,6 +29,10 @@ export async function guardProfile(
       if (destination === "auth") return null;
       redirect("/auth/login");
     }
+    // A 503 from getServerProfile (backend unreachable — B57) is
+    // rethrown on purpose: the route's error boundary renders
+    // ProfileError, which shows the service-unavailable state for it
+    // instead of a login redirect or the generic error page.
     throw error;
   }
   if (destination === "auth")

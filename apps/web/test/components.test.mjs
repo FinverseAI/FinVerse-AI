@@ -901,6 +901,20 @@ test("ProfileLoading and ProfileError render their states", () => {
   assert.match(error, /Try again/);
 });
 
+test("ProfileError renders the service-unavailable state for a backend outage", () => {
+  // B57: a 503 from getServerProfile reaches this boundary as an error
+  // whose message says the account service is unavailable.
+  const error = render(
+    createElement(ProfileError, {
+      retry: noop,
+      error: new Error("The account service is unavailable. Please try again."),
+    }),
+  );
+  assert.match(error, /The account service is unavailable/);
+  assert.match(error, /Your data is safe/);
+  assert.match(error, /Try again/);
+});
+
 test("MarketShell frames a market page with its heading and children", () => {
   const html = render(
     createElement(

@@ -89,7 +89,8 @@ export type FiredAlert = {
   name: string | null;
   alertDirection: "above" | "below" | null;
   alertPrice: number | null;
-  currency: string;
+  // Null when the currency is unknown (B26) — never a guessed ₹.
+  currency: string | null;
   firedAt: string | null;
 };
 
@@ -203,7 +204,19 @@ const moneyFormats = new Map<string, Intl.NumberFormat>();
  * (see `formatPrice`). All other formatters delegate here so the same
  * figure never renders with different decimals on different surfaces.
  */
-export function formatMoney(value: number, currency = "INR", decimals = 0) {
+export function formatMoney(
+  value: number,
+  currency: string | null = "INR",
+  decimals = 0,
+) {
+  // B26: an unknown currency renders as a plain number — never a
+  // guessed ₹. Callers that know the currency pass it explicitly.
+  if (currency == null) {
+    return new Intl.NumberFormat("en-IN", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
+  }
   const key = `${currency}:${decimals}`;
   let formatter = moneyFormats.get(key);
   if (!formatter) {
@@ -219,7 +232,7 @@ export function formatMoney(value: number, currency = "INR", decimals = 0) {
 }
 
 /** Per-unit prices always render with two decimals, in their currency. */
-export function formatPrice(value: number, currency = "INR") {
+export function formatPrice(value: number, currency: string | null = "INR") {
   return formatMoney(value, currency, 2);
 }
 

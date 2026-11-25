@@ -6,7 +6,13 @@ export type ExportTransaction = {
 };
 
 function escapeField(value: string) {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // A field starting with =, +, - or @ would be read as a formula when
+  // the export is opened in Excel/Sheets, so prefix it with a single
+  // quote (which spreadsheets treat as "literal text", not part of the
+  // value). The quote is added before comma/quote escaping, so it stays
+  // the first character of the cell even when the field is quoted.
+  const safe = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
 /* Renders transactions as RFC 4180 CSV: CRLF line endings, fields with

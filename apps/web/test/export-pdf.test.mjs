@@ -89,3 +89,32 @@ test("account report pdf stays valid with no recorded activity and no unpaid bil
   assert.ok(text.includes("0 recorded transactions"));
   assert.ok(text.includes("Rs. 0.00"));
 });
+
+test("the export date is the local date, not the UTC date", async () => {
+  // 20:00 UTC is 01:30 IST the next day: toISOString() would date the
+  // export a day early. The clock and the timezone are pinned so the
+  // case is deterministic regardless of when the suite runs.
+  process.env.TZ = "Asia/Calcutta";
+  const RealDate = globalThis.Date;
+  const fixed = new RealDate("2026-11-25T20:00:00.000Z");
+  class FixedDate extends RealDate {
+    constructor(...args) {
+      super(...(args.length ? args : [fixed.getTime()]));
+    }
+    static now() {
+      return fixed.getTime();
+    }
+  }
+  globalThis.Date = FixedDate;
+  try {
+    const bytes = await transactionsToPdf(sample);
+    const text = new TextDecoder("latin1").decode(bytes);
+    assert.ok(
+      text.includes("Exported 2026-11-26"),
+      "uses the local (IST) date",
+    );
+    assert.ok(!text.includes("Exported 2026-11-25"), "not the UTC date");
+  } finally {
+    globalThis.Date = RealDate;
+  }
+});
