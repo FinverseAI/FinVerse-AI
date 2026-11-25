@@ -51,10 +51,10 @@
   --duration-fast: 160ms;
   --glass-ribs: repeating-linear-gradient(
     90deg,
-    #020c201f 0,
-    #020c2038 1px,
-    #eff4ff0d 3px,
-    #ffffff03 5px,
+    #020c200f 0,
+    #020c201a 1px,
+    #eff4ff07 3px,
+    #ffffff02 5px,
     transparent 7px,
     transparent 9px
   );
@@ -225,9 +225,12 @@ body {
   border-radius: var(--radius-control);
 }
 .landing-header {
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   padding-inline: calc(var(--spacing) * 8);
+  background: linear-gradient(180deg, #192640f2, #192640d9);
+  backdrop-filter: blur(12px);
 }
 .landing-nav {
   display: flex;

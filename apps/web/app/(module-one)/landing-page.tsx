@@ -29,7 +29,7 @@ const features = [
     icon: "chart" as const,
     title: "Spending you can follow",
     description:
-      "Turn your entries into weekly and monthly summaries. Find your biggest spending categories and compare them with the previous period.",
+      "Turn your entries into weekly and monthly summaries. Find your biggest spending categories and compare them with your plan and the previous period.",
   },
   {
     icon: "calendar" as const,
@@ -49,7 +49,7 @@ function PlanPreview() {
   return (
     <figure
       className="preview-window hero-preview fv-reveal"
-      style={{ "--fv-delay": "200ms" } as CSSProperties}
+      style={{ "--fv-delay": "100ms" } as CSSProperties}
       aria-label="Illustrative monthly budget in rupees"
     >
       <div className="flex items-center justify-between gap-4 border-b border-dash-border/40 pb-5">
@@ -84,7 +84,55 @@ function PlanPreview() {
         ))}
       </dl>
       <figcaption className="mt-5 border-t border-dash-border/40 pt-4 text-xs leading-5 text-dash-muted">
-        A sample ?60,000 month. Every category has a share.
+        A sample ₹60,000 month. Every category has a share.
+      </figcaption>
+    </figure>
+  );
+}
+
+function PlanVsRecorded() {
+  const rows = [
+    { label: "Groceries", plan: 15000, recorded: 13400 },
+    { label: "Bills & transport", plan: 12000, recorded: 12600 },
+    { label: "Savings target", plan: 12000, recorded: 11200 },
+  ];
+  return (
+    <figure
+      className="preview-window p-5"
+      aria-label="Illustrative plan compared with recorded spending for an example month"
+    >
+      <div className="flex items-center justify-between gap-4">
+        <span className="text-sm font-medium">Plan vs recorded</span>
+        <span className="dash-badge text-dash-muted">Example month</span>
+      </div>
+      <dl className="mt-5 space-y-4">
+        {rows.map(({ label, plan, recorded }) => (
+          <div key={label}>
+            <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+              <dt>{label}</dt>
+              <dd className="font-mono">
+                {money(recorded)}{" "}
+                <span className="text-xs text-dash-muted">
+                  / plan {money(plan)}
+                </span>
+              </dd>
+            </div>
+            <div
+              className="progress-track overflow-hidden rounded-full"
+              aria-hidden="true"
+            >
+              <div
+                className="h-full rounded-full bg-dash-accent"
+                style={{
+                  width: `${Math.min(100, Math.round((recorded / plan) * 100))}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
+      </dl>
+      <figcaption className="mt-4 text-xs leading-5 text-dash-muted">
+        Recorded spending beside the plan, so what is left stays visible.
       </figcaption>
     </figure>
   );
@@ -141,14 +189,14 @@ export default function LandingPage() {
                   <span>Your money.</span>
                 </span>
                 <span className="fv-mask">
-                  <span style={{ "--fv-delay": "90ms" } as CSSProperties}>
+                  <span style={{ "--fv-delay": "45ms" } as CSSProperties}>
                     <em className="not-italic">Made clear.</em>
                   </span>
                 </span>
               </h1>
               <p
                 className="hero-description fv-reveal mt-5 text-sm leading-6"
-                style={{ "--fv-delay": "180ms" } as CSSProperties}
+                style={{ "--fv-delay": "90ms" } as CSSProperties}
               >
                 Plan your month. Track everyday spending. Keep bills and savings
                 goals in view, all in one place.
@@ -156,14 +204,14 @@ export default function LandingPage() {
               <Link
                 href="/auth/sign-up"
                 className="dash-primary fv-reveal mt-6 gap-3 text-sm"
-                style={{ "--fv-delay": "270ms" } as CSSProperties}
+                style={{ "--fv-delay": "135ms" } as CSSProperties}
               >
                 Start your plan
                 <Icon name="right" />
               </Link>
               <p
                 className="hero-footnote fv-reveal mt-4 text-xs leading-6 text-dash-muted"
-                style={{ "--fv-delay": "320ms" } as CSSProperties}
+                style={{ "--fv-delay": "160ms" } as CSSProperties}
               >
                 Sign in with Google. No bank connection needed.
               </p>
@@ -201,7 +249,7 @@ export default function LandingPage() {
               <div
                 key={icon}
                 className="fv-reveal"
-                style={{ "--fv-delay": `${index * 60}ms` } as CSSProperties}
+                style={{ "--fv-delay": `${index * 30}ms` } as CSSProperties}
               >
                 <Icon name={icon} className="size-4" />
                 <p>
@@ -239,6 +287,7 @@ export default function LandingPage() {
                 FinVerse puts your plan beside your recorded spending. See where
                 your money goes and how much room remains for your priorities.
               </p>
+              <PlanVsRecorded />
             </div>
           </div>
         </section>
@@ -327,17 +376,17 @@ export default function LandingPage() {
             className="fv-reveal space-y-5 text-sm leading-7 text-dash-muted"
             style={{ "--fv-delay": "90ms" } as CSSProperties}
           >
-            <p>
+            <p className="border-l-2 border-dash-accent pl-4">
               Add your own records and return to them whenever you need. Your
               budgets, transactions, bills, and goals are saved to your account.
             </p>
-            <p>
+            <p className="border-l-2 border-dash-accent pl-4">
               Spending summaries reflect what you enter. Month-end projections
               are estimates, so you can use them as a guide when reviewing your
               plan.
             </p>
             <p className="border-l-2 border-dash-accent pl-4">
-              You stay in charge of payments. Bills track due dates; savings
+              You decide how each bill is paid. Bills track due dates; savings
               goals keep a target and deadline in view.
             </p>
           </div>
@@ -369,7 +418,7 @@ export default function LandingPage() {
         </section>
       </main>
       <footer className="page-container flex flex-wrap justify-between gap-4 border-t border-dash-border/40 py-8 text-xs text-dash-muted">
-        <span>FinVerse</span>
+        <span>© 2026 FinVerse</span>
         <span>Personal budgeting in INR</span>
         <a href="#main-content" className="hover:text-dash-text">
           Back to top
