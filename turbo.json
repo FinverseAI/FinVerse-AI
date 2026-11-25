@@ -20,6 +20,7 @@
   },
   "globalEnv": [
     "NODE_ENV",
+    "TZ",
     "DATABASE_URL",
     "DIRECT_URL",
     "BETTER_AUTH_URL",

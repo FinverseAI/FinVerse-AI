@@ -242,9 +242,7 @@ describe('concurrent auto-pay and payment side effects', () => {
     expect(bills).toHaveLength(2);
     const next = bills.find((bill) => bill.id !== original.id);
     expect(next?.parent_bill_id).toBe(original.id);
-    expect((next?.due_date as Date).toISOString().slice(0, 10)).toBe(
-      '2026-12-20',
-    );
+    expect(next?.due_date?.toISOString().slice(0, 10)).toBe('2026-12-20');
     expect(transactions[0].bill_payment_id).toBe(payments[0].id);
   });
 
@@ -273,8 +271,9 @@ describe('concurrent auto-pay and payment side effects', () => {
     expect(transactions).toHaveLength(2);
     expect(bills).toHaveLength(2);
     expect(
-      (bills.find((bill) => bill.id !== original.id)?.due_date as Date)
-        .toISOString()
+      bills
+        .find((bill) => bill.id !== original.id)
+        ?.due_date?.toISOString()
         .slice(0, 10),
     ).toBe('2026-12-28');
   });

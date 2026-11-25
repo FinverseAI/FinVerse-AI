@@ -735,7 +735,6 @@ describe('market data endpoints', () => {
     });
 
     it('dismisses a fired alert, and a still-crossed price does not re-fire it (B26)', async () => {
-      const firedAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
       prisma.watchlistItem.updateMany.mockResolvedValue({ count: 1 });
       const dismissed = await session(
         request(app.getHttpServer()).delete('/api/market/alerts/watch-1'),

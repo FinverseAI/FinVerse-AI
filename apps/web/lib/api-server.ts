@@ -17,8 +17,15 @@ function isCreatePath(path: string): boolean {
 }
 
 function sanitizeBackendMessage(message: string): string | null {
-  const clean = message
-    .replace(/[\u0000-\u001f\u007f]/g, "")
+  // Strip control characters (U+0000-U+001F, U+007F) without a regex:
+  // no-control-regex forbids them in a pattern, and the message must stay
+  // safe to embed in JSON and render. Everything else passes through.
+  const clean = [...message]
+    .filter((ch) => {
+      const code = ch.charCodeAt(0);
+      return code >= 0x20 && code !== 0x7f;
+    })
+    .join("")
     .trim()
     .slice(0, 500);
   return clean ? clean : null;
