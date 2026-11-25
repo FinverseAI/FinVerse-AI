@@ -80,12 +80,42 @@ function date(value: unknown, allowFuture: boolean) {
     throw new BadRequestException('Enter a valid date.');
   }
   if (!allowFuture) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (value > today) {
+    // IST-pinned "today": the UTC date runs a day behind IST between
+    // 00:00 and 05:30, so a UTC today would reject a legitimate
+    // IST-today purchase late at night.
+    if (value > todayIst()) {
       throw new BadRequestException('The date cannot be in the future.');
     }
   }
   return parsed;
+}
+
+/** Today's date in IST (Asia/Kolkata), as YYYY-MM-DD. */
+function todayIst(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * The currency a holding's buy price is entered in. Defaults to INR for
+ * holdings saved before the field existed; any three-letter code is
+ * accepted so a holding can match its quote's currency.
+ */
+function currency(value: unknown) {
+  if (value === undefined || value === null) return 'INR';
+  if (typeof value !== 'string' || !/^[A-Za-z]{3}$/.test(value.trim())) {
+    throw new BadRequestException(
+      'Choose a three-letter currency code, for example INR or USD.',
+    );
+  }
+  return value.trim().toUpperCase();
 }
 
 export function normalizeSymbol(value: unknown) {
@@ -125,6 +155,7 @@ export function validateHolding(input: unknown) {
     quantity: quantity(body.quantity),
     buy_price: price(body.buyPrice),
     buy_date: date(body.buyDate, false),
+    currency: currency(body.currency),
   };
 }
 

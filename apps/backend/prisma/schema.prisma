@@ -229,6 +229,10 @@ model UserHolding {
   quantity   Decimal  @db.Decimal(12, 4)
   buy_price  Decimal  @db.Decimal(12, 2)
   buy_date   DateTime @db.Date
+  // Currency the buy price is entered in. Holdings are valued only
+  // against a quote in the same currency — a USD holding is never
+  // rendered or totalled as ₹.
+  currency   String   @db.VarChar(8) @default("INR")
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 

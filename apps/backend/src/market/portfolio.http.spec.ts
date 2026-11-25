@@ -49,6 +49,7 @@ describe('holdings, watchlist and portfolio summary', () => {
     quantity: '10.0000',
     buy_price: '2450.50',
     buy_date: new Date('2026-01-15T00:00:00Z'),
+    currency: 'INR',
     created_at: new Date('2026-01-15T00:00:00Z'),
     updated_at: new Date('2026-01-15T00:00:00Z'),
   };
@@ -211,6 +212,7 @@ describe('holdings, watchlist and portfolio summary', () => {
         quantity: 10,
         buyPrice: 2450.5,
         buyDate: '2026-01-15',
+        currency: 'INR',
       },
     ]);
   });
@@ -234,6 +236,7 @@ describe('holdings, watchlist and portfolio summary', () => {
         quantity: '10.0000',
         buy_price: '2450.50',
         buy_date: new Date('2026-01-15T00:00:00Z'),
+        currency: 'INR',
         user_id: 'owner',
       },
     });
@@ -292,6 +295,7 @@ describe('holdings, watchlist and portfolio summary', () => {
         quantity: '12.0000',
         buy_price: '2400.00',
         buy_date: new Date('2026-01-15T00:00:00Z'),
+        currency: 'INR',
       },
     });
     expect(result.body).toMatchObject({ quantity: 12, buyPrice: 2400 });
@@ -460,6 +464,7 @@ describe('holdings, watchlist and portfolio summary', () => {
         quantity: '0.5000',
         buy_price: '4000.00',
         buy_date: new Date('2026-06-01T00:00:00Z'),
+        currency: 'INR',
         created_at: new Date('2026-06-01T00:00:00Z'),
         updated_at: new Date('2026-06-01T00:00:00Z'),
       },
@@ -514,6 +519,15 @@ describe('holdings, watchlist and portfolio summary', () => {
       totalGainLoss: 1597.75,
       totalGainLossPercent: 6.03,
     });
+    expect(result.body.totalsByCurrency).toEqual([
+      {
+        currency: 'INR',
+        totalValue: 28102.75,
+        totalInvested: 26505,
+        totalGainLoss: 1597.75,
+        totalGainLossPercent: 6.03,
+      },
+    ]);
     expect(result.body.sectors).toEqual([
       { sector: 'Energy', value: 26002.5, weight: 92.53 },
       { sector: 'Technology', value: 2100.25, weight: 7.47 },
@@ -566,6 +580,95 @@ describe('holdings, watchlist and portfolio summary', () => {
     ]);
   });
 
+  it('values a USD holding in USD and reports per-currency totals when mixed', async () => {
+    prisma.userHolding.findMany.mockResolvedValue([
+      storedHolding,
+      {
+        id: 'holding-2',
+        user_id: 'owner',
+        symbol: 'AAPL',
+        name: 'Apple Inc.',
+        sector: 'Technology',
+        quantity: '2.0000',
+        buy_price: '200.00',
+        buy_date: new Date('2026-06-01T00:00:00Z'),
+        currency: 'USD',
+        created_at: new Date('2026-06-01T00:00:00Z'),
+        updated_at: new Date('2026-06-01T00:00:00Z'),
+      },
+    ]);
+    provider.quote.mockImplementation(async (symbol: string) => {
+      if (symbol === 'RELIANCE.NS') {
+        return {
+          symbol,
+          price: 2600.25,
+          previousClose: 2580,
+          currency: 'INR',
+          sector: 'Energy',
+        };
+      }
+      return {
+        symbol,
+        price: 250,
+        previousClose: 245,
+        currency: 'USD',
+        sector: 'Technology',
+      };
+    });
+    const result = await session(
+      request(app.getHttpServer()).get('/api/portfolio/summary'),
+    ).expect(200);
+    // AAPL: 2 × $250 = $500; invested $400; gain $100 (25%).
+    expect(result.body.holdings[1]).toMatchObject({
+      symbol: 'AAPL',
+      currency: 'USD',
+      currentPrice: 250,
+      currentValue: 500,
+      investedValue: 400,
+      gainLoss: 100,
+      gainLossPercent: 25,
+      priced: true,
+    });
+    expect(result.body.unavailable).toEqual([]);
+    expect(result.body.totalsByCurrency).toEqual([
+      {
+        currency: 'INR',
+        totalValue: 26002.5,
+        totalInvested: 24505,
+        totalGainLoss: 1497.5,
+        totalGainLossPercent: 6.11,
+      },
+      {
+        currency: 'USD',
+        totalValue: 500,
+        totalInvested: 400,
+        totalGainLoss: 100,
+        totalGainLossPercent: 25,
+      },
+    ]);
+  });
+
+  it('leaves a holding unpriced when its quote is in another currency', async () => {
+    provider.quote.mockResolvedValue({
+      symbol: 'RELIANCE.NS',
+      price: 31,
+      previousClose: 30,
+      currency: 'USD',
+      sector: 'Energy',
+    });
+    const result = await session(
+      request(app.getHttpServer()).get('/api/portfolio/summary'),
+    ).expect(200);
+    expect(result.body.unavailable).toEqual(['RELIANCE.NS']);
+    expect(result.body.holdings[0]).toMatchObject({
+      symbol: 'RELIANCE.NS',
+      currency: 'INR',
+      currentPrice: null,
+      priced: false,
+    });
+    expect(result.body.totalsByCurrency).toEqual([]);
+  });
+
   it('returns zeros for an empty portfolio', async () => {
     prisma.userHolding.findMany.mockResolvedValue([]);
     const result = await session(
@@ -579,6 +682,7 @@ describe('holdings, watchlist and portfolio summary', () => {
         totalGainLoss: 0,
         totalGainLossPercent: 0,
       },
+      totalsByCurrency: [],
       sectors: [],
       unavailable: [],
       asOf: null,

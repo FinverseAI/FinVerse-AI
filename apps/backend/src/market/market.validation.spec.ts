@@ -74,7 +74,66 @@ describe('market validation', () => {
       quantity: '10.0000',
       buy_price: '2450.50',
       buy_date: new Date('2026-01-15T00:00:00Z'),
+      currency: 'INR',
     });
+  });
+
+  it('accepts a USD holding currency and defaults a missing one to INR', () => {
+    expect(
+      validateHolding({
+        symbol: 'AAPL',
+        quantity: 2,
+        buyPrice: 200,
+        buyDate: '2026-01-15',
+        currency: 'usd',
+      }).currency,
+    ).toBe('USD');
+    expect(
+      validateHolding({
+        symbol: 'TCS.NS',
+        quantity: 1,
+        buyPrice: 4000,
+        buyDate: '2026-01-15',
+      }).currency,
+    ).toBe('INR');
+  });
+
+  it('rejects invalid holding currencies', () => {
+    for (const currency of ['IN', 'INRR', '12R', 'US D', 42, {}]) {
+      expect(() =>
+        validateHolding({
+          symbol: 'TCS.NS',
+          quantity: 1,
+          buyPrice: 100,
+          buyDate: '2026-01-01',
+          currency,
+        }),
+      ).toThrow(BadRequestException);
+    }
+  });
+
+  it('accepts today in IST as a buy date', () => {
+    // IST-pinned: between 00:00 and 05:30 IST the UTC date is still
+    // yesterday, so this must use the IST date, not the UTC one.
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((part) => part.type === type)?.value ?? '';
+    const todayIst = `${get('year')}-${get('month')}-${get('day')}`;
+    expect(
+      validateHolding({
+        symbol: 'TCS.NS',
+        quantity: 1,
+        buyPrice: 100,
+        buyDate: todayIst,
+      })
+        .buy_date.toISOString()
+        .slice(0, 10),
+    ).toBe(todayIst);
   });
 
   it('accepts fractional quantities and omits optional holding fields', () => {

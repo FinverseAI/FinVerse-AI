@@ -14,14 +14,15 @@ import {
 } from './market.validation';
 
 /**
- * All portfolio money is computed in integer paise. Quantities carry up to
- * four decimals, so a value is quantity-units (×10^4) times price-paise
- * (×10^2) divided by 10^4, rounded once to the nearest paise.
+ * All portfolio money is computed in integer minor units (paise for INR,
+ * cents for USD). Quantities carry up to four decimals, so a value is
+ * quantity-units (×10^4) times price-minor-units (×10^2) divided by 10^4,
+ * rounded once to the nearest minor unit.
  */
 function valuePaise(quantity: number, price: number) {
   const quantityUnits = Math.round(quantity * 10000);
-  const pricePaise = Math.round(price * 100);
-  return Math.round((quantityUnits * pricePaise) / 10000);
+  const priceMinorUnits = Math.round(price * 100);
+  return Math.round((quantityUnits * priceMinorUnits) / 10000);
 }
 
 function round2(value: number) {
@@ -37,6 +38,8 @@ function holdingResponse(holding: UserHolding) {
     quantity: Number(holding.quantity),
     buyPrice: Number(holding.buy_price),
     buyDate: holding.buy_date.toISOString().slice(0, 10),
+    // Rows saved before the currency column existed have no value.
+    currency: holding.currency ?? 'INR',
   };
 }
 
@@ -200,6 +203,7 @@ export class PortfolioService {
           totalGainLoss: 0,
           totalGainLossPercent: 0,
         },
+        totalsByCurrency: [],
         sectors: [],
         unavailable: [],
         asOf: null,
@@ -217,7 +221,7 @@ export class PortfolioService {
         if (
           holding.sector ||
           !quote ||
-          quote.currency !== 'INR' ||
+          quote.currency !== (holding.currency ?? 'INR') ||
           quote.sector
         )
           return;
@@ -232,15 +236,27 @@ export class PortfolioService {
     let totalInvestedPaise = 0;
     let stale = false;
     let asOf = 0;
+    // Per-currency totals, in each currency's minor units. `totals`
+    // below still aggregates across currencies for backwards
+    // compatibility, but it is only meaningful when every priced
+    // holding shares one currency — consumers must read
+    // totalsByCurrency whenever holdings span currencies.
+    const totalsByCurrency = new Map<
+      string,
+      { totalValue: number; totalInvested: number }
+    >();
     const valued = holdings.map((holding) => {
       const quantity = Number(holding.quantity);
       const buyPrice = Number(holding.buy_price);
       const investedPaise = valuePaise(quantity, buyPrice);
       const quote = bySymbol.get(holding.symbol);
-      // Holding costs are entered in INR. A foreign quote cannot value them
-      // until an INR conversion is available.
-      if (quote && quote.currency !== 'INR') unavailable.push(holding.symbol);
-      if (!quote || quote.currency !== 'INR') {
+      const holdingCurrency = holding.currency ?? 'INR';
+      // Holding costs are entered in the holding's currency. A quote in
+      // a different currency cannot value them until a conversion is
+      // available.
+      if (quote && quote.currency !== holdingCurrency)
+        unavailable.push(holding.symbol);
+      if (!quote || quote.currency !== holdingCurrency) {
         return {
           ...holdingResponse(holding),
           currentPrice: null,
@@ -258,6 +274,13 @@ export class PortfolioService {
       const gainPaise = currentPaise - investedPaise;
       totalValuePaise += currentPaise;
       totalInvestedPaise += investedPaise;
+      const group = totalsByCurrency.get(holdingCurrency) ?? {
+        totalValue: 0,
+        totalInvested: 0,
+      };
+      group.totalValue += currentPaise;
+      group.totalInvested += investedPaise;
+      totalsByCurrency.set(holdingCurrency, group);
       if (quote.stale) stale = true;
       const fetchedAt = new Date(quote.fetchedAt).getTime();
       if (fetchedAt > asOf) asOf = fetchedAt;
@@ -297,6 +320,21 @@ export class PortfolioService {
       }))
       .sort((a, b) => b.value - a.value);
     const totalGainPaise = totalValuePaise - totalInvestedPaise;
+    const totalsByCurrencyList = [...totalsByCurrency.entries()]
+      .map(([currency, group]) => {
+        const gain = group.totalValue - group.totalInvested;
+        return {
+          currency,
+          totalValue: group.totalValue / 100,
+          totalInvested: group.totalInvested / 100,
+          totalGainLoss: gain / 100,
+          totalGainLossPercent:
+            group.totalInvested === 0
+              ? 0
+              : round2((gain / group.totalInvested) * 100),
+        };
+      })
+      .sort((a, b) => a.currency.localeCompare(b.currency));
     return {
       holdings: valued,
       totals: {
@@ -308,6 +346,7 @@ export class PortfolioService {
             ? 0
             : round2((totalGainPaise / totalInvestedPaise) * 100),
       },
+      totalsByCurrency: totalsByCurrencyList,
       sectors,
       unavailable,
       asOf: asOf ? new Date(asOf).toISOString() : null,
