@@ -242,7 +242,7 @@ describe('concurrent auto-pay and payment side effects', () => {
     expect(bills).toHaveLength(2);
     const next = bills.find((bill) => bill.id !== original.id);
     expect(next?.parent_bill_id).toBe(original.id);
-    expect(next?.due_date?.toISOString().slice(0, 10)).toBe('2026-12-20');
+    expect(next?.due_date).toEqual(new Date('2026-12-20T00:00:00Z'));
     expect(transactions[0].bill_payment_id).toBe(payments[0].id);
   });
 
@@ -270,12 +270,9 @@ describe('concurrent auto-pay and payment side effects', () => {
     expect(payments).toHaveLength(2);
     expect(transactions).toHaveLength(2);
     expect(bills).toHaveLength(2);
-    expect(
-      bills
-        .find((bill) => bill.id !== original.id)
-        ?.due_date?.toISOString()
-        .slice(0, 10),
-    ).toBe('2026-12-28');
+    expect(bills.find((bill) => bill.id !== original.id)?.due_date).toEqual(
+      new Date('2026-12-28T00:00:00Z'),
+    );
   });
 
   it('deleting a payment removes its expense and its next occurrence (B37)', async () => {

@@ -1,6 +1,6 @@
-import serverless from "serverless-http";
 import type { Handler } from "@netlify/functions";
 import { createApp } from "../../apps/backend/dist/app.factory";
+import { createServerlessHandler } from "../../apps/backend/dist/serverless-handler";
 
 /**
  * FinVerse backend as a Netlify Function.
@@ -31,8 +31,7 @@ async function getHandler(): Promise<Handler> {
     inflightHandler = (async () => {
       const app = await createApp();
       await app.init();
-      const expressApp = app.getHttpAdapter().getInstance();
-      cachedHandler = serverless(expressApp) as unknown as Handler;
+      cachedHandler = createServerlessHandler(app) as unknown as Handler;
       return cachedHandler;
     })();
     // A failed boot must not poison the memo: drop the rejected promise

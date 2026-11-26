@@ -2,6 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { createServerlessHandler } from '../serverless-handler';
 import { SessionGuard } from '../auth/session.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileController } from './profile.controller';
@@ -143,6 +144,69 @@ describe('protected financial profile HTTP endpoints', () => {
       where: { user_id: 'authenticated-owner' },
     });
   });
+
+  it.each([false, true])(
+    'parses onboarding goals through the Netlify serverless transport (base64: %s)',
+    async (isBase64Encoded) => {
+      const handler = createServerlessHandler(app);
+      const response = (await handler(
+        {
+          httpMethod: 'POST',
+          path: '/api/onboarding',
+          headers: {
+            'content-type': 'application/json',
+            cookie: 'session=signed',
+            origin: 'http://localhost:3000',
+          },
+          body: isBase64Encoded
+            ? Buffer.from(JSON.stringify(payload)).toString('base64')
+            : JSON.stringify(payload),
+          isBase64Encoded,
+          requestContext: { identity: { sourceIp: '127.0.0.1' } },
+        },
+        {},
+      )) as { statusCode: number; body: string };
+
+      expect(JSON.parse(response.body)).not.toHaveProperty('errors');
+      expect(response.statusCode).toBe(201);
+      expect(tx.userGoal.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: 'Savings',
+          target_date: new Date('2027-12-31T00:00:00Z'),
+          user_id: 'authenticated-owner',
+        }),
+      });
+    },
+  );
+
+  it.each([
+    ['invalid JSON', '{"goals":', 400],
+    ['oversized JSON', JSON.stringify({ padding: 'x'.repeat(102401) }), 413],
+  ])(
+    'rejects %s through the Netlify transport before writing',
+    async (_label, body, status) => {
+      const handler = createServerlessHandler(app);
+      const response = (await handler(
+        {
+          httpMethod: 'POST',
+          path: '/api/onboarding',
+          headers: {
+            'content-type': 'application/json',
+            cookie: 'session=signed',
+            origin: 'http://localhost:3000',
+          },
+          body,
+          isBase64Encoded: false,
+          requestContext: { identity: { sourceIp: '127.0.0.1' } },
+        },
+        {},
+      )) as { statusCode: number };
+
+      expect(response.statusCode).toBe(status);
+      expect(tx.userFinancialProfile.upsert).not.toHaveBeenCalled();
+      expect(tx.userGoal.create).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps goal identities across profile updates', async () => {
     tx.userFinancialProfile.findUnique.mockResolvedValue({
