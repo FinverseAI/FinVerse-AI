@@ -7,9 +7,24 @@
   # dashboard-only build setting — the dist dependency is explicit in
   # the repo. Publish is the Next.js output the Netlify Next.js Runtime
   # serves.
-  command = "npm run build"
+  #
+  # The repo's devEngines requires npm ^11.19.1, and turbo spawns the
+  # bare `npm` on PATH for each workspace build. The build image's
+  # default npm is 10.x, so a bare `npm run build` fails EBADDEVENGINES
+  # (this is what killed the PR #5 preview on 27 Nov with exit code 2;
+  # the dashboard build command's npm upgrade never runs because this
+  # file overrides it). Install npm 11 first so the build no longer
+  # depends on the image default.
+  command = "npm install -g npm@11.21.3 && npm run build"
   publish = "apps/web/.next"
   functions = "netlify/functions"
+
+# TEMPORARY dev-only guest demo — remove before shipping. Lets the
+# deploy preview show "Continue as guest (demo)" so the redesign can
+# be viewed without Google sign-in. Preview context only; production
+# is unaffected and the default stays off.
+[context.deploy-preview.environment]
+  GUEST_LOGIN_ENABLED = "true"
 
 [functions]
   # Keep Prisma out of the esbuild bundle: its query-engine binaries are

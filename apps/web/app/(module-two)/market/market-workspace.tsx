@@ -31,7 +31,7 @@ export const sections = [
     id: "screener",
     label: "Smart Screener",
     icon: "filter",
-    title: "Smart Screener",
+    title: "Smart screener",
     description: "Find stocks by valuation, momentum and moving-average trend.",
   },
   {

@@ -45,7 +45,7 @@ export function StockSnapshot({
           Selected period · close to close
         </p>
         <p
-          className={`mt-2 text-3xl font-medium tracking-tight ${periodChange === null ? "text-dash-muted" : periodChange >= 0 ? "market-positive" : "market-negative"}`}
+          className={`mt-2 font-mono text-3xl font-medium ${periodChange === null ? "text-dash-muted" : periodChange >= 0 ? "market-positive" : "market-negative"}`}
         >
           {loading
             ? "Loading…"

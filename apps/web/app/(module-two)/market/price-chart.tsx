@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { HistoryBar } from "../../../lib/market";
 import { formatCompact, formatPrice } from "../../../lib/market";
 import type { MacdPoint } from "../../../lib/indicators";
@@ -126,7 +126,7 @@ function Tooltip({
   const left = Math.max(14, Math.min(86, (xFor(index, count) / WIDTH) * 100));
   return (
     <div
-      className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-lg border border-dash-border bg-dash-surface px-3 py-2 text-xs shadow-xl shadow-black/30"
+      className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-lg border border-dash-border bg-dash-raised px-3 py-2 text-xs"
       style={{ left: `${left}%` }}
     >
       {children}
@@ -205,7 +205,6 @@ export function PriceChart({
   overlays?: ChartOverlay[];
   currency?: string;
 }) {
-  const gradientId = useId();
   const height = 300;
   const hover = useHoverIndex(bars.length);
   const closes = useMemo(() => bars.map((bar) => bar.close), [bars]);
@@ -233,7 +232,6 @@ export function PriceChart({
     );
   }
 
-  const areaPath = `${linePath(closes, min, max, height)} L${xFor(bars.length - 1, bars.length).toFixed(1)},${(height - PAD_BOTTOM).toFixed(1)} L${xFor(0, bars.length).toFixed(1)},${(height - PAD_BOTTOM).toFixed(1)} Z`;
   const hovered = hover.index !== null ? bars[hover.index] : null;
 
   return (
@@ -250,12 +248,6 @@ export function PriceChart({
         onFocus={hover.onFocus}
         onBlur={hover.onBlur}
       >
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={ACCENT} stopOpacity="0.35" />
-            <stop offset="100%" stopColor={ACCENT} stopOpacity="0" />
-          </linearGradient>
-        </defs>
         <AxisLabels
           dates={dates}
           min={min}
@@ -263,7 +255,6 @@ export function PriceChart({
           height={height}
           formatValue={(value) => formatCompact(value, currency)}
         />
-        <path d={areaPath} fill={`url(#${gradientId})`} />
         {overlays.map((overlay) => (
           <path
             key={overlay.label}

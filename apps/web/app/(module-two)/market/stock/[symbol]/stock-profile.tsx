@@ -310,7 +310,7 @@ export default function StockProfile({
               </p>
             ) : (
               <div className="mt-4 flex flex-wrap items-baseline gap-3">
-                <p className="text-4xl font-medium tracking-tight sm:text-5xl">
+                <p className="font-mono text-4xl font-medium sm:text-5xl">
                   {formatPrice(profile.price, profile.currency)}
                 </p>
                 {profile.changePercent !== null && (
@@ -364,9 +364,9 @@ export default function StockProfile({
                   type="button"
                   aria-pressed={range === option.value}
                   onClick={() => selectRange(option.value)}
-                  className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+                  className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
                     range === option.value
-                      ? "bg-dash-accent/15 text-dash-accent"
+                      ? "bg-dash-raised text-dash-text"
                       : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"
                   }`}
                 >
@@ -625,7 +625,7 @@ export default function StockProfile({
                   }
                 />
               </div>
-              <h3 className="mt-6 text-xs font-medium tracking-widest text-dash-muted uppercase">
+              <h3 className="mt-6 text-xs font-medium text-dash-muted">
                 Deeper fundamentals
               </h3>
               <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

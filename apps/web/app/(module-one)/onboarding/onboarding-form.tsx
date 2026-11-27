@@ -294,7 +294,7 @@ export default function OnboardingForm({
         >
           <div className="mb-4">
             <div className="mb-3 flex justify-between text-xs text-dash-muted">
-              <span>GETTING STARTED</span>
+              <span>Getting started</span>
               <span>Step {step + 1} of 4</span>
             </div>
             <ProgressBar value={(step + 1) * 25} label="Onboarding progress" />
@@ -447,7 +447,7 @@ export default function OnboardingForm({
                       <legend className="sr-only">Goal {index + 1}</legend>
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-medium text-dash-accent">
-                          GOAL {String(index + 1).padStart(2, "0")}
+                          Goal {String(index + 1).padStart(2, "0")}
                         </span>
                         <button
                           type="button"

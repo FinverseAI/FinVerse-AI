@@ -30,7 +30,7 @@ function MarketSidebar({ active }: { active: string }) {
       <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-1">
         {items.map((item) => {
           const isActive = item.href === `/market#${active}`;
-          const className = `grid size-9 place-items-center rounded-panel transition-colors ${isActive ? "bg-dash-accent/15 text-dash-accent" : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"}`;
+          const className = `grid size-9 place-items-center rounded-lg transition-colors ${isActive ? "bg-dash-raised text-dash-text shadow-[inset_2px_0_0_#ff9b8b]" : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"}`;
           return (
             <a
               key={item.label}

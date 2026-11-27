@@ -258,15 +258,15 @@ export function ScreenerSection({
     >
       <PanelHeading icon="filter" title="Screening rules">
         <div
-          className="surface-inset flex gap-1 rounded-full border p-1"
+          className="surface-inset flex gap-1 rounded-lg border p-1"
           role="group"
           aria-label="Screener mode"
         >
           <button
             type="button"
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
+            className={`rounded-md px-3 py-1 text-xs font-medium ${
               mode === "filters"
-                ? "bg-dash-accent text-dash-bg"
+                ? "bg-dash-raised text-dash-text"
                 : "text-dash-muted"
             }`}
             aria-pressed={mode === "filters"}
@@ -276,8 +276,8 @@ export function ScreenerSection({
           </button>
           <button
             type="button"
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-              mode === "nl" ? "bg-dash-accent text-dash-bg" : "text-dash-muted"
+            className={`rounded-md px-3 py-1 text-xs font-medium ${
+              mode === "nl" ? "bg-dash-raised text-dash-text" : "text-dash-muted"
             }`}
             aria-pressed={mode === "nl"}
             onClick={() => setMode("nl")}
@@ -390,7 +390,7 @@ export function ScreenerSection({
               <button
                 key={suggestion}
                 type="button"
-                className="rounded-full border border-dash-border px-3 py-1 text-xs text-dash-muted hover:text-dash-text"
+                className="rounded-lg border border-dash-border px-3 py-1 text-xs text-dash-muted hover:text-dash-text"
                 disabled={loading}
                 onClick={() => {
                   setQuery(suggestion);
@@ -425,7 +425,7 @@ export function ScreenerSection({
           </p>
         )}
         {mode === "nl" && error && (
-          <p role="alert" className="text-sm text-red-500">
+          <p role="alert" className="text-sm text-dash-red">
             {error}
           </p>
         )}
@@ -452,7 +452,7 @@ export function ScreenerSection({
                 )}
                 {aiResponse.claims.length > 0 && (
                   <div className="mt-4">
-                    <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+                    <h4 className="text-xs font-medium text-dash-muted">
                       Evidence
                     </h4>
                     <ul className="mt-2 space-y-2">

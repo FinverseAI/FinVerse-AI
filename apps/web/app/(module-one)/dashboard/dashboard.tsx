@@ -199,6 +199,15 @@ export default function Dashboard({
         throw new Error(
           error.message ?? "Unable to log out. Please try again.",
         );
+      // TEMPORARY dev-only guest demo — remove before shipping. A
+      // guest has no better-auth session, so the sign-out above does
+      // not clear the guest cookie: delete it here, or a guest
+      // revisiting /dashboard stays in guest mode. The endpoint is a
+      // no-op without the cookie, so this is safe to call for every
+      // sign-out; it is best-effort so a demo-endpoint failure can
+      // never block a real Google sign-out. Fire-and-forget: a hung
+      // demo-endpoint request must never delay navigation.
+      fetch("/api/auth/guest", { method: "DELETE" }).catch(() => {});
       router.replace("/");
       router.refresh();
     } catch (error) {

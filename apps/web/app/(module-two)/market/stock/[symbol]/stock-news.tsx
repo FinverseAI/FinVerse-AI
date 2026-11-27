@@ -222,7 +222,7 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
               </p>
             )}
             {explainError && (
-              <p role="alert" className="text-sm text-red-500">
+              <p role="alert" className="text-sm text-dash-red">
                 {explainError}
               </p>
             )}
@@ -252,7 +252,7 @@ export function StockNewsSection({ symbol }: { symbol: string }) {
                         <summary className="cursor-pointer text-sm font-medium">
                           View supporting sources ({explanation.claims.length})
                         </summary>
-                        <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+                        <h4 className="text-xs font-medium text-dash-muted">
                           Sources
                         </h4>
                         <ul className="mt-2 space-y-2">

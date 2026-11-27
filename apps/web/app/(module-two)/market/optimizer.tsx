@@ -241,7 +241,7 @@ function FrontierChart({
       </svg>
       {hovered && hover !== null && (
         <div
-          className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-lg border border-dash-border bg-dash-surface px-3 py-2 text-xs shadow-xl shadow-black/30"
+          className="pointer-events-none absolute top-2 z-10 -translate-x-1/2 rounded-lg border border-dash-border bg-dash-raised px-3 py-2 text-xs"
           style={{
             left: `${Math.max(14, Math.min(86, (xFor(hovered.volatility) / width) * 100))}%`,
           }}
