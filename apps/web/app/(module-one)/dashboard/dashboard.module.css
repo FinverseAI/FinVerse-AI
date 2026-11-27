@@ -1,0 +1,312 @@
+/* Dashboard-scoped styling. Everything here lives under .root so no other
+   page is touched. It quiets the glass/gradient chrome from globals.css
+   (which this dashboard may not edit) into flat surfaces and hairlines,
+   and carries the dashboard's own controls: segmented toggles, the chart
+   tooltip, quiet stat rows and the one entrance. One easing curve only:
+   cubic-bezier(0.22, 1, 0.36, 1). */
+
+.root {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Flat page background: the dashboard gradient and ribs from globals.css
+   do not carry over. */
+.root:global(.dashboard:not(dialog)) {
+  background-color: var(--color-dash-bg);
+  background-image: none;
+  background-attachment: scroll;
+}
+
+/* Panels: flat raised surface, hairline border, 16px radius. No glass,
+   no reflection, no shadow. */
+.root :global(.dash-panel) {
+  background-color: var(--color-dash-surface);
+  background-image: none;
+  border: 1px solid var(--color-dash-border);
+  border-radius: 16px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root :global(.dashboard-header) {
+  background-color: var(--color-dash-sidebar);
+  background-image: none;
+  border-bottom: 1px solid var(--color-dash-border);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.root :global(.dashboard-sidebar) {
+  background-color: var(--color-dash-sidebar);
+  background-image: none;
+  border: 1px solid var(--color-dash-border);
+  border-radius: 16px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Section labels: sentence case, normal tracking, muted. */
+.root :global(.dash-eyebrow) {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  font-weight: 500;
+  color: var(--color-dash-muted);
+}
+
+/* Panel headings: 500 weight, no tracking, muted icon. */
+.root h2 {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.root h2 svg {
+  color: var(--color-dash-muted);
+}
+
+/* Mini stat labels (ui.tsx MiniStat and anything else using
+   .surface-inset as a stat tile): sentence case, no tracking. */
+.root :global(.surface-inset) {
+  background: var(--color-dash-track);
+  background-image: none;
+  border-color: var(--color-dash-border);
+  border-radius: 8px;
+}
+
+.root :global(.surface-inset) > p:first-child {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Controls: 8px radius everywhere, named transitions only. */
+.root :global(.dash-small-button),
+.root :global(.dash-icon-button),
+.root :global(.dash-input) {
+  border-radius: 8px;
+}
+
+.root :global(.dash-primary) {
+  background: var(--color-dash-accent);
+  background-image: none;
+  border-color: transparent;
+  border-radius: 8px;
+  box-shadow: none;
+  color: var(--color-dash-bg);
+  font-weight: 500;
+}
+
+.root :global(.dash-primary:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--color-dash-accent) 75%, white);
+}
+
+.root :global(.brand-mark) {
+  border-radius: 8px;
+}
+
+/* The savings card's coral top border and tinted wash go away. */
+.root :global(.savings-card) {
+  border-top: 1px solid var(--color-dash-border);
+  background-image: none;
+}
+
+/* Badges become quiet mono text. */
+.root :global(.dash-badge) {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Thin progress tracks. */
+.root :global(.progress-track) {
+  height: 4px;
+  background: var(--color-dash-track);
+}
+
+/* Quiet notice (auto-pay): track surface, hairline, no accent border. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--color-dash-border);
+  border-radius: 12px;
+  background: var(--color-dash-surface);
+}
+
+/* Segmented control (Net/Gross, spending period, AI mode). The active
+   segment is a surface step, not a coral fill. */
+.seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-dash-border);
+  border-radius: 8px;
+  background: var(--color-dash-track);
+}
+
+.seg button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-dash-muted);
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.seg button:hover {
+  color: var(--color-dash-text);
+}
+
+.seg button[aria-pressed="true"] {
+  background: var(--color-dash-raised);
+  color: var(--color-dash-text);
+}
+
+/* Quiet stat: muted sentence-case label, mono value, right-aligned. */
+.mini {
+  min-width: 0;
+}
+
+.miniLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-dash-muted);
+}
+
+.miniValue {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--color-dash-text);
+  overflow-wrap: anywhere;
+}
+
+/* Header nav: quiet links, the current page in primary text with a
+   coral underline. */
+.navLink {
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: var(--color-dash-muted);
+  transition: color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.navLink:hover {
+  color: var(--color-dash-text);
+}
+
+.navActive {
+  color: var(--color-dash-text);
+  font-weight: 500;
+  box-shadow: inset 0 -2px 0 var(--color-dash-accent);
+  border-radius: 8px 8px 0 0;
+}
+
+/* Sidebar icon buttons: 8px radius, 36px rows, surface-step active. */
+.railButton {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  color: var(--color-dash-muted);
+  transition:
+    background-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.railButton:hover {
+  background: var(--color-dash-raised);
+  color: var(--color-dash-text);
+}
+
+.railActive {
+  background: var(--color-dash-raised);
+  color: var(--color-dash-text);
+  box-shadow: inset 2px 0 0 var(--color-dash-accent);
+}
+
+/* Balance chart. */
+.chartWrap {
+  position: relative;
+  margin-top: 20px;
+}
+
+.chartSvg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chartTooltip {
+  position: absolute;
+  top: 0;
+  z-index: 10;
+  transform: translateX(-50%);
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 8px 12px;
+  border: 1px solid var(--color-dash-border);
+  border-radius: 8px;
+  background: var(--color-dash-raised);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--color-dash-text);
+}
+
+/* History rows: plain 40px rows divided by hairlines. */
+.historyRow {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 4px;
+  border-top: 1px solid var(--color-dash-border);
+  font-size: 12px;
+  line-height: 20px;
+  text-align: left;
+  transition: background-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.historyRow:first-child {
+  border-top: 0;
+}
+
+button.historyRow:hover {
+  background: var(--color-dash-raised);
+}
+
+/* One short entrance for the main column, nothing else moves on load. */
+.enter {
+  animation: dashFade 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes dashFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .enter {
+    animation: none;
+  }
+}

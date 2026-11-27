@@ -1,7 +1,8 @@
-﻿import { profileTotals, type FinancialProfile } from "../../../lib/profile";
+import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import { allocateBudget, budgetCategories } from "../../../lib/onboarding";
 import { money } from "./data";
-import { MiniStat, PanelHeading, ProgressBar } from "./ui";
+import { PanelHeading, ProgressBar } from "./ui";
+import styles from "./dashboard.module.css";
 
 export default function ExpenseBreakdownCard({
   profile,
@@ -36,25 +37,26 @@ export default function ExpenseBreakdownCard({
     (sum, category) => sum + category.amount,
     0,
   );
+  const ranked = [...expenses].sort((a, b) => b.amount - a.amount);
   return (
-    <article id="expenses" className="dash-panel flex flex-col p-4">
-      <PanelHeading icon="filter" title="Planned Expense Breakdown">
+    <article id="expenses" className="dash-panel flex flex-col p-5">
+      <PanelHeading icon="filter" title="Planned expenses">
         <p className="font-mono text-xs text-dash-muted">
           Monthly ·{" "}
           <span className="text-dash-text">{money(expenseTotal)}</span>
         </p>
       </PanelHeading>
-      <p className="mt-2 text-xs leading-5 text-dash-muted">
+      <p className="mt-3 text-xs leading-5 text-dash-muted">
         Planned allocation from your budget percentages — what you actually
-        spent is in Spending analysis below.
+        spent is in Spending analysis below
       </p>
-      <div className="mt-3 space-y-3">
+      <div className="mt-4 space-y-4">
         {expenseTotal === 0 ? (
           <p className="text-xs text-dash-muted">
-            No monthly expenses entered.
+            No monthly expenses entered
           </p>
         ) : (
-          expenses.map((category) => {
+          ranked.map((category, index) => {
             const percent = expenseTotal
               ? (category.amount / expenseTotal) * 100
               : 0;
@@ -67,18 +69,28 @@ export default function ExpenseBreakdownCard({
                   </span>
                 </div>
                 <ProgressBar
-                  label={category.name + " share of expenses"}
+                  label={`${category.name} share of expenses`}
                   value={percent}
+                  tone={index === 0 ? "accent" : "muted"}
                 />
               </div>
             );
           })
         )}
       </div>
-      <div className="mt-auto grid grid-cols-3 gap-2 pt-7">
-        <MiniStat label="Total expenses" value={money(expenseTotal)} />
-        <MiniStat label="Savings target" value={money(totals.target)} />
-        <MiniStat label="Monthly surplus" value={money(totals.surplus)} />
+      <div className="mt-auto grid grid-cols-3 gap-3 pt-8">
+        <div className={styles.mini}>
+          <p className={styles.miniLabel}>Total expenses</p>
+          <p className={styles.miniValue}>{money(expenseTotal)}</p>
+        </div>
+        <div className={styles.mini}>
+          <p className={styles.miniLabel}>Savings target</p>
+          <p className={styles.miniValue}>{money(totals.target)}</p>
+        </div>
+        <div className={styles.mini}>
+          <p className={styles.miniLabel}>Monthly surplus</p>
+          <p className={styles.miniValue}>{money(totals.surplus)}</p>
+        </div>
       </div>
     </article>
   );

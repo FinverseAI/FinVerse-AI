@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../../../auth/types";
 import { Icon, type IconName } from "./ui";
+import { shiftMonth } from "./spending-data";
+import styles from "./dashboard.module.css";
 
 type HeaderProps = {
   month: string;
@@ -135,7 +137,7 @@ export function Header({
   return (
     <header className="dashboard-header sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-dash-border px-7 py-3 max-sm:px-4">
       <div className="flex items-center gap-6">
-        <h1 className="whitespace-nowrap text-sm font-semibold">FinVerse</h1>
+        <h1 className="whitespace-nowrap text-sm font-medium">FinVerse</h1>
         <nav
           aria-label="Dashboard navigation"
           className="hidden items-center gap-1 text-xs text-dash-muted xl:flex"
@@ -143,52 +145,65 @@ export function Header({
           <a
             href="#overview"
             aria-current="page"
-            className="rounded-full bg-dash-accent/15 px-3 py-2 text-dash-accent"
+            className={`${styles.navLink} ${styles.navActive}`}
           >
             Dashboard
           </a>
-          <a className="dash-nav" href="/market">
+          <a className={styles.navLink} href="/market">
             Market
           </a>
-          <button className="dash-nav" onClick={onTransactions}>
+          <button className={styles.navLink} onClick={onTransactions}>
             Transactions
           </button>
-          <a className="dash-nav" href="#balance">
+          <a className={styles.navLink} href="#balance">
             Analytics
           </a>
-          <a className="dash-nav" href="#expenses">
+          <a className={styles.navLink} href="#expenses">
             Insights
           </a>
-          <button className="dash-nav" onClick={onReport}>
+          <button className={styles.navLink} onClick={onReport}>
             Reports
           </button>
         </nav>
       </div>
       <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
-        <span className="text-xs text-dash-muted" aria-live="polite">
-          Showing{" "}
-          {new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
-            month: "long",
-            year: "numeric",
-          })}
-        </span>
-        <label className="relative">
-          <span className="sr-only">Cash flow month</span>
-          <input
-            type="month"
-            min="1900-01"
-            max="9999-12"
-            value={month}
-            onChange={(event) => {
-              if (
-                event.target.validity.valid &&
-                /^\d{4}-\d{2}$/.test(event.target.value)
-              )
-                onMonth(event.target.value);
-            }}
-            className="dash-input py-2 text-xs text-dash-muted"
-          />
-        </label>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="dash-icon-button !size-8 !min-w-8"
+            aria-label="Previous month"
+            disabled={month <= "1900-01"}
+            onClick={() => onMonth(shiftMonth(month, -1))}
+          >
+            <Icon name="left" className="size-3.5" />
+          </button>
+          <label className="relative">
+            <span className="sr-only">Cash flow month</span>
+            <input
+              type="month"
+              min="1900-01"
+              max="9999-12"
+              value={month}
+              onChange={(event) => {
+                if (
+                  event.target.validity.valid &&
+                  /^\d{4}-\d{2}$/.test(event.target.value)
+                )
+                  onMonth(event.target.value);
+              }}
+              className="dash-input py-2 text-xs text-dash-muted"
+            />
+          </label>
+          <button
+            type="button"
+            className="dash-icon-button !size-8 !min-w-8"
+            aria-label="Next month"
+            disabled={month >= "9999-12"}
+            onClick={() => onMonth(shiftMonth(month, 1))}
+          >
+            <Icon name="right" className="size-3.5" />
+          </button>
+        </div>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -225,7 +240,7 @@ export function Header({
           {notificationCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dash-red px-1 text-[10px] font-semibold text-white"
+              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dash-red px-1 text-[11px] font-semibold text-white"
             >
               {notificationCount > 9 ? "9+" : notificationCount}
             </span>
@@ -279,9 +294,9 @@ export function Sidebar({
       >
         F
       </a>
-      <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-1">
+      <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-0.5">
         {items.map((item, index) => {
-          const className = `grid size-9 place-items-center rounded-panel transition-colors ${index === 0 ? "bg-dash-accent/15 text-dash-accent" : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"}`;
+          const className = `${styles.railButton} ${index === 0 ? styles.railActive : ""}`;
           return item.href ? (
             <a
               key={item.label}

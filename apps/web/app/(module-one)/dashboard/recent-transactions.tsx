@@ -93,7 +93,7 @@ export default function RecentTransactions({
       className="dash-panel flex min-h-120 flex-col p-5 xl:min-h-120"
       aria-busy={loading}
     >
-      <PanelHeading icon="file" title="Recent Transactions">
+      <PanelHeading icon="file" title="Recent transactions">
         <div className="flex gap-2">
           <button
             className="dash-small-button gap-1"
@@ -141,7 +141,7 @@ export default function RecentTransactions({
                 Your five most recent transactions
                 {monthLabel ? ` in ${monthLabel}` : ""}
               </caption>
-              <thead className="font-mono text-xs tracking-widest text-dash-muted uppercase">
+              <thead className="text-xs text-dash-muted">
                 <tr>
                   {["Merchant", "Category", "Date", "Amount", "Actions"].map(
                     (label) => (
@@ -160,27 +160,14 @@ export default function RecentTransactions({
                 </tr>
               </thead>
               <tbody>
-                {recent.map((item, index) => (
+                {recent.map((item) => (
                   <tr
                     key={item.id}
-                    className="h-16 border-t border-dash-border/50"
+                    className="h-14 border-t border-dash-border/50"
                   >
                     <td className="max-w-52 pr-3">
                       <div className="flex items-center gap-3">
-                        <span
-                          className="grid size-8 shrink-0 place-items-center rounded-xl bg-current/10 font-semibold"
-                          data-tone={
-                            (
-                              [
-                                "blue",
-                                "accent",
-                                "purple",
-                                "warning",
-                                "accent",
-                              ] as const
-                            )[index]
-                          }
-                        >
+                        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-dash-track font-medium text-dash-muted">
                           {item.name.slice(0, 1).toUpperCase()}
                         </span>
                         <span className="truncate" title={item.name}>
@@ -189,7 +176,7 @@ export default function RecentTransactions({
                       </div>
                     </td>
                     <td className="pr-3">
-                      <span className="rounded-full border border-dash-border px-2 py-1 text-xs text-dash-muted whitespace-nowrap">
+                      <span className="text-xs text-dash-muted whitespace-nowrap">
                         {item.category}
                       </span>
                     </td>
@@ -200,7 +187,7 @@ export default function RecentTransactions({
                       )}
                     </td>
                     <td
-                      className={`pr-4 text-right font-mono whitespace-nowrap ${item.amount > 0 ? "text-dash-accent" : ""}`}
+                      className={`pr-4 text-right font-mono whitespace-nowrap ${item.amount > 0 ? "font-medium text-dash-text" : "text-dash-muted"}`}
                     >
                       {item.amount > 0 ? "+" : "−"}
                       {money(Math.abs(item.amount))}
