@@ -2,19 +2,19 @@
 
 ## Metadata
 
-| Field           | Value                                                                                                                                                                                                                                                                                                                                                                                                  |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Phase           | Phase 5 — Evaluation: the measurable research contribution — 20 scripted scenarios, template baseline, four metrics, reproducible runner, blind rating pack (synopsis Objective 6)                                                                                                                                                                                                                     |
-| Date            | 23 November 2026                                                                                                                                                                                                                                                                                                                                                                                       |
-| Author          | Vivek Bartwal (B.Tech CSE, GEHU, Roll No. 2319881)                                                                                                                                                                                                                                                                                                                                                     |
-| Team            | CSE27-079 — Sarthak Thapliyal (2319526), Ayushman Kothari (2318646), Vidish Bijalwan (2319849), Vivek Bartwal (2319881)                                                                                                                                                                                                                                                                                |
-| Guide           | Dr. Prateek Srivastava, Assistant Professor, GEHU                                                                                                                                                                                                                                                                                                                                                      |
-| Repository      | github.com/FinverseAI/FinVerse-AI (public)                                                                                                                                                                                                                                                                                                                                                             |
-| Branch          | `main` — direct commit, no pull request (team rule from Sarthak, 23 November 2026: no PRs, commit directly)                                                                                                                                                                                                                                                                                           |
-| Commits         | One commit on `main`, directly on top of `926973a` (the Phase 4 merge) — see `git log` for the hash                                                                                                                                                                                                                                                                                                   |
-| Scope           | 34 files, +22,735 / −38 lines; **no migration, no new environment variable, no new dependency**                                                                                                                                                                                                                                                                                                                   |
-| Status          | **Built on `main` — committed locally, NOT pushed (parent re-verifies before pushing); CI not run yet; live LLM metrics pending the OpenRouter API key** (23 November 2026, ~23:30 IST)                                                                                                                                                                                                             |
-| Standing caveat | No live model call has been measured yet. The harness ran end to end without a key: the baseline is fully measured and the mock path exercises the mechanics, but every LLM number in the report is honestly labelled "pending key" — no LLM result has been fabricated, estimated, or presented from the mock. The live run needs only the key; no code changes (§10). |
+| Field           | Value                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase           | Phase 5 — Evaluation: the measurable research contribution — 20 scripted scenarios, template baseline, four metrics, reproducible runner, blind rating pack (synopsis Objective 6)                                                                                                                                                                                                                                                     |
+| Date            | 23 November 2026                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Author          | Vivek Bartwal (B.Tech CSE, GEHU, Roll No. 2319881)                                                                                                                                                                                                                                                                                                                                                                                     |
+| Team            | CSE27-079 — Sarthak Thapliyal (2319526), Ayushman Kothari (2318646), Vidish Bijalwan (2319849), Vivek Bartwal (2319881)                                                                                                                                                                                                                                                                                                                |
+| Guide           | Dr. Prateek Srivastava, Assistant Professor, GEHU                                                                                                                                                                                                                                                                                                                                                                                      |
+| Repository      | github.com/FinverseAI/FinVerse-AI (public)                                                                                                                                                                                                                                                                                                                                                                                             |
+| Branch          | `main` — direct commit, no pull request (team rule from Sarthak, 23 November 2026: no PRs, commit directly)                                                                                                                                                                                                                                                                                                                            |
+| Commits         | One commit on `main`, directly on top of `926973a` (the Phase 4 merge) — see `git log` for the hash                                                                                                                                                                                                                                                                                                                                    |
+| Scope           | 34 files, +22,735 / −38 lines; **no migration, no new environment variable, no new dependency**                                                                                                                                                                                                                                                                                                                                        |
+| Status          | **On `main`, CI green; live LLM metrics now measured — full 19/19 eval complete 27 Nov 2026 (see Appendix D)**                                                                                                                                                                                                                                                                                                                         |
+| Standing caveat | Live model calls have now been measured (full 19/19 eval, 27 Nov 2026 — see Appendix D). The harness ran end to end without a key: the baseline is fully measured and the mock path exercises the mechanics, but every LLM number in the report was honestly labelled "pending key" until the live run — no LLM result was fabricated, estimated, or presented from the mock. The live run needed only the key; no code changes (§10). |
 
 All times in this document are IST. All numbers, hashes and run identifiers are
 taken from the Git repository, the approved phase plan and the verified work log
@@ -63,16 +63,16 @@ pending until the key exists.**
 
 ### What existed before this phase
 
-| Area                                    | State at the start of Phase 5 (23 Nov, ~22:40 IST)                                                                             |
-| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Module 1 + Phase 0 (deterministic core) | Done, CI green, live — profile, transactions, holdings, price history, indicators                                              |
-| Phase 1 (LLM foundation)                | Done, CI green, live — 7 tools, structured output, chat + explain-stock, fallback                                              |
-| Phase 2 (RAG)                           | Done, CI green, live — 9 tools, screener, news & sentiment, explain-news                                                       |
-| Phase 3 (Guardrails)                    | Done, on `main` via PR #4 (merged by Sarthak) — verification engine, template fallback, corrupted-output suite 22/22           |
-| Phase 4 (Readiness)                     | Done, on `main` (`926973a`, direct merge, CI green) — deterministic 0–100 score, reasoning-model explanation, dashboard card   |
-| Evaluation                              | 0% — no dataset, no baseline harness, no metrics, no runner                                                                    |
-| OpenRouter API key                      | Still missing (Sarthak, since 19 Nov) — all live AI smoke tests blocked                                                        |
-| Repo workflow                           | Back on the old repo (FinverseAI/FinVerse-AI); Sarthak's rule: direct commits to `main`, no pull requests                       |
+| Area                                    | State at the start of Phase 5 (23 Nov, ~22:40 IST)                                                                           |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Module 1 + Phase 0 (deterministic core) | Done, CI green, live — profile, transactions, holdings, price history, indicators                                            |
+| Phase 1 (LLM foundation)                | Done, CI green, live — 7 tools, structured output, chat + explain-stock, fallback                                            |
+| Phase 2 (RAG)                           | Done, CI green, live — 9 tools, screener, news & sentiment, explain-news                                                     |
+| Phase 3 (Guardrails)                    | Done, on `main` via PR #4 (merged by Sarthak) — verification engine, template fallback, corrupted-output suite 22/22         |
+| Phase 4 (Readiness)                     | Done, on `main` (`926973a`, direct merge, CI green) — deterministic 0–100 score, reasoning-model explanation, dashboard card |
+| Evaluation                              | 0% — no dataset, no baseline harness, no metrics, no runner                                                                  |
+| OpenRouter API key                      | Still missing (Sarthak, since 19 Nov) — all live AI smoke tests blocked                                                      |
+| Repo workflow                           | Back on the old repo (FinverseAI/FinVerse-AI); Sarthak's rule: direct commits to `main`, no pull requests                    |
 
 ---
 
@@ -80,18 +80,18 @@ pending until the key exists.**
 
 From the approved plan (§2, Phase 5) and the strategy document (§4):
 
-| # | Objective | Acceptance criterion | Result |
-| --- | --- | --- | --- |
-| 1 | Scenario dataset | ~20 scripted scenarios (seeded profiles + portfolios), deterministic, reproducible, no real user data | ✅ 20 scenarios, pinned scores, determinism spec |
-| 2 | Template baseline | Rule-generated explanations from the same numbers, directly comparable to LLM output | ✅ Production template reused as the baseline, verified 100% |
-| 3 | Metric 1 — factual grounding | Guardrail pass rate on LLM claims vs baseline | ✅ Harness measures it; baseline 100.0% measured; LLM pending key |
-| 4 | Metric 2 — self-consistency | Same prompt 5×, agreement rate on key conclusions | ✅ Harness measures it (pairwise agreement); LLM pending key |
-| 5 | Metric 3 — explanation quality | Human rubric (clarity, evidence use, actionability), blind, LLM vs baseline | ✅ Blind rating pack generated (19 outputs); ratings are a human step, pending live outputs |
-| 6 | Metric 4 — latency + cost | Measured response times and API costs per model | ✅ Harness measures both from provider usage; baseline latency measured (mean 1.51 ms); LLM pending key |
-| 7 | Deliverable | Results table + short write-up for the report, honest numbers including failures | ✅ `eval/results/eval-results.md` + `docs/evaluation-writeup.md` |
-| 8 | Reproducibility | Results reproducible by re-running the eval script | ✅ One command; deterministic except the report timestamp |
-| 9 | Version pinning (strategy §4.5) | Exact model versions pinned + documented for every evaluation | ✅ Config pins all three models; spec asserts they match production |
-| 10 | No-key operation | Harness runs end to end without a key; never fails, never fabricates | ✅ Verified by the no-key run and by spec |
+| #   | Objective                       | Acceptance criterion                                                                                  | Result                                                                                                  |
+| --- | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | Scenario dataset                | ~20 scripted scenarios (seeded profiles + portfolios), deterministic, reproducible, no real user data | ✅ 20 scenarios, pinned scores, determinism spec                                                        |
+| 2   | Template baseline               | Rule-generated explanations from the same numbers, directly comparable to LLM output                  | ✅ Production template reused as the baseline, verified 100%                                            |
+| 3   | Metric 1 — factual grounding    | Guardrail pass rate on LLM claims vs baseline                                                         | ✅ Harness measures it; baseline 100.0% measured; LLM pending key                                       |
+| 4   | Metric 2 — self-consistency     | Same prompt 5×, agreement rate on key conclusions                                                     | ✅ Harness measures it (pairwise agreement); LLM pending key                                            |
+| 5   | Metric 3 — explanation quality  | Human rubric (clarity, evidence use, actionability), blind, LLM vs baseline                           | ✅ Blind rating pack generated (19 outputs); ratings are a human step, pending live outputs             |
+| 6   | Metric 4 — latency + cost       | Measured response times and API costs per model                                                       | ✅ Harness measures both from provider usage; baseline latency measured (mean 1.51 ms); LLM pending key |
+| 7   | Deliverable                     | Results table + short write-up for the report, honest numbers including failures                      | ✅ `eval/results/eval-results.md` + `docs/evaluation-writeup.md`                                        |
+| 8   | Reproducibility                 | Results reproducible by re-running the eval script                                                    | ✅ One command; deterministic except the report timestamp                                               |
+| 9   | Version pinning (strategy §4.5) | Exact model versions pinned + documented for every evaluation                                         | ✅ Config pins all three models; spec asserts they match production                                     |
+| 10  | No-key operation                | Harness runs end to end without a key; never fails, never fabricates                                  | ✅ Verified by the no-key run and by spec                                                               |
 
 Two deliberate scope decisions (recorded in §6, not omissions): the
 eval covers the explain-readiness feature only (the chat/RAG flows
@@ -222,7 +222,7 @@ field. All 24 literals gained `usage: null` (§8.1).
 ### 4.2 Shared prompt + guardrail-context helpers
 
 - `buildReadinessExplanationMessages(assessment, question,
-  maxDataChars)` in `ai.prompts.ts`: the exact messages the
+maxDataChars)` in `ai.prompts.ts`: the exact messages the
   explain-readiness feature sends — system prompt, readiness intro,
   the user's question, the assessment as JSON truncated at 8,000
   chars with the service's `\u2026[truncated]` marker. The cap itself
@@ -381,17 +381,17 @@ No migration. The only new configuration is the eval config module
 itself (§4.3), whose prices are a dated snapshot that must be
 re-checked before the final report.
 
-| Setting | Value | Source |
-| --- | --- | --- |
-| Primary model (pinned) | `qwen/qwen-2.5-72b-instruct` | `eval.config.ts` (= production default) |
-| Reasoning model (pinned) | `deepseek/deepseek-r1-0528` | `eval.config.ts` (= production default) |
-| Embeddings model (pinned) | `baai/bge-base-en-v1.5` (768d) | `eval.config.ts` (= production default) |
-| Qwen price | $0.36 / $0.40 per M tokens (prompt/completion) | Live OpenRouter catalog, 2026-11-23 |
-| R1 price | $0.571 / $2.286 per M tokens | Live OpenRouter catalog, 2026-11-23 |
-| Self-consistency repeats | 5 | Plan §2 |
-| Reasoning max tokens | 4096 | = production `REASONING_MAX_TOKENS` |
-| Eval timeout | 30,000 ms | = production default |
-| Rating-pack seed | 20261123 | `eval.config.ts` |
+| Setting                   | Value                                          | Source                                  |
+| ------------------------- | ---------------------------------------------- | --------------------------------------- |
+| Primary model (pinned)    | `qwen/qwen-2.5-72b-instruct`                   | `eval.config.ts` (= production default) |
+| Reasoning model (pinned)  | `deepseek/deepseek-r1-0528`                    | `eval.config.ts` (= production default) |
+| Embeddings model (pinned) | `baai/bge-base-en-v1.5` (768d)                 | `eval.config.ts` (= production default) |
+| Qwen price                | $0.36 / $0.40 per M tokens (prompt/completion) | Live OpenRouter catalog, 2026-11-23     |
+| R1 price                  | $0.571 / $2.286 per M tokens                   | Live OpenRouter catalog, 2026-11-23     |
+| Self-consistency repeats  | 5                                              | Plan §2                                 |
+| Reasoning max tokens      | 4096                                           | = production `REASONING_MAX_TOKENS`     |
+| Eval timeout              | 30,000 ms                                      | = production default                    |
+| Rating-pack seed          | 20261123                                       | `eval.config.ts`                        |
 
 ---
 
@@ -487,26 +487,26 @@ quote a stale price as current.
 
 Run before the commit, all on this VM, 23 November 2026 (~22:40–23:30 IST):
 
-| Check | Command | Result |
-| --- | --- | --- |
-| Backend tests | `node --experimental-vm-modules ../../node_modules/jest/bin/jest.js` | **612/612 (48 suites)** — baseline 565 + 2 provider usage + 45 eval |
-| Web tests | `node --test test/*.test.mjs` (apps/web) | **68/68** (unchanged — no web code touched) |
-| Backend tsc | `tsc --noEmit --incremental false` | Clean |
-| Backend oxlint | `oxlint --type-aware --deny-warnings src/ test/` | 0 warnings, 0 errors |
-| Prettier | `prettier --check` on all touched files | Clean |
-| Web check-types | `next typegen && tsc --noEmit` | Clean |
-| Web ESLint | `eslint --max-warnings 0` | Clean |
-| Backend build | `nest build` | Green; `dist/eval/run-eval.js` produced |
-| Eval run (no key) | `node dist/eval/run-eval.js` | Completed, exit 0; see table below |
+| Check             | Command                                                              | Result                                                              |
+| ----------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Backend tests     | `node --experimental-vm-modules ../../node_modules/jest/bin/jest.js` | **612/612 (48 suites)** — baseline 565 + 2 provider usage + 45 eval |
+| Web tests         | `node --test test/*.test.mjs` (apps/web)                             | **68/68** (unchanged — no web code touched)                         |
+| Backend tsc       | `tsc --noEmit --incremental false`                                   | Clean                                                               |
+| Backend oxlint    | `oxlint --type-aware --deny-warnings src/ test/`                     | 0 warnings, 0 errors                                                |
+| Prettier          | `prettier --check` on all touched files                              | Clean                                                               |
+| Web check-types   | `next typegen && tsc --noEmit`                                       | Clean                                                               |
+| Web ESLint        | `eslint --max-warnings 0`                                            | Clean                                                               |
+| Backend build     | `nest build`                                                         | Green; `dist/eval/run-eval.js` produced                             |
+| Eval run (no key) | `node dist/eval/run-eval.js`                                         | Completed, exit 0; see table below                                  |
 
 ### The no-key eval run (23 Nov 2026, ~22:52 IST)
 
-| System | Grounding (answers) | Grounding (checks) | Self-consistency | Total cost |
-| --- | --- | --- | --- | --- |
-| Template baseline | 100.0% (19/19) | 100.0% (1355/1355) | n/a (deterministic) | $0 |
-| LLM (reasoning model) | pending key | pending key | pending key | pending key |
-| Mock — correct (fixture) | 100.0% (19/19) | 100.0% (1355/1355) | n/a (1 run) | n/a (no tokens) |
-| Mock — corrupt (fixture) | 0.0% (0/19) | 98.6% (1340/1359) | n/a (1 run) | n/a (no tokens) |
+| System                   | Grounding (answers) | Grounding (checks) | Self-consistency    | Total cost      |
+| ------------------------ | ------------------- | ------------------ | ------------------- | --------------- |
+| Template baseline        | 100.0% (19/19)      | 100.0% (1355/1355) | n/a (deterministic) | $0              |
+| LLM (reasoning model)    | pending key         | pending key        | pending key         | pending key     |
+| Mock — correct (fixture) | 100.0% (19/19)      | 100.0% (1355/1355) | n/a (1 run)         | n/a (no tokens) |
+| Mock — corrupt (fixture) | 0.0% (0/19)         | 98.6% (1340/1359)  | n/a (1 run)         | n/a (no tokens) |
 
 19 scenarios measured, 1 unavailable (no-data). Baseline latency
 0.39–5.25 ms per scenario (mean 1.51 ms). Prompt sizes 4,670–5,416
@@ -598,16 +598,16 @@ documentation, not runtime assets.
 
 ## 10. What is still open or unverified
 
-| Item | Status | Unblocked by |
-| --- | --- | --- |
-| LLM grounding rate | Pending — no live calls made | `OPENROUTER_API_KEY` (Sarthak) |
-| LLM self-consistency | Pending — no live calls made | Same key |
-| LLM latency + cost | Pending — no live calls made | Same key |
-| Explanation-quality ratings | Pack ready; no ratings collected (no LLM outputs exist yet) | Live run + team raters |
-| CI on this commit | Not run yet (commit is local; parent re-verifies before pushing) | Push |
-| Chat/RAG evaluation | Not built — needs a seeded database | Future work (§6.2) |
-| FinBERT baseline | Not built — plan marks it optional extra credit | Time permitting |
-| Prices in the final report | Snapshot as of 2026-11-23; must be re-checked before quoting | Re-check at report time |
+| Item                        | Status                                                                               | Unblocked by            |
+| --------------------------- | ------------------------------------------------------------------------------------ | ----------------------- |
+| LLM grounding rate          | **Done 27 Nov 2026 — 84.2% (80/95 answers), ERNIE 5.5 Flash :free** (see Appendix D) | —                       |
+| LLM self-consistency        | **Done 27 Nov 2026 — 100%** (see Appendix D)                                         | —                       |
+| LLM latency + cost          | **Done 27 Nov 2026 — median 16.6s (part 2b), $0.0000 total** (see Appendix D)        | —                       |
+| Explanation-quality ratings | Pack regenerated with all 19 scenarios' LLM outputs; no ratings collected yet        | Team raters             |
+| CI on this commit           | Not run yet (commit is local; parent re-verifies before pushing)                     | Push                    |
+| Chat/RAG evaluation         | Not built — needs a seeded database                                                  | Future work (§6.2)      |
+| FinBERT baseline            | Not built — plan marks it optional extra credit                                      | Time permitting         |
+| Prices in the final report  | Snapshot as of 2026-11-23; must be re-checked before quoting                         | Re-check at report time |
 
 The live run, when the key arrives, is one command with no code
 changes. The expected cost is on the order of a few US cents (19
@@ -672,28 +672,28 @@ Modified: `apps/backend/src/ai/ai.provider.ts`,
 
 ### B. Scenario scores (pinned)
 
-| Scenario | Score | Band |
-| --- | --- | --- |
-| healthy-saver | 100 | Ready |
-| over-spender | 48 | Building |
-| concentrated-portfolio | 82 | Ready |
-| diversified-portfolio | 99 | Ready |
-| high-debt | 33 | Not ready |
-| no-emergency-fund | 74 | Ready |
-| volatile-holdings | 76 | Ready |
-| no-portfolio | 91 | Ready |
-| no-data | — (unavailable) | — |
-| young-starter | 54 | Building |
-| mid-career-builder | 54 | Building |
-| debt-free-high-surplus | 76 | Ready |
-| single-stock-gambler | 28 | Not ready |
-| retiree-steady | 96 | Ready |
-| freelancer-irregular | 65 | Building |
-| new-investor | 87 | Ready |
-| emergency-only | 66 | Building |
-| maxed-out | 0 | Not ready |
-| balanced-ready | 100 | Ready |
-| partial-history | 89 | Ready |
+| Scenario               | Score           | Band      |
+| ---------------------- | --------------- | --------- |
+| healthy-saver          | 100             | Ready     |
+| over-spender           | 48              | Building  |
+| concentrated-portfolio | 82              | Ready     |
+| diversified-portfolio  | 99              | Ready     |
+| high-debt              | 33              | Not ready |
+| no-emergency-fund      | 74              | Ready     |
+| volatile-holdings      | 76              | Ready     |
+| no-portfolio           | 91              | Ready     |
+| no-data                | — (unavailable) | —         |
+| young-starter          | 54              | Building  |
+| mid-career-builder     | 54              | Building  |
+| debt-free-high-surplus | 76              | Ready     |
+| single-stock-gambler   | 28              | Not ready |
+| retiree-steady         | 96              | Ready     |
+| freelancer-irregular   | 65              | Building  |
+| new-investor           | 87              | Ready     |
+| emergency-only         | 66              | Building  |
+| maxed-out              | 0               | Not ready |
+| balanced-ready         | 100             | Ready     |
+| partial-history        | 89              | Ready     |
 
 ### C. How to run the eval
 
@@ -707,3 +707,47 @@ node dist/eval/run-eval.js
 Without `OPENROUTER_API_KEY`: the no-key run (baseline + mock,
 live metrics pending). With the key set in the environment: the
 live run. See `apps/backend/src/eval/README.md` for options.
+
+### D. Live-run results — addendum, 27 November 2026
+
+Written after the full live eval completed. The harness needed no
+code changes for the live run — only the key, pasted fresh for each
+day's run and never stored.
+
+**The run.** OpenRouter's free tier (Vivek's decision, 24 Nov 2026:
+the paid account was at $0). Model `baidu/ernie-5.5-flash-preview:free`
+(first pick Gemma 4 31B rejected every call with HTTP 429, upstream
+saturation). Free quota 50 requests/day, so the 95-call eval split
+across three days: part 1 (9 scenarios, 24 Nov), part 2a (4 scenarios,
+25 Nov), part 2b (6 scenarios, 27 Nov 11:10–11:19 IST). A runtime
+restart killed the first part-2 attempt at 27/50 calls (25 Nov) and
+its results were lost; part 2b wrote to a durable folder with the
+console log to a file. The parts were merged with a script that
+recomputes every summary from the stored runs (never averages part
+summaries). Merged results: `apps/backend/eval/results/`
+(`eval-results.json` + `eval-results.md`); blind rating pack:
+`apps/backend/eval/rating-pack/` (all 19 scenarios' outputs).
+Full narrative: `docs/evaluation-writeup.md` §4.
+
+**Final numbers (19 of 19 scenarios measured, + no-data unavailable).**
+
+| System                      | Grounding (answers) | Grounding (checks) | Self-consistency    | Total cost |
+| --------------------------- | ------------------- | ------------------ | ------------------- | ---------- |
+| Template baseline           | 100.0% (19/19)      | 100.0% (1477/1477) | n/a (deterministic) | n/a        |
+| LLM (ERNIE 5.5 Flash :free) | 84.2% (80/95)       | 99.8% (8106/8123)  | 100.0%              | $0.0000    |
+
+Per scenario (LLM grounding): healthy-saver 60%, over-spender 100%,
+concentrated-portfolio 100%, diversified-portfolio 100%, high-debt 60%,
+no-emergency-fund 100%, volatile-holdings 60%, no-portfolio 100%,
+young-starter 100%, mid-career-builder 60%, debt-free-high-surplus 100%,
+single-stock-gambler 100%, retiree-steady 80%, freelancer-irregular 60%,
+new-investor 100%, emergency-only 100%, maxed-out 60%, balanced-ready 60%,
+partial-history 100%. The 15 failing answers failed 17 checks between
+them (part 1: 6 answers / 6 checks; part 2a: 3 / 3; part 2b: 6 / 8).
+
+**Scope note.** These numbers measure ERNIE 5.5 Flash, not the pinned
+qwen-2.5-72B / DeepSeek R1. They prove the harness measures a real model
+end to end and validate the prompt and guardrail design; the
+pinned-model metrics still need the ~$5 top-up run (§10, write-up §5).
+Blind human ratings are the remaining unmeasured piece: the pack holds
+all 19 scenarios' outputs, awaiting team raters.

@@ -98,12 +98,12 @@ they say nothing about the model.
 
 ## 3. Results (no-key run, 23 November 2026)
 
-| System | Grounding (answers) | Grounding (checks) | Self-consistency | Total cost |
-| --- | --- | --- | --- | --- |
-| Template baseline | 100.0% (19/19) | 100.0% (1355/1355) | n/a (deterministic) | $0 |
-| LLM (reasoning model) | pending key | pending key | pending key | pending key |
-| Mock — correct (fixture) | 100.0% (19/19) | 100.0% (1355/1355) | n/a (1 run) | n/a (no tokens) |
-| Mock — corrupt (fixture) | 0.0% (0/19) | 98.6% (1340/1359) | n/a (1 run) | n/a (no tokens) |
+| System                   | Grounding (answers) | Grounding (checks) | Self-consistency    | Total cost      |
+| ------------------------ | ------------------- | ------------------ | ------------------- | --------------- |
+| Template baseline        | 100.0% (19/19)      | 100.0% (1355/1355) | n/a (deterministic) | $0              |
+| LLM (reasoning model)    | pending key         | pending key        | pending key         | pending key     |
+| Mock — correct (fixture) | 100.0% (19/19)      | 100.0% (1355/1355) | n/a (1 run)         | n/a (no tokens) |
+| Mock — corrupt (fixture) | 0.0% (0/19)         | 98.6% (1340/1359)  | n/a (1 run)         | n/a (no tokens) |
 
 Measured on 19 scenarios (the 20th, no-data, has no score to
 explain). Per-scenario results are in
@@ -117,7 +117,7 @@ explain). Per-scenario results are in
 - **The guardrail is sensitive.** The corrupt mock failed every
   answer (0/19) — with exactly ONE failing check per scenario: the
   score value check (`'score' was 107 but the tool result says
-  100`). The other 1,340 checks passed, because the rest of the
+100`). The other 1,340 checks passed, because the rest of the
   answer was correct. Answer-level grounding is strict by design: a
   single wrong number fails the answer. Check-level grounding shows
   how much was right.
@@ -130,7 +130,7 @@ explain). Per-scenario results are in
   would cost on the order of a few US cents — the exact figure
   awaits the provider's reported token counts.
 
-## 4. Live runs (24–25 November 2026) — what happened, honestly
+## 4. Live runs (24–27 November 2026) — what happened, honestly
 
 Three live runs have been made. The first two produced no LLM
 metrics — both failed for reasons outside the model, and both are
@@ -240,6 +240,24 @@ remaining 6 scenarios (freelancer-irregular, new-investor,
 emergency-only, maxed-out, balanced-ready, partial-history) run on
 26 Nov after the quota reset (30 calls).
 
+**Run 3 — free model, part 2b (27 Nov 2026, 11:10–11:19 IST).** The
+remaining 6 scenarios ran the next morning on a fresh key paste,
+quota verified 0/50 before the run (30/50 after — exactly the 30
+calls, no retries consumed). Output went to a durable workspace
+folder with the console log to a file (the lesson from part 2's
+restart loss). **Part 2b results (6 scenarios, 30 runs, ERNIE 5.5
+Flash :free):** 30/30 runs ok (0 provider-errors, 0 parse-errors).
+Baseline grounding 100% (6/6 answers, 547/547 checks). **LLM
+grounding 80.0% (24/30 answers), 99.7% (2971/2979 checks). LLM
+self-consistency 100%. Cost $0.0000.** Median latency 16.6s
+(8.8–26.0s). Per scenario: freelancer-irregular 60% (3/5),
+new-investor 100% (5/5), emergency-only 100% (5/5), maxed-out 60%
+(3/5), balanced-ready 60% (3/5), partial-history 100% (5/5). The 6
+failing answers failed 8 checks between them. Merged with parts 1 +
+2a, the eval is now **complete — 19 of 19 scenarios: LLM grounding
+84.2% (80/95 answers), 99.8% (8106/8123 checks), self-consistency
+100%, cost $0.0000.**
+
 **Scope note.** These numbers measure ERNIE 5.5 Flash, not the
 pinned qwen-2.5-72B / DeepSeek R1. They are the first evidence the
 harness measures a real model end-to-end (prompt → parse →
@@ -249,13 +267,13 @@ require the top-up run.
 
 ## 5. What is pending (and what unblocks it)
 
-| Pending item | Blocked on | How to complete |
-| --- | --- | --- |
-| LLM grounding rate (free model, full set) | Free-quota reset (UTC midnight) + key re-paste | Part 2a done (4/10 scenarios, 25 Nov); remaining 6 scenarios × 5 on ERNIE :free (26 Nov 2026), then re-merge to 19/19 |
-| LLM grounding rate (pinned models) | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key |
-| LLM self-consistency (pinned models) | Same top-up | Same run (5 repeats per scenario) |
-| LLM latency + cost (pinned models) | Same top-up | Same run (usage reported by the provider) |
-| Explanation-quality ratings | Live LLM outputs + human raters | The rating pack now holds LLM outputs for 13 scenarios; re-generate from the full report after part 2, then the team rates blind and unblinds with `key.json` |
+| Pending item                              | Blocked on                                                           | How to complete                                                                                                                                                |
+| ----------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| LLM grounding rate (free model, full set) | —                                                                    | **Done 27 Nov 2026: 19/19 measured, 84.2% (80/95 answers), 99.8% (8106/8123 checks), self-consistency 100%, $0.0000 (ERNIE 5.5 Flash :free)**                  |
+| LLM grounding rate (pinned models)        | OpenRouter **account credits** (the key is valid; the balance is $0) | Top up ~$5 on the account that owns the key — one full run costs ~$1–2 — then re-run `node dist/eval/run-eval.js` with the key                                 |
+| LLM self-consistency (pinned models)      | Same top-up                                                          | Same run (5 repeats per scenario)                                                                                                                              |
+| LLM latency + cost (pinned models)        | Same top-up                                                          | Same run (usage reported by the provider)                                                                                                                      |
+| Explanation-quality ratings               | Human raters                                                         | The rating pack now holds LLM outputs for all 19 scenarios (regenerated 27 Nov 2026 from the merged report); the team rates blind and unblinds with `key.json` |
 
 **Production note.** Production's reasoning timeout was raised from
 30s to 110s on 24 Nov 2026 (Vivek's decision): the live R1 calls took

@@ -1,6 +1,6 @@
 # Blind rating pack — FinVerse AI explanation quality
 
-Generated: 2026-11-25T15:20:17.789Z. Outputs: 26 (one per system per measured scenario).
+Generated: 2026-11-27T05:49:53.756Z. Outputs: 38 (one per system per measured scenario).
 
 ## What this is
 

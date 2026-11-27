@@ -1,17 +1,17 @@
 # FinVerse AI — Phase 5 Evaluation Results
 
-Generated: 2026-11-25T15:20:17.789Z
+Generated: 2026-11-27T05:49:53.756Z
 Models (pinned): primary qwen/qwen-2.5-72b-instruct; reasoning baidu/ernie-5.5-flash-preview:free; embeddings baai/bge-base-en-v1.5.
 Prices as of: 2026-11-23.
 API key present: yes. Self-consistency repeats: 5.
-Scenarios: 14 total, 13 measured, 1 unavailable (no score measurable).
+Scenarios: 20 total, 19 measured, 1 unavailable (no score measurable).
 
 ## Aggregate metrics
 
 | System | Grounding (answers) | Grounding (checks) | Self-consistency | Total cost |
 | --- | --- | --- | --- | --- |
-| Template baseline | 100.0% (13/13) | 100.0% (930/930) | n/a (deterministic) | n/a (no tokens) |
-| LLM (reasoning model) | 86.2% (56/65) | 99.8% (5135/5144) | 100.0% | $0.0000 |
+| Template baseline | 100.0% (19/19) | 100.0% (1477/1477) | n/a (deterministic) | n/a (no tokens) |
+| LLM (reasoning model) | 84.2% (80/95) | 99.8% (8106/8123) | 100.0% | $0.0000 |
 | Mock — correct (fixture) | not run | not run | n/a (1 run) | n/a (no tokens) |
 | Mock — corrupt (fixture) | not run | not run | n/a (1 run) | n/a (no tokens) |
 
@@ -35,9 +35,11 @@ Mock rows exercise the runner mechanics only; they are not model measurements.
 | Debt-free, high surplus (debt-free-high-surplus) | 76 | Ready | 100.0% | 100.0% | 100.0% | $0.0000 |
 | Single-stock gambler (single-stock-gambler) | 28 | Not ready | 100.0% | 100.0% | 100.0% | $0.0000 |
 | Retiree, steady (retiree-steady) | 96 | Ready | 100.0% | 80.0% | 100.0% | $0.0000 |
+| Freelancer, irregular income (freelancer-irregular) | 65 | Building | 100.0% | 60.0% | 100.0% | $0.0000 |
+| New investor (new-investor) | 87 | Ready | 100.0% | 100.0% | 100.0% | $0.0000 |
+| Emergency fund only (emergency-only) | 66 | Building | 100.0% | 100.0% | 100.0% | $0.0000 |
+| Maxed out (maxed-out) | 0 | Not ready | 100.0% | 60.0% | 100.0% | $0.0000 |
+| Balanced and ready (balanced-ready) | 100 | Ready | 100.0% | 60.0% | 100.0% | $0.0000 |
+| Partial price history (partial-history) | 89 | Ready | 100.0% | 100.0% | 100.0% | $0.0000 |
 
-## Pending
-
-- 6 scenario(s) not yet run in this merged report (freelancer-irregular, new-investor, emergency-only, maxed-out, balanced-ready, partial-history) — the free-model daily quota (50 requests/day) split the run across days.
-
-Total prompt size across measured scenarios: 77,391 characters.
+Total prompt size across measured scenarios: 1,12,828 characters.

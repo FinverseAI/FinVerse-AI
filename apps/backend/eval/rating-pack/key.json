@@ -1,6 +1,6 @@
 {
   "warning": "SEALED — do not open until every rating is finished. Opening this file before rating breaks the blind.",
-  "generatedAt": "2026-11-25T15:20:17.789Z",
+  "generatedAt": "2026-11-27T05:49:53.756Z",
   "key": {
     "S01-A": {
       "scenarioId": "healthy-saver",
@@ -105,6 +105,54 @@
     "S13-B": {
       "scenarioId": "retiree-steady",
       "system": "baseline"
+    },
+    "S14-A": {
+      "scenarioId": "freelancer-irregular",
+      "system": "llm"
+    },
+    "S14-B": {
+      "scenarioId": "freelancer-irregular",
+      "system": "baseline"
+    },
+    "S15-A": {
+      "scenarioId": "new-investor",
+      "system": "baseline"
+    },
+    "S15-B": {
+      "scenarioId": "new-investor",
+      "system": "llm"
+    },
+    "S16-A": {
+      "scenarioId": "emergency-only",
+      "system": "llm"
+    },
+    "S16-B": {
+      "scenarioId": "emergency-only",
+      "system": "baseline"
+    },
+    "S17-A": {
+      "scenarioId": "maxed-out",
+      "system": "baseline"
+    },
+    "S17-B": {
+      "scenarioId": "maxed-out",
+      "system": "llm"
+    },
+    "S18-A": {
+      "scenarioId": "balanced-ready",
+      "system": "llm"
+    },
+    "S18-B": {
+      "scenarioId": "balanced-ready",
+      "system": "baseline"
+    },
+    "S19-A": {
+      "scenarioId": "partial-history",
+      "system": "baseline"
+    },
+    "S19-B": {
+      "scenarioId": "partial-history",
+      "system": "llm"
     }
   }
 }

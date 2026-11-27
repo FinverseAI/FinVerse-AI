@@ -30,3 +30,15 @@ One row per output. Fill in 1–5 for each dimension (see README.md for the rubr
 | S12-B | Single-stock gambler | | | | | |
 | S13-A | Retiree, steady | | | | | |
 | S13-B | Retiree, steady | | | | | |
+| S14-A | Freelancer, irregular income | | | | | |
+| S14-B | Freelancer, irregular income | | | | | |
+| S15-A | New investor | | | | | |
+| S15-B | New investor | | | | | |
+| S16-A | Emergency fund only | | | | | |
+| S16-B | Emergency fund only | | | | | |
+| S17-A | Maxed out | | | | | |
+| S17-B | Maxed out | | | | | |
+| S18-A | Balanced and ready | | | | | |
+| S18-B | Balanced and ready | | | | | |
+| S19-A | Partial price history | | | | | |
+| S19-B | Partial price history | | | | | |
