@@ -19,6 +19,16 @@
   publish = "apps/web/.next"
   functions = "netlify/functions"
 
+# Toolchain pin: Netlify installs dependencies with the image's npm
+# BEFORE the build command runs, so the build command's npm upgrade
+# alone cannot save the install step — a fresh `npm install` with npm
+# 10.x dies EBADDEVENGINES on the repo's devEngines (verified locally).
+# Pin Node 24 (ships npm 11) and npm 11.21.3 so the install step uses
+# the right toolchain too. The repo's engines already demand Node >=24.
+[build.environment]
+  NODE_VERSION = "24"
+  NPM_VERSION = "11.21.3"
+
 # TEMPORARY dev-only guest demo — remove before shipping. Lets the
 # deploy preview show "Continue as guest (demo)" so the redesign can
 # be viewed without Google sign-in. Preview context only; production
