@@ -28,6 +28,17 @@
 [build.environment]
   NODE_VERSION = "24"
   NPM_VERSION = "11.21.3"
+  # Dummy build-time values for the TEMPORARY preview site
+  # (finverse-temp-preview), which has no dashboard env vars. The
+  # guest demo serves its own in-app fixtures and never touches the
+  # real DB or Google OAuth, so these only need to be present for
+  # the production build to pass its config checks. finverseaii's
+  # real values live in its dashboard and take precedence there.
+  DATABASE_URL = "postgresql://dummy:dummy@localhost:5432/dummy"
+  DIRECT_URL = "postgresql://dummy:dummy@localhost:5432/dummy"
+  BETTER_AUTH_SECRET = "dummy-secret-for-local-preview-32chars-ok"
+  BETTER_AUTH_URL = "https://finverse-temp-preview.netlify.app"
+  BACKEND_URL = "http://localhost:3001"
 
 # TEMPORARY dev-only guest demo — remove before shipping. Lets the
 # deploy preview show "Continue as guest (demo)" so the redesign can
