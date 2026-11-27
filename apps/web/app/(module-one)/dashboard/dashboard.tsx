@@ -30,6 +30,7 @@ import {
 import type { FiredAlert } from "../../../lib/market";
 import { Modal } from "./modal";
 import type { DialogKind } from "./dashboard-dialog";
+import styles from "./dashboard.module.css";
 
 const FinancialProfileForm = dynamic(
   () => import("../onboarding/financial-profile-form"),
@@ -75,10 +76,6 @@ export default function Dashboard({
   // shows the fired alerts.
   const firedAlerts = useActivity<FiredAlert>("/api/market/alerts");
   const today = dateKey(new Date());
-  const monthLabel = new Date(`${month}-01T12:00:00`).toLocaleDateString(
-    "en-IN",
-    { month: "long", year: "numeric" },
-  );
   const notifications: DashboardNotification[] = useMemo(
     () => [
       ...billNotifications(bills.items, today),
@@ -202,6 +199,15 @@ export default function Dashboard({
         throw new Error(
           error.message ?? "Unable to log out. Please try again.",
         );
+      // TEMPORARY dev-only guest demo — remove before shipping. A
+      // guest has no better-auth session, so the sign-out above does
+      // not clear the guest cookie: delete it here, or a guest
+      // revisiting /dashboard stays in guest mode. The endpoint is a
+      // no-op without the cookie, so this is safe to call for every
+      // sign-out; it is best-effort so a demo-endpoint failure can
+      // never block a real Google sign-out. Fire-and-forget: a hung
+      // demo-endpoint request must never delay navigation.
+      fetch("/api/auth/guest", { method: "DELETE" }).catch(() => {});
       router.replace("/");
       router.refresh();
     } catch (error) {
@@ -217,7 +223,7 @@ export default function Dashboard({
   return (
     <div
       id="overview"
-      className="dashboard min-h-screen bg-dash-bg font-sans text-dash-text"
+      className={`${styles.root} dashboard min-h-screen bg-dash-bg font-sans text-dash-text`}
     >
       <a
         href="#dashboard-content"
@@ -246,14 +252,14 @@ export default function Dashboard({
           isSigningOut={isSigningOut}
           signOutError={signOutError}
         />
-        <main id="dashboard-content" className="dashboard-body space-y-5">
+        <main
+          id="dashboard-content"
+          className={`${styles.enter} dashboard-body space-y-4`}
+        >
           {autoPayNotice && (
-            <div
-              role="status"
-              className="flex items-start justify-between gap-3 rounded-panel border border-dash-accent/50 bg-dash-accent/10 px-4 py-3"
-            >
+            <div role="status" className={styles.notice}>
               <p className="text-sm leading-6">
-                <strong className="font-semibold">Auto-pay:</strong>{" "}
+                <strong className="font-medium">Auto-pay:</strong>{" "}
                 {autoPayNotice} These payments were recorded in FinVerse and
                 appear as expense transactions below.
               </p>
@@ -268,44 +274,7 @@ export default function Dashboard({
             </div>
           )}
           <section
-            className="dashboard-intro"
-            aria-label="Welcome to your dashboard"
-          >
-            <div>
-              <p className="dash-eyebrow">
-                Welcome back{user?.name ? `, ${user.name.split(" ")[0]}` : ""}
-              </p>
-              <h2>Your money, in perspective.</h2>
-              <p className="mt-3 text-sm leading-6 text-dash-muted">
-                A little clarity for today. A little more room for tomorrow.
-              </p>
-              <p
-                role="status"
-                className="mt-2 text-xs leading-5 text-dash-muted"
-              >
-                Showing {monthLabel} across the dashboard — summary, budgets,
-                spending and transactions all follow this month. Change it with
-                the month picker above.
-              </p>
-            </div>
-            <button
-              className="dash-small-button"
-              onClick={() => setEditingProfile(true)}
-            >
-              Edit financial profile
-            </button>
-          </section>
-          <SummaryCards
-            onReport={() => setDialog("report")}
-            profile={data.profile!}
-            transactions={transactions}
-            month={month}
-            loading={activity.loading}
-            error={activity.error}
-            onRetry={activity.retry}
-          />
-          <section
-            aria-label="Financial breakdown"
+            aria-label="Balance and planned expenses"
             className="grid gap-4 xl:grid-cols-dashboard"
           >
             <BalanceBreakdownCard
@@ -317,9 +286,19 @@ export default function Dashboard({
               onMonth={setMonth}
               onJumpToMonth={jumpToMonthTransactions}
               profile={data.profile!}
+              onEditProfile={() => setEditingProfile(true)}
             />
             <ExpenseBreakdownCard profile={data.profile!} />
           </section>
+          <SummaryCards
+            onReport={() => setDialog("report")}
+            profile={data.profile!}
+            transactions={transactions}
+            month={month}
+            loading={activity.loading}
+            error={activity.error}
+            onRetry={activity.retry}
+          />
           <PlanningCards
             budgets={currentBudgets}
             loading={activity.loading}

@@ -35,12 +35,6 @@ function CloseChart({ history }: { history: HistoryResponse }) {
         role="img"
         aria-label={`NIFTY 50 closes from ${bars[0]!.date} to ${bars.at(-1)?.date}, ranging from ${min.toLocaleString("en-IN", { maximumFractionDigits: 2 })} to ${max.toLocaleString("en-IN", { maximumFractionDigits: 2 })} points`}
       >
-        <defs>
-          <linearGradient id="nifty-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop stopColor="#ffb194" stopOpacity=".3" />
-            <stop offset="1" stopColor="#ffb194" stopOpacity="0" />
-          </linearGradient>
-        </defs>
         {[20, 50, 80].map((y) => (
           <line
             key={y}
@@ -48,15 +42,14 @@ function CloseChart({ history }: { history: HistoryResponse }) {
             x2="400"
             y1={y}
             y2={y}
-            stroke="#ffffff20"
+            stroke="#d2e0f133"
             strokeDasharray="3 5"
           />
         ))}
-        <polygon points={`0,90 ${points} 400,90`} fill="url(#nifty-fill)" />
         <polyline
           points={points}
           fill="none"
-          stroke="#ffba9c"
+          stroke="#ff9b8b"
           strokeWidth="2.5"
           vectorEffect="non-scaling-stroke"
           strokeLinejoin="round"

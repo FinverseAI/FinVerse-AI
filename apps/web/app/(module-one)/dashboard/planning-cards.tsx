@@ -47,7 +47,7 @@ export default function PlanningCards({
     >
       {loading || error ? (
         <article className="dash-panel p-5" aria-busy={loading}>
-          <PanelHeading icon="target" title="Budget Status" />
+          <PanelHeading icon="target" title="Budget status" />
           {loading ? (
             <p role="status" className="py-8 text-sm text-dash-muted">
               Loading budget spending…
@@ -82,7 +82,7 @@ function BudgetCard({
   ).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
   return (
     <article className="dash-panel p-5">
-      <PanelHeading icon="target" title="Budget Status">
+      <PanelHeading icon="target" title="Budget status">
         <button className="dash-small-button" onClick={onManage}>
           Manage budgets
         </button>
@@ -101,7 +101,7 @@ function BudgetCard({
           const percent =
             budget.limit > 0 ? (budget.spent / budget.limit) * 100 : 0;
           const tone =
-            percent >= 100 ? "red" : percent >= 90 ? "warning" : "accent";
+            percent >= 100 ? "red" : percent >= 90 ? "warning" : "muted";
           return (
             <div key={budget.name}>
               <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1 text-xs">
@@ -110,7 +110,7 @@ function BudgetCard({
                   <span className="font-mono text-xs text-dash-muted">
                     {money(budget.spent)} / {money(budget.limit)}
                   </span>
-                  <span data-tone={tone} className="dash-badge">
+                  <span data-tone={tone} className="font-mono text-xs">
                     {percent > 100
                       ? "Over budget"
                       : percent === 100
@@ -392,12 +392,12 @@ function SavingsCard({
   return (
     <>
       <article className="dash-panel p-5">
-        <PanelHeading icon="pig" title="Savings Progress">
+        <PanelHeading icon="pig" title="Savings progress">
           <button
-            className="dash-small-button border-dash-accent/40 bg-dash-accent/10 text-dash-accent"
+            className="dash-small-button"
             onClick={onAdd}
           >
-            + Add goal
+            Add goal
           </button>
         </PanelHeading>
         <div className="mt-3 space-y-5">
@@ -419,14 +419,14 @@ function SavingsCard({
               <div key={goal.id ?? `${goal.name}-${index}`}>
                 <div className="mb-1.5 flex items-center justify-between text-xs">
                   <span>{goal.name}</span>
-                  <span className="font-mono text-xs font-semibold text-dash-accent">
+                  <span className="font-mono text-xs text-dash-muted">
                     {goal.priority} priority
                   </span>
                 </div>
                 <ProgressBar
                   value={percent}
                   label={`${goal.name} savings progress`}
-                  tone="accent"
+                  tone={percent >= 100 ? "accent" : "muted"}
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 font-mono text-xs text-dash-muted">
                   <span>

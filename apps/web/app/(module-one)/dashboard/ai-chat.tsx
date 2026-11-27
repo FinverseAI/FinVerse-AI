@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PanelHeading, ProgressBar } from "./ui";
 import { money } from "./data";
+import styles from "./dashboard.module.css";
 import { formatPrice } from "../../../lib/market";
 import {
   activityRequest,
@@ -436,7 +437,7 @@ export function VerificationNote({
   if (verification.status === "verified") {
     return (
       <p className="mt-2 text-xs text-dash-accent">
-        ✓ Verified against your data ({verification.checksPassed}{" "}
+        Verified against your data ({verification.checksPassed}{" "}
         {verification.checksPassed === 1 ? "check" : "checks"} passed)
       </p>
     );
@@ -457,16 +458,8 @@ export function VerificationNote({
 
 export function ReasoningIndicator() {
   return (
-    <p
-      role="status"
-      className="flex items-center gap-2 text-sm text-dash-muted"
-    >
-      <span className="flex gap-1" aria-hidden="true">
-        <span className="size-1.5 animate-bounce rounded-full bg-dash-accent [animation-delay:0ms]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-dash-accent [animation-delay:150ms]" />
-        <span className="size-1.5 animate-bounce rounded-full bg-dash-accent [animation-delay:300ms]" />
-      </span>
-      FinVerse AI is reasoning over your numbers…
+    <p role="status" className="text-sm text-dash-muted">
+      FinVerse AI is checking your numbers…
     </p>
   );
 }
@@ -511,7 +504,7 @@ function ResponseContent({ response }: { response: AiChatResponse }) {
           <VerificationNote verification={response.verification} />
           {response.claims.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+              <h4 className="text-xs font-medium text-dash-muted">
                 Evidence
               </h4>
               <ul className="mt-2 space-y-2">
@@ -701,17 +694,12 @@ export default function AiChat() {
       <div className="p-5">
         <PanelHeading icon="bulb" title="Ask FinVerse AI">
           <div
-            className="surface-inset flex gap-1 rounded-full border p-1"
+            className={styles.seg}
             role="group"
             aria-label="AI mode"
           >
             <button
               type="button"
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                mode === "ask"
-                  ? "bg-dash-accent text-dash-bg"
-                  : "text-dash-muted"
-              }`}
               aria-pressed={mode === "ask"}
               onClick={() => setMode("ask")}
             >
@@ -719,11 +707,6 @@ export default function AiChat() {
             </button>
             <button
               type="button"
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                mode === "explain"
-                  ? "bg-dash-accent text-dash-bg"
-                  : "text-dash-muted"
-              }`}
               aria-pressed={mode === "explain"}
               onClick={() => setMode("explain")}
             >
@@ -782,7 +765,7 @@ export default function AiChat() {
                 <button
                   key={suggestion}
                   type="button"
-                  className="rounded-full border border-dash-border px-3 py-1 text-xs text-dash-muted hover:text-dash-text"
+                  className="rounded-lg border border-dash-border px-3 py-1 text-xs text-dash-muted transition-colors hover:text-dash-text"
                   disabled={loading}
                   onClick={() => {
                     // Fill only — the user edits the suggestion, then

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { money } from "./data";
-import { Icon, MiniStat, PanelHeading } from "./ui";
+import { Icon, PanelHeading } from "./ui";
 import { ActivityEmpty, ActivityError } from "./recent-transactions";
+import styles from "./dashboard.module.css";
 import { activityError, activityRequest, type Activity } from "./use-activity";
 import { Modal } from "./modal";
 import { dateKey } from "./spending-data";
@@ -62,9 +63,7 @@ function BillRow({
           ? "Auto-pay"
           : "Upcoming";
   return (
-    <li
-      className={`surface-inset flex min-h-14 items-center gap-2 border px-3 py-2 ${overdue && !fullyPaid ? "border-dash-red/40" : ""}`}
-    >
+    <li className="flex min-h-14 items-center gap-2 border-b border-dash-border/50 py-2">
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium" title={bill.name}>
           {bill.name}
@@ -95,7 +94,18 @@ function BillRow({
       <div className="shrink-0 text-right">
         <p className="mb-1.5 font-mono text-xs">{money(bill.amount)}</p>
         <span
-          className={`dash-badge !px-2 !py-1 !text-xs ${fullyPaid ? "text-dash-accent" : overdue ? "text-dash-red" : dueSoon ? "text-dash-warning" : bill.autoPay ? "text-dash-blue" : "text-dash-muted"}`}
+          data-tone={
+            fullyPaid
+              ? "muted"
+              : overdue
+                ? "red"
+                : dueSoon
+                  ? "warning"
+                  : bill.autoPay
+                    ? "muted"
+                    : "muted"
+          }
+          className="font-mono text-xs"
         >
           {status}
         </span>
@@ -588,7 +598,7 @@ export default function UpcomingBills({
         className="dash-panel flex min-h-120 flex-col p-5 xl:min-h-120"
         aria-busy={loading}
       >
-        <PanelHeading icon="calendar" title="Upcoming Bills">
+        <PanelHeading icon="calendar" title="Upcoming bills">
           <div className="flex gap-2">
             <button
               className="dash-icon-button"
@@ -674,12 +684,18 @@ export default function UpcomingBills({
           </div>
         )}
         {!error && !loading && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <MiniStat
-              label={`Total due by month-end · ${dueByMonthEnd.length} unpaid bill${dueByMonthEnd.length === 1 ? "" : "s"}`}
-              value={money(total)}
-            />
-            <MiniStat label="Auto-pay" value={`${autoPayCount} scheduled`} />
+          <div className="mt-4 grid grid-cols-2 gap-3 border-t border-dash-border pt-3">
+            <div className={styles.mini}>
+              <p className={styles.miniLabel}>
+                Total due by month-end · {dueByMonthEnd.length} unpaid bill
+                {dueByMonthEnd.length === 1 ? "" : "s"}
+              </p>
+              <p className={styles.miniValue}>{money(total)}</p>
+            </div>
+            <div className={styles.mini}>
+              <p className={styles.miniLabel}>Auto-pay</p>
+              <p className={styles.miniValue}>{`${autoPayCount} scheduled`}</p>
+            </div>
           </div>
         )}
         <span role="status" className="sr-only">

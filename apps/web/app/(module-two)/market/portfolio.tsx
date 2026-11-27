@@ -15,13 +15,15 @@ import {
 import { cagrFromDates, xirr } from "../../../lib/portfolio";
 import { PanelHeading, ProgressBar } from "../../(module-one)/dashboard/ui";
 
+// Allocation segments stay inside the dashboard system: coral steps
+// down to muted slate. No cyan, violet or yellow.
 const allocationColors = [
-  "#ffb194",
-  "#89c9dd",
-  "#b6b0ed",
-  "#eac47a",
-  "#76ccb0",
-  "#e59ab8",
+  "#ff9b8b",
+  "#f0a08f",
+  "#d69a8c",
+  "#c0cad5",
+  "#93a3b5",
+  "#64748b",
 ];
 
 function GainText({
@@ -160,7 +162,7 @@ export function PortfolioSection({
                         ? "Priced holdings value"
                         : "Current value"}
                     </h3>
-                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                    <p className="mt-4 font-mono text-3xl leading-9 font-medium break-words">
                       {isEmpty ? (
                         formatMoney(0)
                       ) : returns.priced ? (
@@ -187,7 +189,7 @@ export function PortfolioSection({
                   </article>
                   <article className="dash-panel">
                     <h3 className="dash-eyebrow">Invested</h3>
-                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                    <p className="mt-4 font-mono text-3xl leading-9 font-medium break-words">
                       {isEmpty ? (
                         formatMoney(0)
                       ) : singleCurrency ? (
@@ -210,7 +212,7 @@ export function PortfolioSection({
                   </article>
                   <article className="dash-panel">
                     <h3 className="dash-eyebrow">Gain / loss</h3>
-                    <p className="mt-4 text-2xl font-medium tracking-tight break-words">
+                    <p className="mt-4 font-mono text-2xl leading-8 font-medium break-words">
                       {isEmpty ? (
                         formatMoney(0)
                       ) : returns.priced ? (
@@ -245,7 +247,7 @@ export function PortfolioSection({
                   </article>
                   <article className="dash-panel">
                     <h3 className="dash-eyebrow">XIRR</h3>
-                    <p className="mt-4 text-3xl font-medium tracking-tight break-words">
+                    <p className="mt-4 font-mono text-3xl leading-9 font-medium break-words">
                       {returns.xirrValue !== null
                         ? formatPercent(returns.xirrValue * 100)
                         : "—"}

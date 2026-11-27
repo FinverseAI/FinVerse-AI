@@ -7,9 +7,45 @@
   # dashboard-only build setting — the dist dependency is explicit in
   # the repo. Publish is the Next.js output the Netlify Next.js Runtime
   # serves.
-  command = "npm run build"
+  #
+  # The repo's devEngines requires npm ^11.19.1, and turbo spawns the
+  # bare `npm` on PATH for each workspace build. The build image's
+  # default npm is 10.x, so a bare `npm run build` fails EBADDEVENGINES
+  # (this is what killed the PR #5 preview on 27 Nov with exit code 2;
+  # the dashboard build command's npm upgrade never runs because this
+  # file overrides it). Install npm 11 first so the build no longer
+  # depends on the image default.
+  command = "npm install -g npm@11.21.3 && npm run build"
   publish = "apps/web/.next"
   functions = "netlify/functions"
+
+# Toolchain pin: Netlify installs dependencies with the image's npm
+# BEFORE the build command runs, so the build command's npm upgrade
+# alone cannot save the install step — a fresh `npm install` with npm
+# 10.x dies EBADDEVENGINES on the repo's devEngines (verified locally).
+# Pin Node 24 (ships npm 11) and npm 11.21.3 so the install step uses
+# the right toolchain too. The repo's engines already demand Node >=24.
+[build.environment]
+  NODE_VERSION = "24"
+  NPM_VERSION = "11.21.3"
+  # Dummy build-time values for the TEMPORARY preview site
+  # (finverse-temp-preview), which has no dashboard env vars. The
+  # guest demo serves its own in-app fixtures and never touches the
+  # real DB or Google OAuth, so these only need to be present for
+  # the production build to pass its config checks. finverseaii's
+  # real values live in its dashboard and take precedence there.
+  DATABASE_URL = "postgresql://dummy:dummy@localhost:5432/dummy"
+  DIRECT_URL = "postgresql://dummy:dummy@localhost:5432/dummy"
+  BETTER_AUTH_SECRET = "dummy-secret-for-local-preview-32chars-ok"
+  BETTER_AUTH_URL = "https://finverse-temp-preview.netlify.app"
+  BACKEND_URL = "http://localhost:3001"
+
+# TEMPORARY dev-only guest demo — remove before shipping. Lets the
+# deploy preview show "Continue as guest (demo)" so the redesign can
+# be viewed without Google sign-in. Preview context only; production
+# is unaffected and the default stays off.
+[context.deploy-preview.environment]
+  GUEST_LOGIN_ENABLED = "true"
 
 [functions]
   # Keep Prisma out of the esbuild bundle: its query-engine binaries are

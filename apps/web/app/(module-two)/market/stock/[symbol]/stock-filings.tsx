@@ -27,7 +27,7 @@ import { formatFetchedAt } from "../../../../../lib/market";
 
 function SourceBadge({ source }: { source: string }) {
   return (
-    <span className="rounded-full bg-dash-raised px-2 py-0.5 font-mono text-[11px] text-dash-muted">
+    <span className="rounded-md bg-dash-raised px-2 py-0.5 font-mono text-[11px] text-dash-muted">
       {source}
     </span>
   );
@@ -53,9 +53,9 @@ export function FilingsContent({ data }: { data: FilingsResponse }) {
             role="tab"
             aria-selected={active === item.key}
             onClick={() => setActive(item.key)}
-            className={`rounded-full px-3 py-1.5 text-xs transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-xs transition-colors ${
               active === item.key
-                ? "bg-dash-accent/15 text-dash-accent"
+                ? "bg-dash-raised text-dash-text"
                 : "text-dash-muted hover:bg-dash-raised hover:text-dash-text"
             }`}
           >
@@ -112,7 +112,7 @@ export function FilingsContent({ data }: { data: FilingsResponse }) {
 
       {block.links.length > 0 && (
         <div className="mt-4">
-          <h4 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+          <h4 className="text-xs font-medium text-dash-muted">
             Official links
           </h4>
           <ul className="mt-2 space-y-2">

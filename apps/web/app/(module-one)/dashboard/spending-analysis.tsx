@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { money, type Tone, type Transaction } from "./data";
+import { money, type Transaction } from "./data";
 import { PanelHeading, ProgressBar } from "./ui";
 import { ActivityError } from "./recent-transactions";
+import styles from "./dashboard.module.css";
 import {
   dateKey,
   periodRange,
@@ -11,26 +12,6 @@ import {
   spendingRangeSummary,
   type BillForForecast,
 } from "./spending-data";
-
-const categoryTones: Record<string, Tone> = {
-  "Food & Dining": "accent",
-  Groceries: "accent",
-  Transport: "blue",
-  Shopping: "blue",
-  "Bills & Utilities": "purple",
-  Rent: "accent",
-  Health: "purple",
-  Entertainment: "warning",
-  Travel: "blue",
-  Education: "purple",
-  Investments: "accent",
-  Others: "muted",
-  // Legacy labels, kept so older records keep their colour.
-  Housing: "accent",
-  Utilities: "purple",
-  Transportation: "blue",
-  Other: "muted",
-};
 
 function shortDate(date: string) {
   return new Date(`${date}T12:00:00`).toLocaleDateString("en-IN", {
@@ -182,18 +163,22 @@ export default function SpendingAnalysis({
       <div className="p-5">
         <PanelHeading icon="chart" title="Spending Analysis">
           <div
-            className="surface-inset flex gap-1 rounded-full border p-1"
+            className={styles.seg}
             role="group"
             aria-label="Spending period"
           >
             {(["weekly", "monthly", "custom"] as const).map((option) => (
               <button
                 key={option}
+                type="button"
                 aria-pressed={period === option}
-                className={`rounded-full px-3 py-2 text-xs capitalize transition-colors ${period === option ? "bg-dash-accent text-dash-bg" : "text-dash-muted hover:text-dash-text"}`}
                 onClick={() => setPeriod(option)}
               >
-                {option}
+                {option === "weekly"
+                  ? "Weekly"
+                  : option === "monthly"
+                    ? "Monthly"
+                    : "Custom"}
               </button>
             ))}
           </div>
@@ -243,11 +228,11 @@ export default function SpendingAnalysis({
           </div>
         )}
         {!error && (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat) => (
-              <div className="surface-inset border px-4 py-3" key={stat.label}>
-                <p className="dash-eyebrow !text-xs">{stat.label}</p>
-                <p className="mt-2 font-mono text-base">
+              <div className={styles.mini} key={stat.label}>
+                <p className={styles.miniLabel}>{stat.label}</p>
+                <p className={`${styles.miniValue} !text-base !leading-6`}>
                   {loading ? "—" : stat.value}
                 </p>
                 <p className="mt-1 text-xs leading-5 text-dash-muted">
@@ -327,7 +312,7 @@ export default function SpendingAnalysis({
                       }}
                     >
                       <div
-                        className={`w-full rounded-t-lg border border-dash-accent/20 bg-dash-accent transition-colors group-hover:bg-dash-accent/80 ${bar.amount ? "h-full" : "h-px opacity-30"}`}
+                        className={`w-full rounded-t-sm border border-transparent transition-colors group-hover:bg-dash-muted ${bar.amount && bar.amount === maximum ? "bg-dash-accent" : "bg-dash-muted/50"} ${bar.amount ? "h-full" : "h-px opacity-30"}`}
                       />
                       <span
                         className={`pointer-events-none absolute bottom-full z-10 mb-2 w-max max-w-48 rounded-lg border border-dash-border bg-dash-surface px-2 py-1 text-xs text-dash-text shadow-lg ${activeBar === bar.date ? "block" : "hidden group-hover:block group-focus-within:block"} ${index > breakdown.bars.length / 2 ? "right-0" : "left-0"}`}
@@ -363,7 +348,7 @@ export default function SpendingAnalysis({
             </h3>
             {breakdown.categories.length ? (
               <ul className="mt-5 space-y-4">
-                {breakdown.categories.map((category) => (
+                {breakdown.categories.map((category, index) => (
                   <li
                     key={category.name}
                     className="grid grid-cols-category items-center gap-x-3 gap-y-2 text-xs sm:grid-cols-category-wide"
@@ -374,7 +359,7 @@ export default function SpendingAnalysis({
                     <ProgressBar
                       value={category.percentage}
                       label={`${category.name}: ${money(category.amount)}, ${category.percentage.toFixed(1)}%`}
-                      tone={categoryTones[category.name] ?? "muted"}
+                      tone={index === 0 ? "accent" : "muted"}
                     />
                     <span className="col-start-2 text-right font-mono text-xs text-dash-muted sm:col-auto">
                       {money(category.amount)} ·{" "}
