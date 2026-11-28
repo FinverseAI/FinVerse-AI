@@ -257,6 +257,8 @@ export function formatPercent(value: number, signed = true) {
 }
 
 const fetchedAtFormat = new Intl.DateTimeFormat("en-IN", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
   day: "numeric",
   month: "short",
   hour: "numeric",
@@ -268,7 +270,7 @@ export function formatFetchedAt(iso: string | null) {
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
     ? "Unknown"
-    : fetchedAtFormat.format(date);
+    : `${fetchedAtFormat.format(date)} IST`;
 }
 
 /**

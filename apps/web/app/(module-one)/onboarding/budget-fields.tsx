@@ -10,20 +10,27 @@ export default function BudgetFields({
   split: Record<string, number>;
   onChange: (split: Record<string, number>) => void;
 }) {
-  const amounts = allocateBudget(income, split);
-  const total = Object.values(split).reduce((sum, value) => sum + value, 0);
+  const validPercent = (value: number) =>
+    Number.isInteger(value) && value >= 0 && value <= 100;
+  const preview = Object.fromEntries(
+    Object.entries(split).filter(([, value]) => validPercent(value)),
+  );
+  const amounts = allocateBudget(income, preview);
+  const total = Object.values(preview).reduce((sum, value) => sum + value, 0);
+  const invalid = Object.values(split).some((value) => !validPercent(value));
   return (
     <div className="space-y-4">
       <p
         role="status"
         className={
-          total === 100
+          total === 100 && !invalid
             ? "text-sm text-dash-accent"
             : "text-sm text-dash-warning"
         }
       >
-        {total}% allocated ·{" "}
-        {total <= 100 ? `${100 - total}% remaining` : `${total - 100}% over`}
+        {invalid
+          ? "Enter a whole number from 0 to 100 for every category."
+          : `${total}% allocated · ${total <= 100 ? `${100 - total}% remaining` : `${total - 100}% over`}`}
       </p>
       <div className="onboarding-budget-grid">
         {budgetCategories.map(({ id, label }) => (
@@ -44,15 +51,13 @@ export default function BudgetFields({
               max={100}
               step={1}
               required
-              value={split[id] ?? 0}
+              value={Number.isNaN(split[id]) ? "" : (split[id] ?? 0)}
+              aria-invalid={!validPercent(split[id] ?? 0)}
               aria-label={`${label} budget percent`}
               onChange={(event) =>
                 onChange({
                   ...split,
-                  [id]: Math.max(
-                    0,
-                    Math.min(100, Math.trunc(Number(event.target.value) || 0)),
-                  ),
+                  [id]: event.target.valueAsNumber,
                 })
               }
             />

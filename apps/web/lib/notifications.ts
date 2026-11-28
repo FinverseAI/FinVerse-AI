@@ -56,7 +56,32 @@ export type PriceAlertNotification = {
   firedAt: string;
 };
 
-export type DashboardNotification = BillNotification | PriceAlertNotification;
+export type BudgetNotification = {
+  source: "budget";
+  category: string;
+  spent: number;
+  limit: number;
+};
+
+export type DashboardNotification =
+  BillNotification | PriceAlertNotification | BudgetNotification;
+
+export function budgetNotifications(
+  budgets: { name: string; spent: number; limit: number }[],
+): BudgetNotification[] {
+  return budgets
+    .filter(
+      ({ spent, limit }) =>
+        limit > 0 &&
+        Math.round(spent * 100) * 10 >= Math.round(limit * 100) * 9,
+    )
+    .map(({ name, spent, limit }) => ({
+      source: "budget",
+      category: name,
+      spent,
+      limit,
+    }));
+}
 
 /**
  * Maps fired alerts to notifications. A row missing its direction,

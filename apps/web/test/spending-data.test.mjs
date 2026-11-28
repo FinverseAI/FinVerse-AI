@@ -12,8 +12,28 @@ import {
   monthlyCashFlow,
   planVsActual,
   shiftMonth,
+  yearlyCashFlow,
 } from "../app/(module-one)/dashboard/spending-data.ts";
 import { stubProfile } from "./fixtures.mjs";
+
+test("yearly cash flow uses exact paise and keeps calendar years separate", () => {
+  const year = yearlyCashFlow(
+    [
+      expense("2025-12-31", -100),
+      expense("2026-01-01", 100.01, "Salary"),
+      expense("2026-02-01", -0.02, "Pet care"),
+      expense("2027-01-01", 25, "Freelancing"),
+    ],
+    "2026",
+  );
+  assert.deepEqual(
+    [year.count, year.income, year.expenses, year.net],
+    [2, 100.01, 0.02, 99.99],
+  );
+  assert.equal(year.months[0].income, 100.01);
+  assert.equal(year.months[1].expenses, 0.02);
+  assert.equal(year.months[2].count, 0);
+});
 
 test("cash flow uses recorded amounts and month navigation crosses years", () => {
   assert.equal(shiftMonth("2026-01", -1), "2025-12");

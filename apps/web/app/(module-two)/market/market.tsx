@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import type { AuthUser } from "../../../auth/types";
+import type { WorkspaceTheme } from "../../../lib/workspace-theme";
 import type {
   HistoryResponse,
+  MarketQuote,
   OverviewResponse,
   PortfolioSummary,
 } from "../../../lib/market";
@@ -65,7 +67,13 @@ function useMarketData<T>(path: string, enabled: boolean) {
   };
 }
 
-export default function Market({ user }: { user?: AuthUser }) {
+export default function Market({
+  user,
+  initialTheme,
+}: {
+  user?: AuthUser;
+  initialTheme?: WorkspaceTheme;
+}) {
   const section = useMarketSection();
   const overviewTab = section.id === "overview";
   const overview = useMarketData<OverviewResponse>(
@@ -84,9 +92,14 @@ export default function Market({ user }: { user?: AuthUser }) {
     "/api/market/history/%5ENSEI?range=1mo",
     overviewTab,
   );
+  const fx = useMarketData<MarketQuote>(
+    "/api/market/quote/USDINR%3DX",
+    overviewTab,
+  );
   return (
     <MarketShell
       user={user}
+      initialTheme={initialTheme}
       eyebrow="FinVerse / Investment desk"
       title={section.title}
       description={section.description}
@@ -94,7 +107,7 @@ export default function Market({ user }: { user?: AuthUser }) {
       {overviewTab && (
         <>
           <div className="desk-heading">
-            <h3>Benchmarks</h3>
+            <h2 className="finance-panel-title">Benchmarks</h2>
             <span className="desk-muted">
               Yahoo Finance · 15-minute quote cache
             </span>
@@ -112,6 +125,7 @@ export default function Market({ user }: { user?: AuthUser }) {
             history={history.data}
             historyLoading={history.loading}
             loading={overview.loading}
+            fx={fx.data}
           />
           {history.error && (
             <p role="alert" className="desk-muted">

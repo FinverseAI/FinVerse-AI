@@ -107,9 +107,9 @@ test("formatFetchedAt reports unknown timestamps honestly", () => {
   assert.equal(formatFetchedAt("not-a-date"), "Unknown");
 });
 
-test("formatFetchedAt shows the day, month and time of a known fetch", () => {
+test("formatFetchedAt shows the date and time in IST", () => {
   const formatted = formatFetchedAt("2026-11-23T10:30:00.000Z");
-  assert.match(formatted, /^23 Nov, \d{1,2}:\d{2}\s?(am|pm)$/);
+  assert.equal(formatted, "23 Nov 2026, 4:00 pm IST");
 });
 
 test("history ranges cover one month to five years", () => {

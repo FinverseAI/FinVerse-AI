@@ -13,8 +13,8 @@ export function ActivityEmpty({
   action?: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-8 text-center">
-      <span className="surface-inset mb-1 grid size-12 place-items-center border text-dash-accent">
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-5 text-center">
+      <span className="surface-inset grid size-10 place-items-center border text-dash-accent">
         <Icon name="wallet" className="size-5" />
       </span>
       <p className="text-sm font-medium">{title}</p>
@@ -90,7 +90,7 @@ export default function RecentTransactions({
     <article
       id="recent-transactions"
       tabIndex={-1}
-      className="dash-panel flex min-h-120 flex-col p-5 xl:min-h-120"
+      className="dash-panel flex min-w-0 flex-col p-4"
       aria-busy={loading}
     >
       <PanelHeading icon="file" title="Recent transactions">
@@ -108,14 +108,8 @@ export default function RecentTransactions({
           </button>
         </div>
       </PanelHeading>
-      {monthLabel && (
-        <p className="mt-3 text-xs leading-5 text-dash-muted">
-          Showing {monthLabel} only — change the month above to see another
-          month.
-        </p>
-      )}
       {loading ? (
-        <p role="status" className="m-auto text-xs text-dash-muted">
+        <p role="status" className="py-5 text-center text-xs text-dash-muted">
           Loading transactions…
         </p>
       ) : error ? (
@@ -135,7 +129,12 @@ export default function RecentTransactions({
         )
       ) : (
         <>
-          <div className="mt-4 min-h-0 flex-1 overflow-x-auto">
+          <div
+            className="relative mt-4 min-h-0 min-w-0 flex-1 overflow-x-auto"
+            role="region"
+            aria-label="Recent transactions table, scrollable"
+            tabIndex={0}
+          >
             <table className="w-full text-left text-xs">
               <caption className="sr-only">
                 Your five most recent transactions

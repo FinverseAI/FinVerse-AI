@@ -2,13 +2,8 @@ import "server-only";
 import { headers } from "next/headers";
 import { readProfileResponse, ProfileApiError } from "./profile";
 import { backendApiUrl } from "./env";
-import { getGuestSession, guestProfileResponse } from "./guest";
 
 export async function getServerProfile() {
-  // TEMPORARY dev-only guest demo — remove before shipping. A guest
-  // session is only trusted when GUEST_LOGIN_ENABLED=true (checked
-  // inside getGuestSession), so with the gate off this never fires.
-  if (await getGuestSession()) return guestProfileResponse();
   let response: Response;
   try {
     const incoming = await headers();

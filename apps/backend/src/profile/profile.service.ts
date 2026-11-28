@@ -74,17 +74,6 @@ export class ProfileService {
       body && typeof body === 'object' && !Array.isArray(body)
         ? (body as Record<string, unknown>)
         : {};
-    let effectiveBody: unknown = body;
-    if (incoming.budget_split === undefined) {
-      const stored = await this.prisma.userFinancialProfile.findUnique({
-        where: { user_id: userId },
-        select: { budget_split: true },
-      });
-      if (stored?.budget_split) {
-        effectiveBody = { ...incoming, budget_split: stored.budget_split };
-      }
-    }
-    const { profile, goals, displayName } = validateProfile(effectiveBody);
     try {
       return await this.prisma.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
@@ -99,6 +88,23 @@ export class ProfileService {
           throw new NotFoundException(
             'Complete onboarding before updating your profile.',
           );
+        const existingGoals = await tx.userGoal.findMany({
+          where: { user_id: userId },
+          select: { id: true, target_date: true },
+        });
+        const effectiveBody =
+          incoming.budget_split === undefined && existing?.budget_split
+            ? { ...incoming, budget_split: existing.budget_split }
+            : body;
+        const { profile, goals, displayName } = validateProfile(
+          effectiveBody,
+          new Map(
+            existingGoals.map((goal) => [
+              goal.id,
+              goal.target_date?.toISOString().slice(0, 10) ?? '',
+            ]),
+          ),
+        );
         // Goals are upserted by id so a profile save never wipes their
         // contributions: only goals absent from the incoming list are
         // removed (their contributions cascade), known goals are updated
@@ -113,10 +119,6 @@ export class ProfileService {
         // rejected (400) instead; remove the contributions first, or
         // keep the goal. This runs before any write, so a rejected
         // save leaves the stored profile and goals untouched.
-        const existingGoals = await tx.userGoal.findMany({
-          where: { user_id: userId },
-          select: { id: true },
-        });
         const doomedIds = existingGoals
           .map((goal) => goal.id)
           .filter((id) => !incomingIds.includes(id));

@@ -23,7 +23,16 @@ const budgetCategoryIds = [
   'others',
 ];
 
-export function validateProfile(body: unknown) {
+export function validateProfile(
+  body: unknown,
+  existingGoalDates: ReadonlyMap<string, string> = new Map(),
+) {
+  const today = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
   const errors: Record<string, string> = {};
   const input =
     body && typeof body === 'object' && !Array.isArray(body)
@@ -103,9 +112,9 @@ export function validateProfile(body: unknown) {
       typeof input.payday !== 'number' ||
       !Number.isInteger(input.payday) ||
       input.payday < 1 ||
-      input.payday > 28
+      input.payday > 31
     )
-      errors.payday = 'Choose a payday between 1 and 28.';
+      errors.payday = 'Choose a payday between 1 and 31.';
     else payday = input.payday;
   }
   let budgetSplit: Record<string, number> | undefined;
@@ -281,10 +290,9 @@ export function validateProfile(body: unknown) {
       errors[`${prefix}.target_date`] =
         'Enter a valid target date (YYYY-MM-DD), from year 1900 onwards.';
     } else if (
-      // B39: a goal "due" today or in the past is nonsense — the
-      // target must be in the future. UTC date-only, the same
-      // convention as bill dates (see activity.validation.ts).
-      goal.target_date <= new Date().toISOString().slice(0, 10)
+      typeof goal.target_date === 'string' &&
+      goal.target_date <= today &&
+      (!id || existingGoalDates.get(id) !== goal.target_date)
     ) {
       errors[`${prefix}.target_date`] = 'Choose a target date in the future.';
     }

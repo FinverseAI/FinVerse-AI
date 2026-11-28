@@ -18,12 +18,12 @@ import { PanelHeading, ProgressBar } from "../../(module-one)/dashboard/ui";
 // Allocation segments stay inside the dashboard system: coral steps
 // down to muted slate. No cyan, violet or yellow.
 const allocationColors = [
-  "#ff9b8b",
-  "#f0a08f",
-  "#d69a8c",
-  "#c0cad5",
-  "#93a3b5",
-  "#64748b",
+  "var(--color-dash-accent)",
+  "var(--color-dash-blue)",
+  "var(--color-dash-purple)",
+  "var(--color-dash-warning)",
+  "var(--color-dash-muted)",
+  "#858991",
 ];
 
 function GainText({

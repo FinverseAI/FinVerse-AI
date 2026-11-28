@@ -1,5 +1,8 @@
 import type { ExportTransaction } from "./export-csv";
-import { dateKey } from "../app/(module-one)/dashboard/spending-data.ts";
+import {
+  dateKey,
+  type yearlyCashFlow,
+} from "../app/(module-one)/dashboard/spending-data.ts";
 
 /**
  * Renders transactions as a PDF statement (jsPDF, loaded on demand so
@@ -148,6 +151,7 @@ export type AccountReport = {
     count: number;
   };
   committedBills: { total: number; count: number };
+  yearly?: ReturnType<typeof yearlyCashFlow>;
 };
 
 export async function accountReportToPdf(
@@ -184,32 +188,53 @@ export async function accountReportToPdf(
     y += 10;
   }
 
-  section("Monthly plan — from your saved financial profile", [
-    ["Current savings (snapshot)", formatAmount(report.plan.savings)],
-    ["Monthly income", formatAmount(report.plan.income)],
-    ["Monthly expenses", formatAmount(report.plan.expenses)],
-    ["Savings target", formatAmount(report.plan.target)],
-    ["Monthly surplus", formatAmount(report.plan.surplus)],
-  ]);
-  section(`Actual — ${report.monthLabel}, from recorded transactions`, [
-    ["Recorded income", formatAmount(report.actual.income)],
-    ["Recorded expenses", formatAmount(report.actual.expenses)],
-    ["Net recorded flow", formatAmount(report.actual.net)],
-    [
-      "Unpaid bills due by month-end",
-      `${formatAmount(report.committedBills.total)} (${report.committedBills.count} bill${report.committedBills.count === 1 ? "" : "s"})`,
-    ],
-  ]);
-  doc.setFontSize(BODY_SIZE);
-  doc.setTextColor(100);
-  doc.text(
-    `Based on ${report.actual.count} recorded transaction${report.actual.count === 1 ? "" : "s"} this month. ` +
-      "The plan and the actuals are separate figures: the plan is what you set " +
-      "out to spend, the actuals are what your records show.",
-    MARGIN,
-    y,
-    { maxWidth: CONTENT_WIDTH },
-  );
+  if (report.yearly) {
+    const year = report.yearly;
+    section(`Yearly report - ${year.year}`, [
+      ["Recorded income", formatAmount(year.income)],
+      ["Recorded expenses", formatAmount(year.expenses)],
+      ["Net recorded flow", formatAmount(year.net)],
+      ["Transactions", String(year.count)],
+    ]);
+    if (year.count > 0) {
+      section(
+        "Monthly activity (income / expenses / net)",
+        year.months
+          .filter(({ count }) => count > 0)
+          .map(({ month, income, expenses, net }) => [
+            month,
+            [income, expenses, net].map(formatAmount).join(" / "),
+          ]),
+      );
+    }
+  } else {
+    section("Monthly plan — from your saved financial profile", [
+      ["Current savings (snapshot)", formatAmount(report.plan.savings)],
+      ["Monthly income", formatAmount(report.plan.income)],
+      ["Monthly expenses", formatAmount(report.plan.expenses)],
+      ["Savings target", formatAmount(report.plan.target)],
+      ["Monthly surplus", formatAmount(report.plan.surplus)],
+    ]);
+    section(`Actual — ${report.monthLabel}, from recorded transactions`, [
+      ["Recorded income", formatAmount(report.actual.income)],
+      ["Recorded expenses", formatAmount(report.actual.expenses)],
+      ["Net recorded flow", formatAmount(report.actual.net)],
+      [
+        "Unpaid bills due by month-end",
+        `${formatAmount(report.committedBills.total)} (${report.committedBills.count} bill${report.committedBills.count === 1 ? "" : "s"})`,
+      ],
+    ]);
+    doc.setFontSize(BODY_SIZE);
+    doc.setTextColor(100);
+    doc.text(
+      `Based on ${report.actual.count} recorded transaction${report.actual.count === 1 ? "" : "s"} this month. ` +
+        "The plan and the actuals are separate figures: the plan is what you set " +
+        "out to spend, the actuals are what your records show.",
+      MARGIN,
+      y,
+      { maxWidth: CONTENT_WIDTH },
+    );
+  }
 
   doc.setFontSize(9);
   doc.text("Page 1 of 1", MARGIN, FOOTER_Y);

@@ -107,6 +107,39 @@ function makeTools(
 }
 
 describe('AiTools', () => {
+  it('answers food and monthly comparisons from owner-scoped records', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-15T12:00:00Z'));
+    try {
+      const { tools, transactions } = makeTools({
+        transactions: [
+          { date: '2026-11-01', category: 'Food & Dining', amount: -14.25 },
+          { date: '2026-11-10', category: 'Groceries', amount: -5.75 },
+          { date: '2026-11-08', category: 'Freelancing', amount: 50 },
+          { date: '2026-10-14', category: 'Transport', amount: -12 },
+          { date: '2026-10-21', category: 'Food & Dining', amount: -50 },
+        ],
+      });
+      expect(
+        (await tools.financeAnswer(USER_ID, 'How much did I spend on food?'))
+          ?.claims[0]?.source.values,
+      ).toMatchObject({ totalSpent: 20, count: 2 });
+      expect(
+        (
+          await tools.financeAnswer(
+            USER_ID,
+            'Compare this month with last month.',
+          )
+        )?.claims[0]?.source.values,
+      ).toMatchObject({
+        currentExpenses: 20,
+        previousExpenses: 12,
+        difference: 8,
+      });
+      expect(transactions).toHaveBeenCalledWith(USER_ID);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
   describe('AI_TOOL_DEFINITIONS', () => {
     it('declares nine tools, each with a schema', () => {
       const names = AI_TOOL_DEFINITIONS.map(

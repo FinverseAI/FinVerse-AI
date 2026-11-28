@@ -21,6 +21,8 @@ const paths = {
   left: "m14 6-6 6 6 6",
   right: "m10 6 6 6-6 6",
   close: "m6 6 12 12 M6 18 18 6",
+  sun: "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M19.1 4.9l-1.4 1.4 M6.3 17.7l-1.4 1.4",
+  moon: "M20.9 13.35A9 9 0 0 1 10.65 3.1 9 9 0 1 0 20.9 13.35Z",
   edit: "M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16z M13 6l4 4",
   trash: "M4 7h16 M9 7V5h6v2 M6 7l1 13h10l1-13 M10 11v5 M14 11v5",
   download: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3",
@@ -56,9 +58,7 @@ export function Icon({
 export function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="surface-inset min-w-0 border px-3 py-2.5">
-      <p className="font-mono text-xs leading-4 tracking-widest text-dash-muted uppercase">
-        {label}
-      </p>
+      <p className="font-mono text-xs leading-4 text-dash-muted">{label}</p>
       <p className="mt-0.5 break-words font-mono text-xs font-medium text-dash-text">
         {value}
       </p>
@@ -104,7 +104,7 @@ export function PanelHeading({
 }) {
   return (
     <div className="flex min-h-7 flex-wrap items-center justify-between gap-3">
-      <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide">
+      <h2 className="finance-panel-title flex items-center gap-2">
         <Icon name={icon} className="size-4 text-dash-accent" />
         {title}
       </h2>

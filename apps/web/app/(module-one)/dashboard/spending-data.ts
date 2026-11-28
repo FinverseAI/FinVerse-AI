@@ -1,10 +1,22 @@
-import { normalizeCategory, type Budget, type Transaction } from "./data.ts";
-import { profileTotals, type FinancialProfile } from "../../../lib/profile.ts";
+import {
+  normalizeCategory,
+  transactionCategories,
+  type Budget,
+  type Transaction,
+} from "./data.ts";
+import {
+  cents,
+  profileTotals,
+  type FinancialProfile,
+} from "../../../lib/profile.ts";
 
 export function monthlyCashFlow(transactions: Transaction[], month: string) {
-  const records = transactions.filter((item) =>
-    item.date.startsWith(`${month}-`),
+  return cashFlow(
+    transactions.filter((item) => item.date.startsWith(`${month}-`)),
   );
+}
+
+function cashFlow(records: Transaction[]) {
   const income = records.reduce(
     (sum, item) => sum + (item.amount > 0 ? Math.round(item.amount * 100) : 0),
     0,
@@ -19,6 +31,39 @@ export function monthlyCashFlow(transactions: Transaction[], month: string) {
     expenses: expenses / 100,
     net: (income - expenses) / 100,
   };
+}
+
+export function yearlyCashFlow(transactions: Transaction[], year: string) {
+  const records = transactions.filter((item) =>
+    item.date.startsWith(`${year}-`),
+  );
+  const months = Array.from({ length: 12 }, (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, "0")}`;
+    return { month, ...monthlyCashFlow(records, month) };
+  });
+  return { year, ...cashFlow(records), months };
+}
+
+export function reportedNetWorth(profile: FinancialProfile): number | null {
+  const {
+    current_savings,
+    invested_amount,
+    existing_debt_total,
+    already_investing,
+  } = profile;
+  if (
+    current_savings === null ||
+    existing_debt_total === null ||
+    (already_investing && invested_amount === null)
+  ) {
+    return null;
+  }
+  return (
+    (cents(current_savings) +
+      (already_investing ? cents(invested_amount) : 0) -
+      cents(existing_debt_total)) /
+    100
+  );
 }
 
 /**
@@ -162,7 +207,11 @@ export function budgetsWithSpending(
     ...budget,
     spent:
       transactions.reduce((sum, transaction) => {
-        const matches = normalizeCategory(transaction.category) === budget.name;
+        const category = normalizeCategory(transaction.category);
+        const matches =
+          category === budget.name ||
+          (budget.name === "Others" &&
+            !transactionCategories.includes(category));
         return (
           sum +
           (matches &&

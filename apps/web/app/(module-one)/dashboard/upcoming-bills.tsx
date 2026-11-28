@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { todayIst } from "../../../lib/market";
 import { money } from "./data";
 import { Icon, PanelHeading } from "./ui";
 import { ActivityEmpty, ActivityError } from "./recent-transactions";
@@ -42,7 +43,7 @@ function BillRow({
   onPay: (bill: Bill) => void;
   onHistory: (bill: Bill) => void;
 }) {
-  const today = new Date();
+  const today = new Date(`${todayIst()}T12:00:00`);
   const soon = new Date(
     today.getFullYear(),
     today.getMonth(),
@@ -224,7 +225,7 @@ function BillForm({
             min="1900-01-01"
             max="9999-12-31"
             required
-            defaultValue={initial?.dueDate ?? dateKey(new Date())}
+            defaultValue={initial?.dueDate ?? todayIst()}
           />
         </label>
       </div>
@@ -354,7 +355,7 @@ function PaymentForm({
             min="1900-01-01"
             max="9999-12-31"
             required
-            defaultValue={dateKey(new Date())}
+            defaultValue={todayIst()}
           />
         </label>
       </div>
@@ -465,14 +466,12 @@ function PaymentHistory({
 export default function UpcomingBills({
   activity,
   onPaymentRecorded,
-  autoPayNotice,
 }: {
   /** The bills fetch, owned by the dashboard so it can also feed the notification centre. */
   activity: Activity<Bill>;
   /** Called after a payment lands: the payment also creates an expense transaction, so the transactions list needs a refresh. */
   onPaymentRecorded?: () => void;
   /** What the auto-pay run on this load recorded, if anything (set by the dashboard). */
-  autoPayNotice?: string;
 }) {
   const { items, loading, error, retry, add, update, append, patch, remove } =
     activity;
@@ -501,7 +500,7 @@ export default function UpcomingBills({
   // end of the current month (overdue included) — not every bill on
   // the books regardless of date. The label says the scope.
   const monthEndKey = (() => {
-    const now = new Date();
+    const now = new Date(`${todayIst()}T12:00:00`);
     return dateKey(new Date(now.getFullYear(), now.getMonth() + 1, 0));
   })();
   const dueByMonthEnd = unpaidBills.filter(
@@ -595,7 +594,7 @@ export default function UpcomingBills({
   return (
     <>
       <article
-        className="dash-panel flex min-h-120 flex-col p-5 xl:min-h-120"
+        className="dash-panel flex min-w-0 flex-col p-4"
         aria-busy={loading}
       >
         <PanelHeading icon="calendar" title="Upcoming bills">
@@ -620,13 +619,8 @@ export default function UpcomingBills({
             </button>
           </div>
         </PanelHeading>
-        {autoPayNotice && (
-          <p role="status" className="mt-3 text-xs leading-6 text-dash-muted">
-            {autoPayNotice}
-          </p>
-        )}
         {loading ? (
-          <p role="status" className="m-auto text-xs text-dash-muted">
+          <p role="status" className="py-5 text-center text-xs text-dash-muted">
             Loading bills…
           </p>
         ) : error ? (

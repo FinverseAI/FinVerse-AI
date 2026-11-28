@@ -66,10 +66,12 @@ test("the onboarding page greets the signed-in user by name", async () => {
 
 test("the dashboard page renders the dashboard for the signed-in user", async () => {
   const html = render(await DashboardPage());
+  assert.match(html, /data-theme="dark"/);
   for (const section of [
-    "Monthly income",
-    "Recent Transactions",
-    "Upcoming Bills",
+    "Personal finance tracker",
+    "Light mode",
+    "Recent transactions",
+    "Upcoming bills",
     "Investment readiness",
     "Ask FinVerse AI",
   ]) {

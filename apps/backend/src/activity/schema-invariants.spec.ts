@@ -56,7 +56,7 @@ describe('database CHECK constraints (B46 invariant)', () => {
     expect(schema).toContain('B46');
   });
 
-  it('keeps the payday range at 1–28 in SQL', () => {
-    expect(migrationSql).toContain('"payday" BETWEEN 1 AND 28');
+  it('permits paydays through the 31st in SQL', () => {
+    expect(migrationSql).toContain('"payday" BETWEEN 1 AND 31');
   });
 });

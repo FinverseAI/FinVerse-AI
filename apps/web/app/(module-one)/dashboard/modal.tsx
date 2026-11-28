@@ -38,6 +38,32 @@ export function Modal({
         event.preventDefault();
         if (!busy) onClose();
       }}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab") return;
+        const dialog = event.currentTarget;
+        const stops = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            "a[href], button, input, select, textarea, summary, iframe, [contenteditable=true], [tabindex]",
+          ),
+        ).filter(
+          (item) =>
+            item.tabIndex >= 0 &&
+            !item.matches(":disabled") &&
+            item.getClientRects().length > 0,
+        );
+        const first = stops[0];
+        const last = stops.at(-1);
+        const focused = document.activeElement;
+        if (!first || !last) {
+          event.preventDefault();
+        } else if (
+          !stops.includes(focused as HTMLElement) ||
+          (event.shiftKey ? focused === first : focused === last)
+        ) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+        }
+      }}
       onClick={(event) => {
         if (!busy && event.target === event.currentTarget) {
           const rect = event.currentTarget.getBoundingClientRect();

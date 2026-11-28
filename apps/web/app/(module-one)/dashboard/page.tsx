@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { guardProfile } from "../../../auth/profile-guard";
+import { readWorkspaceTheme } from "../../../lib/workspace-theme-server";
 import Dashboard from "./dashboard";
 
 export const metadata: Metadata = {
@@ -12,5 +13,12 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const result = await guardProfile("dashboard");
-  return <Dashboard user={result!.user} profileData={result!.data} />;
+  const theme = await readWorkspaceTheme();
+  return (
+    <Dashboard
+      user={result!.user}
+      profileData={result!.data}
+      initialTheme={theme}
+    />
+  );
 }

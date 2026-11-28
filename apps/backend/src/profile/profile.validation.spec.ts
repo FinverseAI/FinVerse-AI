@@ -44,11 +44,11 @@ describe('financial profile validation', () => {
     const result = validateProfile({
       ...validProfile(),
       display_name: ' Alex ',
-      payday: 28,
+      payday: 31,
       budget_split: split,
     });
     expect(result.displayName).toBe('Alex');
-    expect(result.profile.payday).toBe(28);
+    expect(result.profile.payday).toBe(31);
     expect(result.profile.budget_split).toEqual(split);
     expect(result.profile.fixed_expenses.toFixed(2)).toBe('24000.04');
     expect(result.profile.monthly_savings_target.toFixed(2)).toBe('3000.00');
@@ -64,7 +64,7 @@ describe('financial profile validation', () => {
     { display_name: 123 },
     { display_name: 'a'.repeat(81) },
     { payday: 0 },
-    { payday: 29 },
+    { payday: 32 },
     { payday: 1.5 },
     { payday: '1' },
     { budget_split: { ...split, rent: 29 } },
@@ -180,6 +180,21 @@ describe('financial profile validation', () => {
     });
     goals[0] = { ...goals[0], id: 'goal-1' };
     expect(() => validateProfile(input)).toThrow(BadRequestException);
+  });
+
+  it('can keep an existing goal with a past deadline while editing a profile', () => {
+    const input = validProfile();
+    const goal = { ...input.goals[0], id: 'goal-1', target_date: '2020-01-01' };
+    const dates = new Map([[goal.id, goal.target_date]]);
+    expect(() =>
+      validateProfile({ ...input, goals: [goal] }, dates),
+    ).not.toThrow();
+    expect(() =>
+      validateProfile(
+        { ...input, goals: [{ ...goal, target_date: '2020-01-02' }] },
+        dates,
+      ),
+    ).toThrow(BadRequestException);
   });
 
   it('stores unasked enum/savings questions as unknown instead of false data (B47)', () => {

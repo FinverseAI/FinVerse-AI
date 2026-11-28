@@ -1,0 +1,625 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --chart-teal: theme("colors.teal");
+    --chart-cyan: theme("colors.cyan");
+    --chart-blue: theme("colors.blue");
+    --chart-grid: theme("colors.grid");
+    --chart-muted: theme("colors.muted");
+    --chart-ink: theme("colors.ink");
+    --chart-hover: rgb(62 207 192 / 0.055);
+    --motion: 200ms ease;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 min-w-[360px] bg-sky-light font-sans text-text antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  .recharts-surface:focus-visible {
+    outline: 2px solid theme("colors.teal");
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  .page-stage {
+    @apply grid min-h-screen place-items-center px-8 py-10;
+    background:
+      radial-gradient(
+        ellipse at 89% 95%,
+        theme("colors.sky-mint"),
+        transparent 46%
+      ),
+      radial-gradient(
+        ellipse at 26% 45%,
+        theme("colors.sky-lavender"),
+        transparent 59%
+      ),
+      radial-gradient(ellipse at 58% 106%, rgb(250 252 255), transparent 66%),
+      theme("colors.sky-light");
+  }
+
+  .tracker-frame {
+    @apply w-full max-w-[1312px] rounded-[28px] border border-white/10 bg-frame p-[9px];
+    box-shadow:
+      0 26px 67px rgb(27 37 56 / 0.28),
+      0 5px 13px rgb(31 39 54 / 0.2),
+      inset 0 1px 0 rgb(255 255 255 / 0.08);
+  }
+
+  .tracker-shell {
+    @apply rounded-[20px] border border-white/[0.045] bg-shell px-4 pb-4;
+    background-image: linear-gradient(
+      150deg,
+      rgb(255 255 255 / 0.018),
+      transparent 60%
+    );
+    transition: background-color var(--motion);
+  }
+
+  .tracker-frame[data-contrast="true"] .tracker-shell {
+    @apply bg-frame;
+  }
+
+  .tracker-header {
+    @apply flex min-h-[66px] items-center justify-between gap-5 px-1;
+  }
+
+  .eyebrow {
+    @apply text-[10px] font-extrabold uppercase tracking-[0.3em] text-text/90;
+  }
+
+  .tracker-header h1 {
+    @apply whitespace-nowrap text-[11px] tracking-[0.36em];
+  }
+
+  .month-tabs {
+    @apply grid grid-cols-12 items-center gap-1;
+  }
+
+  .month-tab {
+    @apply rounded-[5px] border border-transparent px-2 py-1.5 text-[9px] font-bold text-muted;
+    transition:
+      color var(--motion),
+      background-color var(--motion),
+      border-color var(--motion);
+  }
+
+  .month-tab:hover {
+    @apply bg-white/5 text-text;
+  }
+
+  .month-tab[aria-pressed="true"] {
+    @apply border-white/10 bg-white/[0.13] text-text;
+  }
+
+  .tracker-layout {
+    @apply grid grid-cols-[56px_minmax(0,1fr)] gap-4;
+  }
+
+  .tracker-content {
+    @apply grid min-w-0 grid-cols-12 gap-4;
+  }
+
+  .primary-column {
+    @apply col-span-7 grid min-w-0 grid-rows-[133px_179px_minmax(300px,1fr)] gap-4;
+  }
+
+  .secondary-column {
+    @apply col-span-5 grid min-w-0 grid-rows-[minmax(423px,1fr)_194px] gap-4;
+  }
+
+  .sidebar {
+    @apply flex min-w-0 flex-col items-center rounded-2xl border border-white/[0.04] bg-rail py-3;
+    background-image: linear-gradient(
+      165deg,
+      rgb(255 255 255 / 0.025),
+      transparent 58%
+    );
+  }
+
+  .sidebar-navigation {
+    @apply mt-12 grid w-full gap-[23px];
+  }
+
+  .sidebar-navigation a {
+    @apply flex w-full flex-col items-center gap-1 text-muted;
+  }
+
+  .sidebar-icon {
+    @apply grid size-8 place-items-center rounded-full border border-white/[0.055] bg-white/[0.045];
+    transition:
+      color var(--motion),
+      background-color var(--motion),
+      box-shadow var(--motion);
+  }
+
+  .sidebar-navigation a:hover .sidebar-icon {
+    @apply bg-white/10 text-text;
+  }
+
+  .sidebar-navigation a[aria-current] .sidebar-icon {
+    @apply border-teal/[0.15] bg-teal/10 text-teal;
+    box-shadow: 0 0 12px rgb(62 207 192 / 0.13);
+  }
+
+  .sidebar-label {
+    @apply text-[7px] font-extrabold text-text/70;
+  }
+
+  .sidebar-footer {
+    @apply mt-auto grid justify-items-center gap-3 pt-7;
+  }
+
+  .avatar {
+    @apply grid size-7 place-items-center rounded-full border border-white/10 text-[9px] font-extrabold text-text;
+    background: linear-gradient(
+      150deg,
+      theme("colors.coral"),
+      theme("colors.raised") 72%
+    );
+  }
+
+  .theme-toggle {
+    @apply flex h-5 items-center gap-1 rounded-full text-muted;
+  }
+
+  .theme-dot {
+    @apply size-2 rounded-full bg-text;
+    transition:
+      transform var(--motion),
+      background-color var(--motion);
+  }
+
+  .theme-toggle[aria-pressed="true"] .theme-dot {
+    @apply bg-teal;
+    transform: translateX(1px);
+  }
+
+  .glass-panel {
+    @apply min-w-0 rounded-2xl border border-white/[0.05] bg-panel;
+    background-image: linear-gradient(
+      155deg,
+      theme("colors.panel-top") 0%,
+      transparent 86%
+    );
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.018);
+  }
+
+  .lift {
+    transition:
+      transform var(--motion),
+      border-color var(--motion),
+      box-shadow var(--motion);
+  }
+
+  .lift:hover {
+    transform: translateY(-2px);
+    border-color: rgb(255 255 255 / 0.13);
+    box-shadow: 0 9px 16px rgb(0 0 0 / 0.14);
+  }
+
+  .sparkline-stage {
+    @apply relative min-w-0;
+  }
+
+  .sparkline {
+    @apply absolute bottom-[5px] left-[8%] h-[87px] w-[57%];
+  }
+
+  .balance-card {
+    @apply absolute -top-[11px] right-1 z-10 grid h-[141px] w-[43%] min-w-[205px] content-between rounded-xl border border-white/10 p-3.5 backdrop-blur-xl;
+    background:
+      linear-gradient(
+        132deg,
+        rgb(255 255 255 / 0.14),
+        rgb(113 118 133 / 0.23) 61%,
+        rgb(255 255 255 / 0.055)
+      ),
+      rgb(54 57 65 / 0.49);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.08),
+      0 8px 20px rgb(0 0 0 / 0.23);
+  }
+
+  .balance-card-top,
+  .balance-card-bottom {
+    @apply flex items-start justify-between;
+  }
+
+  .balance-card-top > svg {
+    @apply text-text/[0.65];
+  }
+
+  .visa {
+    @apply rounded-sm bg-text/[0.85] px-1 py-0.5 text-[9px] font-extrabold italic leading-none tracking-tight text-frame;
+  }
+
+  .balance-card .eyebrow {
+    @apply text-[8px] leading-none tracking-[0.22em] text-text/75;
+  }
+
+  .card-amount {
+    @apply mt-1 text-[25px] font-extrabold leading-none tracking-[-0.05em];
+  }
+
+  .card-change {
+    @apply mt-1.5 flex items-center gap-1 whitespace-nowrap text-[8px] font-extrabold leading-none;
+  }
+
+  .balance-card-bottom > div:first-child {
+    @apply flex items-center gap-2 self-end;
+  }
+
+  .card-pan {
+    @apply whitespace-nowrap text-[8px] font-bold tracking-[0.13em] text-text/75;
+  }
+
+  .card-chip {
+    @apply relative h-[11px] w-[15px] rounded-[3px] border border-white/30 bg-white/10;
+  }
+
+  .card-chip::after {
+    @apply absolute inset-x-0 top-1/2 h-px bg-white/25 content-[''];
+  }
+
+  .card-type {
+    @apply flex flex-col items-end gap-1 whitespace-nowrap text-[8px] font-bold text-text/[0.85];
+  }
+
+  .switch {
+    @apply flex h-4 w-8 items-center rounded-full border border-white/[0.07] bg-panel-top p-0.5;
+    transition: background-color var(--motion);
+  }
+
+  .switch > span {
+    @apply size-2.5 shrink-0 rounded-full bg-text;
+    transition: transform var(--motion);
+  }
+
+  .switch[aria-checked="true"] > span {
+    transform: translateX(15px);
+  }
+
+  .switch[aria-checked="true"] {
+    @apply bg-teal/25;
+  }
+
+  .card-switch {
+    @apply h-[13px] w-[24px];
+  }
+
+  .card-switch > span {
+    @apply size-[7px];
+  }
+
+  .card-switch[aria-checked="true"] > span {
+    transform: translateX(11px);
+  }
+
+  .kpi-grid {
+    @apply grid min-w-0 grid-cols-3 gap-3;
+  }
+
+  .kpi-card {
+    --kpi-color: theme("colors.green");
+    @apply grid grid-rows-[auto_auto_1fr_auto] gap-2.5 px-4 py-4 text-center;
+    background-image: linear-gradient(
+      155deg,
+      theme("colors.raised"),
+      theme("colors.panel-top")
+    );
+  }
+
+  .kpi-card[data-tone="cyan"] {
+    --kpi-color: theme("colors.cyan");
+  }
+  .kpi-card[data-tone="lavender"] {
+    --kpi-color: theme("colors.lavender");
+  }
+
+  .kpi-card .eyebrow,
+  .kpi-value {
+    color: var(--kpi-color);
+  }
+
+  .kpi-figures {
+    @apply mx-auto grid w-full max-w-[138px] gap-[3px] uppercase;
+  }
+
+  .kpi-figures > div {
+    @apply flex items-baseline justify-between gap-1 text-[8px] font-bold leading-snug;
+  }
+
+  .kpi-figures dt {
+    @apply tracking-[0.1em] text-muted;
+  }
+  .kpi-figures dd {
+    @apply whitespace-nowrap text-text/[0.85];
+  }
+
+  .kpi-value {
+    @apply self-end text-[25px] font-extrabold tracking-[0.055em];
+  }
+
+  .kpi-track,
+  .goal-track {
+    @apply relative h-[4px] rounded-full bg-white/10;
+  }
+
+  .kpi-fill,
+  .goal-track > span {
+    @apply block h-full origin-left rounded-full;
+    width: var(--progress);
+    transition: width var(--motion);
+    animation: fill-in var(--motion) both;
+  }
+
+  .kpi-fill {
+    background: var(--kpi-color);
+  }
+
+  .kpi-thumb {
+    @apply absolute top-1/2 h-[9px] w-[2px] -translate-y-1/2 rounded-sm bg-text;
+    left: min(var(--progress), calc(100% - 2px));
+    transition: left var(--motion);
+    animation: thumb-in var(--motion) both;
+  }
+
+  .expense-panel,
+  .development-panel,
+  .saving-panel {
+    @apply flex min-w-0 flex-col px-5 py-5;
+  }
+
+  .expense-values,
+  .expense-categories {
+    @apply grid grid-cols-6 text-center;
+  }
+
+  .expense-values {
+    @apply mt-5 mb-1 text-[9px] leading-[1.35];
+  }
+
+  .expense-values strong,
+  .expense-values span {
+    @apply block;
+  }
+  .expense-values strong {
+    @apply font-extrabold text-text/90;
+  }
+  .expense-values span {
+    @apply text-[8px] font-bold text-muted;
+  }
+
+  .grouped-chart {
+    @apply h-[102px] min-w-0;
+  }
+
+  .expense-categories {
+    @apply min-h-[23px] border-t border-white/[0.05] pt-1.5 text-[8px] font-bold text-muted;
+  }
+
+  .range-chart {
+    @apply mt-1 h-[105px] min-w-0;
+  }
+
+  .expense-stats {
+    @apply mt-auto grid grid-cols-4 gap-1.5 pt-4;
+  }
+
+  .stat-pill {
+    @apply grid min-w-0 place-items-center content-center gap-[3px] rounded-md border border-white/[0.05] bg-ink px-2 py-[7px] text-center;
+  }
+
+  .stat-pill strong {
+    @apply text-[10px] font-extrabold leading-none text-text;
+  }
+  .stat-pill span {
+    @apply text-[7px] font-extrabold uppercase leading-tight tracking-[0.1em] text-text/75;
+  }
+
+  .development-header {
+    @apply flex min-w-0 items-center justify-between gap-2;
+  }
+
+  .development-stats {
+    @apply grid grid-cols-2 gap-1.5;
+  }
+  .development-stats .stat-pill {
+    @apply min-w-[100px];
+  }
+
+  .development-chart {
+    @apply mt-2 min-w-0 flex-1 basis-[165px];
+  }
+
+  .balance-mode {
+    @apply mt-2 flex items-center justify-center gap-2 text-[8px] font-extrabold uppercase tracking-[0.12em] text-muted;
+  }
+
+  .balance-mode [data-active="true"] {
+    @apply text-text/90;
+  }
+
+  .goal-grid {
+    @apply mt-5 grid grid-cols-[96px_minmax(0,1fr)] gap-x-2.5 gap-y-3.5;
+  }
+  .goal-row {
+    @apply contents;
+  }
+  .goal-label {
+    @apply self-center text-[9px] font-bold text-text/75;
+  }
+  .goal-track {
+    @apply self-center;
+  }
+  .goal-track > span {
+    @apply bg-lavender;
+  }
+  .goal-axis {
+    @apply col-start-2 flex justify-between text-[8px] font-extrabold text-muted;
+  }
+
+  .chart-tooltip {
+    @apply min-w-[104px] rounded-md border border-teal/25 bg-ink px-2.5 py-2 text-[10px] leading-relaxed text-muted shadow-lg;
+  }
+
+  .chart-tooltip strong {
+    @apply mb-0.5 block font-extrabold text-teal;
+  }
+  .chart-tooltip p {
+    @apply flex justify-between gap-3 whitespace-nowrap;
+  }
+  .chart-tooltip span {
+    @apply font-bold text-text;
+  }
+
+  .peak-tag {
+    pointer-events: none;
+  }
+  .peak-tag rect {
+    fill: theme("colors.raised");
+    stroke: rgb(62 207 192 / 0.2);
+  }
+  .peak-tag text {
+    fill: theme("colors.teal");
+    font-size: 8px;
+    font-weight: 800;
+  }
+}
+
+@keyframes fill-in {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes thumb-in {
+  from {
+    left: 0;
+  }
+}
+
+@media (max-width: 1100px) {
+  .page-stage {
+    @apply px-5 py-7;
+  }
+  .tracker-shell {
+    @apply px-3 pb-3;
+  }
+  .tracker-layout {
+    @apply gap-3;
+  }
+  .tracker-content,
+  .primary-column,
+  .secondary-column {
+    @apply gap-3;
+  }
+  .balance-card {
+    @apply top-0;
+  }
+  .expense-panel,
+  .development-panel,
+  .saving-panel {
+    @apply px-4 py-4;
+  }
+  .development-header .eyebrow {
+    @apply text-[9px] tracking-[0.2em];
+  }
+  .development-stats .stat-pill {
+    @apply min-w-0 px-1.5;
+  }
+  .kpi-card {
+    @apply px-2.5;
+  }
+}
+
+@media (max-width: 850px) {
+  .tracker-content {
+    @apply grid-cols-1;
+  }
+  .primary-column,
+  .secondary-column {
+    @apply col-span-1;
+  }
+  .primary-column {
+    @apply grid-rows-[148px_164px_minmax(280px,1fr)];
+  }
+  .secondary-column {
+    @apply grid-rows-[minmax(390px,1fr)_184px];
+  }
+  .tracker-header {
+    @apply flex-wrap gap-2 py-3;
+  }
+  .tracker-header h1 {
+    @apply py-1;
+  }
+}
+
+@media (max-width: 510px) {
+  .page-stage {
+    @apply px-2 py-3;
+  }
+  .tracker-frame {
+    @apply rounded-[21px] p-1.5;
+  }
+  .tracker-layout {
+    @apply grid-cols-1;
+  }
+  .sidebar {
+    @apply flex-row justify-between rounded-lg px-2 py-1;
+  }
+  .sidebar-navigation {
+    @apply mt-0 flex w-auto gap-1;
+  }
+  .sidebar-navigation a {
+    @apply w-auto justify-center;
+  }
+  .sidebar-label {
+    @apply hidden;
+  }
+  .sidebar-footer {
+    @apply mt-0 flex items-center gap-1.5 pt-0;
+  }
+  .month-tabs {
+    @apply w-full grid-cols-6;
+  }
+  .month-tab {
+    @apply text-[10px];
+  }
+  .balance-card {
+    @apply min-w-[174px];
+  }
+  .kpi-card {
+    @apply px-2;
+  }
+  .kpi-figures > div {
+    @apply flex-col gap-0;
+  }
+  .kpi-value {
+    @apply text-xl;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

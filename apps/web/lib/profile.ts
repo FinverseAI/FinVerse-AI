@@ -12,19 +12,20 @@ export type FinancialGoal = {
 export type FinancialProfile = {
   payday?: number | null;
   budget_split?: Record<string, number> | null;
-  employment_type: "salaried" | "self-employed" | "student" | "other";
+  employment_type: "salaried" | "self-employed" | "student" | "other" | null;
   monthly_income: string;
   other_monthly_income: string | null;
   fixed_expenses: string;
   variable_expenses: string;
   existing_debt_total: string | null;
-  current_savings: string;
+  current_savings: string | null;
   monthly_savings_target: string;
-  investment_experience: "none" | "beginner" | "intermediate" | "advanced";
-  risk_tolerance: "low" | "medium" | "high";
+  investment_experience:
+    "none" | "beginner" | "intermediate" | "advanced" | null;
+  risk_tolerance: "low" | "medium" | "high" | null;
   already_investing: boolean;
   invested_amount: string | null;
-  emergency_fund_months: "0" | "1-3" | "3-6" | "6+";
+  emergency_fund_months: "0" | "1-3" | "3-6" | "6+" | null;
 };
 
 export type ProfileInput = FinancialProfile & {

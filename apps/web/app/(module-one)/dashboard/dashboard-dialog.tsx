@@ -8,9 +8,11 @@ import {
   dateKey,
   monthlyCashFlow,
   periodRange,
+  yearlyCashFlow,
   type BillForForecast,
 } from "./spending-data";
 import {
+  incomeCategories,
   transactionCategories,
   money,
   normalizeCategory,
@@ -21,7 +23,7 @@ import { accountReportToPdf, transactionsToPdf } from "../../../lib/export-pdf";
 import { transactionsToXlsx } from "../../../lib/export-xlsx";
 import { profileTotals, type FinancialProfile } from "../../../lib/profile";
 import type { DashboardNotification } from "../../../lib/notifications";
-import { formatFetchedAt, formatPrice } from "../../../lib/market";
+import { formatFetchedAt, formatPrice, todayIst } from "../../../lib/market";
 import { Icon, MiniStat } from "./ui";
 import { Modal } from "./modal";
 
@@ -109,12 +111,15 @@ export function DashboardDialog({
     null,
   );
   const [reportExportError, setReportExportError] = useState("");
+  const [reportPeriod, setReportPeriod] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const totals = profileTotals(profile);
   // Plan vs actual (team decision, 24 November 2026): the plan comes
   // from the saved profile, the actuals from recorded transactions,
   // and the report shows them side by side, never mixed. The actuals
   // follow the dashboard month, like every other card.
-  const reportNow = new Date();
+  const reportNow = new Date(`${todayIst()}T12:00:00`);
   const reportMonth = month ?? dateKey(reportNow).slice(0, 7);
   const reportMonthDate = new Date(`${reportMonth}-01T12:00:00`);
   const reportMonthLabel = reportMonthDate.toLocaleDateString("en-IN", {
@@ -122,6 +127,11 @@ export function DashboardDialog({
     year: "numeric",
   });
   const actual = monthlyCashFlow(transactions, reportMonth);
+  const yearly =
+    reportPeriod === "yearly"
+      ? yearlyCashFlow(transactions, reportMonth.slice(0, 4))
+      : null;
+  const exportName = `finverse-account-report-${yearly?.year ?? reportMonth}`;
   const committed = committedBills(
     bills,
     periodRange("monthly", reportMonthDate).end,
@@ -186,12 +196,28 @@ export function DashboardDialog({
       amount: -committed.total,
     },
   ];
+  const exportRows = yearly
+    ? [yearly, ...yearly.months.filter(({ count }) => count > 0)].flatMap(
+        (row) => {
+          const label = "month" in row ? row.month : yearly.year;
+          return [
+            { name: "Recorded income", amount: row.income },
+            { name: "Recorded expenses", amount: -row.expenses },
+            { name: "Net recorded flow", amount: row.net },
+          ].map((metric) => ({
+            ...metric,
+            date: `${label}${label.length === 4 ? "-12" : ""}-01`,
+            category: `Actual — ${label}`,
+          }));
+        },
+      )
+    : reportRows;
   function exportReportCsv() {
     download(
-      new Blob([transactionsToCsv(reportRows)], {
+      new Blob([transactionsToCsv(exportRows)], {
         type: "text/csv;charset=utf-8",
       }),
-      `finverse-account-report-${dateKey(reportNow)}.csv`,
+      `${exportName}.csv`,
     );
   }
   async function exportReportXlsx() {
@@ -199,12 +225,12 @@ export function DashboardDialog({
     setReportExporting("xlsx");
     setReportExportError("");
     try {
-      const bytes = await transactionsToXlsx(reportRows);
+      const bytes = await transactionsToXlsx(exportRows);
       download(
         new Blob([bytes as BlobPart], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
-        `finverse-account-report-${dateKey(reportNow)}.xlsx`,
+        `${exportName}.xlsx`,
       );
     } catch {
       setReportExportError("The Excel export failed. Please try again.");
@@ -223,10 +249,11 @@ export function DashboardDialog({
         plan: totals,
         actual,
         committedBills: committed,
+        yearly: yearly ?? undefined,
       });
       download(
         new Blob([bytes as BlobPart], { type: "application/pdf" }),
-        `finverse-account-report-${dateKey(reportNow)}.pdf`,
+        `${exportName}.pdf`,
       );
     } catch {
       setReportExportError("The PDF export failed. Please try again.");
@@ -250,6 +277,9 @@ export function DashboardDialog({
             onSubmit={onTransaction}
             onClose={onClose}
             onSavingChange={setSaving}
+            existingCategories={transactions
+              .filter((item) => item.amount < 0)
+              .map((item) => item.category)}
           />
           {transactionsError && (
             <div role="alert" className="mt-4 text-xs text-dash-red">
@@ -274,6 +304,9 @@ export function DashboardDialog({
           }
           onClose={onClose}
           onSavingChange={setSaving}
+          existingCategories={transactions
+            .filter((item) => item.amount < 0)
+            .map((item) => item.category)}
         />
       )}
       {kind === "remove-transaction" && editingTransaction && (
@@ -350,70 +383,141 @@ export function DashboardDialog({
         )}
       {kind === "report" && (
         <div className="space-y-4">
-          <p className="text-xs text-dash-muted">
-            Monthly plan — from your saved financial profile
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <MiniStat label="Current savings" value={money(totals.savings)} />
-            <MiniStat label="Monthly income" value={money(totals.income)} />
-            <MiniStat label="Monthly expenses" value={money(totals.expenses)} />
-            <MiniStat label="Savings target" value={money(totals.target)} />
-            <MiniStat label="Monthly surplus" value={money(totals.surplus)} />
-          </div>
-          <p className="text-xs text-dash-muted">
-            Surplus = total monthly income minus fixed expenses minus variable
-            expenses minus savings target.
-          </p>
-          <p className="text-xs text-dash-muted">
-            Actual — {reportMonthLabel} — from your recorded transactions
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <MiniStat label="Recorded income" value={money(actual.income)} />
-            <MiniStat
-              label="Recorded expenses"
-              value={money(actual.expenses)}
-            />
-            <MiniStat label="Net recorded flow" value={money(actual.net)} />
-            <MiniStat
-              label="Unpaid bills due by month-end"
-              value={money(committed.total)}
-            />
-          </div>
-          <p className="text-xs text-dash-muted">
-            The plan and the actuals are separate figures: the plan is what you
-            set out to spend, the actuals are what your recorded transactions
-            show
-            {actual.count === 0
-              ? `. No transactions recorded in ${reportMonthLabel} yet`
-              : ` across ${actual.count} transaction${actual.count === 1 ? "" : "s"} in ${reportMonthLabel}`}
-            . Unpaid bills count as committed spending in forecasts
-            {committed.count > 0
-              ? ` — ${committed.count} unpaid bill${committed.count === 1 ? "" : "s"} due by month-end`
-              : ""}
-            .
-          </p>
+          <label className="dash-form text-xs text-dash-muted">
+            Report period
+            <select
+              className="dash-input"
+              value={reportPeriod}
+              disabled={reportExporting !== null}
+              onChange={(event) =>
+                setReportPeriod(
+                  event.target.value === "yearly" ? "yearly" : "monthly",
+                )
+              }
+            >
+              <option value="monthly">Monthly report</option>
+              <option value="yearly">Yearly report</option>
+            </select>
+          </label>
+          {transactionsLoading || transactionsError ? null : yearly ? (
+            <>
+              <p className="text-xs text-dash-muted">
+                Recorded activity for {yearly.year} · {yearly.count}{" "}
+                transactions
+              </p>
+              {yearly.count > 0 ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniStat
+                    label="Recorded income"
+                    value={money(yearly.income, 2)}
+                  />
+                  <MiniStat
+                    label="Recorded expenses"
+                    value={money(yearly.expenses, 2)}
+                  />
+                  <MiniStat
+                    label="Net recorded flow"
+                    value={money(yearly.net, 2)}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm text-dash-muted">
+                  No transactions recorded in {yearly.year}.
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-dash-muted">
+                Monthly plan — from your saved financial profile
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <MiniStat
+                  label="Current savings"
+                  value={money(totals.savings)}
+                />
+                <MiniStat label="Monthly income" value={money(totals.income)} />
+                <MiniStat
+                  label="Monthly expenses"
+                  value={money(totals.expenses)}
+                />
+                <MiniStat label="Savings target" value={money(totals.target)} />
+                <MiniStat
+                  label="Monthly surplus"
+                  value={money(totals.surplus)}
+                />
+              </div>
+              <p className="text-xs text-dash-muted">
+                Surplus = total monthly income minus fixed expenses minus
+                variable expenses minus savings target.
+              </p>
+              <p className="text-xs text-dash-muted">
+                Actual — {reportMonthLabel} — from your recorded transactions
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <MiniStat
+                  label="Recorded income"
+                  value={money(actual.income)}
+                />
+                <MiniStat
+                  label="Recorded expenses"
+                  value={money(actual.expenses)}
+                />
+                <MiniStat label="Net recorded flow" value={money(actual.net)} />
+                <MiniStat
+                  label="Unpaid bills due by month-end"
+                  value={money(committed.total)}
+                />
+              </div>
+              <p className="text-xs text-dash-muted">
+                The plan and the actuals are separate figures: the plan is what
+                you set out to spend, the actuals are what your recorded
+                transactions show
+                {actual.count === 0
+                  ? `. No transactions recorded in ${reportMonthLabel} yet`
+                  : ` across ${actual.count} transaction${actual.count === 1 ? "" : "s"} in ${reportMonthLabel}`}
+                . Unpaid bills count as committed spending in forecasts
+                {committed.count > 0
+                  ? ` — ${committed.count} unpaid bill${committed.count === 1 ? "" : "s"} due by month-end`
+                  : ""}
+                .
+              </p>
+            </>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={exportReportCsv}
-              disabled={reportExporting !== null}
-              className="rounded-full border border-dash-border px-4 py-2 text-sm text-dash-text transition-colors hover:border-dash-accent disabled:opacity-50"
+              disabled={
+                reportExporting !== null ||
+                transactionsLoading ||
+                !!transactionsError
+              }
+              className="dash-small-button"
             >
               Export CSV
             </button>
             <button
               type="button"
               onClick={exportReportPdf}
-              disabled={reportExporting !== null}
-              className="rounded-full border border-dash-border px-4 py-2 text-sm text-dash-text transition-colors hover:border-dash-accent disabled:opacity-50"
+              disabled={
+                reportExporting !== null ||
+                transactionsLoading ||
+                !!transactionsError
+              }
+              className="dash-small-button"
             >
               {reportExporting === "pdf" ? "Exporting…" : "Export PDF"}
             </button>
             <button
               type="button"
               onClick={exportReportXlsx}
-              disabled={reportExporting !== null}
-              className="rounded-full border border-dash-border px-4 py-2 text-sm text-dash-text transition-colors hover:border-dash-accent disabled:opacity-50"
+              disabled={
+                reportExporting !== null ||
+                transactionsLoading ||
+                !!transactionsError
+              }
+              className="dash-small-button"
             >
               {reportExporting === "xlsx" ? "Exporting…" : "Export Excel"}
             </button>
@@ -422,6 +526,23 @@ export function DashboardDialog({
             <p role="alert" className="text-sm text-dash-red">
               {reportExportError}
             </p>
+          )}
+          {transactionsLoading && (
+            <p role="status" className="text-xs text-dash-muted">
+              Loading recorded activity…
+            </p>
+          )}
+          {transactionsError && (
+            <div role="alert" className="text-xs text-dash-red">
+              <p>{transactionsError}</p>
+              <button
+                type="button"
+                className="dash-small-button mt-2"
+                onClick={onRetryTransactions}
+              >
+                Try again
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -442,8 +563,8 @@ export function DashboardDialog({
         </div>
       )}
       {kind === "notifications" &&
-        !notificationsLoading &&
-        !notificationsError && (
+        (notifications.length > 0 ||
+          (!notificationsLoading && !notificationsError)) && (
           <NotificationList notifications={notifications} />
         )}
     </Modal>
@@ -466,11 +587,13 @@ function NotificationList({
     return (
       <div>
         <p className="py-8 text-center text-sm text-dash-muted">
-          All caught up — no bills due soon and no price alerts fired.
+          All caught up — no bills due soon and no price alerts fired. No budget
+          warnings.
         </p>
         <p className="text-center text-xs leading-6 text-dash-muted">
           Bills that are overdue or due in the next week appear here, along with
-          any watchlist price alerts that have fired.
+          categories that use at least 90% of this month’s budget and any fired
+          watchlist alerts.
         </p>
       </div>
     );
@@ -479,7 +602,35 @@ function NotificationList({
     <div>
       <ul className="space-y-3">
         {notifications.map((notification) =>
-          notification.source === "price-alert" ? (
+          notification.source === "budget" ? (
+            <li
+              key={`budget-${notification.category}`}
+              className="surface-inset flex items-center gap-3 border px-3 py-2.5"
+            >
+              <Icon
+                name="target"
+                className={
+                  notification.spent >= notification.limit
+                    ? "shrink-0 text-dash-red"
+                    : "shrink-0 text-dash-warning"
+                }
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {notification.category} ·{" "}
+                  {notification.spent > notification.limit
+                    ? "Over budget"
+                    : notification.spent === notification.limit
+                      ? "Budget used"
+                      : "Near budget limit"}
+                </p>
+                <p className="text-xs text-dash-muted">
+                  {money(notification.spent, 2)} of{" "}
+                  {money(notification.limit, 2)} used this month
+                </p>
+              </div>
+            </li>
+          ) : notification.source === "price-alert" ? (
             <li
               key={`alert-${notification.alertId}`}
               className="surface-inset flex items-center gap-3 border px-3 py-2.5"
@@ -561,6 +712,7 @@ export function TransactionForm({
   onSubmit,
   onClose,
   onSavingChange,
+  existingCategories = [],
 }: {
   initial?: Transaction;
   submitLabel: string;
@@ -568,6 +720,7 @@ export function TransactionForm({
   onSubmit: (transaction: Omit<Transaction, "id">) => Promise<void>;
   onClose: () => void;
   onSavingChange: (saving: boolean) => void;
+  existingCategories?: string[];
 }) {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -581,24 +734,30 @@ export function TransactionForm({
     const normalized = initial?.category
       ? normalizeCategory(initial.category)
       : "Others";
-    if (initialType === "income") return "Income";
+    if (initialType === "income")
+      return incomeCategories.includes(normalized) ? normalized : "Income";
     return normalized === "Income" ? "Others" : normalized;
   })();
   const [type, setType] = useState<"expense" | "income">(initialType);
   const [category, setCategory] = useState(initialCategory);
+  const expenseCategories = [
+    ...new Set(
+      [
+        ...transactionCategories,
+        ...existingCategories,
+        ...(initialType === "expense" ? [initialCategory] : []),
+      ]
+        .map(normalizeCategory)
+        .filter((label) => !incomeCategories.includes(label)),
+    ),
+  ];
   const categoriesForType =
-    type === "income"
-      ? ["Income"]
-      : transactionCategories.filter((name) => name !== "Income");
+    type === "income" ? incomeCategories : expenseCategories;
   function changeType(next: "expense" | "income") {
     setType(next);
-    setCategory((current) =>
-      next === "income" ? "Income" : current === "Income" ? "Others" : current,
-    );
+    setCategory(next === "income" ? "Income" : "Others");
   }
-  // Today from local date parts, never toISOString(): UTC slips a day
-  // behind between 00:00–05:30 IST and would cap the date at yesterday.
-  const todayKey = dateKey(new Date());
+  const todayKey = todayIst();
   return (
     <form
       className="dash-form"
@@ -611,9 +770,15 @@ export function TransactionForm({
         onSavingChange(true);
         setSaveError("");
         try {
+          const selectedCategory =
+            category || String(form.get("customCategory")).trim();
           await onSubmit({
             name: String(form.get("name")).trim(),
-            category,
+            category: selectedCategory,
+            ...(type === "expense" &&
+            !transactionCategories.includes(selectedCategory)
+              ? { customCategory: true }
+              : {}),
             amount: type === "expense" ? -amount : amount,
             date: String(form.get("date")),
           });
@@ -671,7 +836,7 @@ export function TransactionForm({
         </label>
       </div>
       <label>
-        Category
+        {type === "income" ? "Income source" : "Category"}
         <select
           className="dash-input"
           name="category"
@@ -681,8 +846,23 @@ export function TransactionForm({
           {categoriesForType.map((name) => (
             <option key={name}>{name}</option>
           ))}
+          {type === "expense" && (
+            <option value="">Add a custom category</option>
+          )}
         </select>
       </label>
+      {type === "expense" && !category && (
+        <label>
+          Custom category
+          <input
+            className="dash-input"
+            name="customCategory"
+            maxLength={40}
+            required
+            placeholder="e.g. Pets"
+          />
+        </label>
+      )}
       <label>
         Date
         <input
@@ -696,8 +876,8 @@ export function TransactionForm({
         />
       </label>
       <p className="text-xs text-dash-muted">
-        Saved securely to your account and included in spending analysis. Dates
-        can&apos;t be in the future, and income uses the Income category only.
+        Saved to your account and included in your reports. Dates can&apos;t be
+        in the future.
       </p>
       {saveError && (
         <p role="alert" className="text-xs text-dash-red">
@@ -724,8 +904,21 @@ function TransactionTable({
   onEdit: (transaction: Transaction) => void;
   onRemove: (transaction: Transaction) => void;
 }) {
+  const [kind, setKind] = useState("all");
+  const [category, setCategory] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
+  const categories = [
+    ...new Set(transactions.map((item) => normalizeCategory(item.category))),
+  ].sort((first, second) => first.localeCompare(second));
   const filtered = [...transactions]
     .sort((a, b) => b.date.localeCompare(a.date))
+    .filter(
+      (item) =>
+        (kind === "all" ||
+          (kind === "income" ? item.amount > 0 : item.amount < 0)) &&
+        (!category || normalizeCategory(item.category) === category) &&
+        (!monthFilter || item.date.startsWith(`${monthFilter}-`)),
+    )
     .filter((item) =>
       `${item.name} ${item.category} ${item.date}`
         .toLowerCase()
@@ -738,7 +931,7 @@ function TransactionTable({
       new Blob([transactionsToCsv(filtered)], {
         type: "text/csv;charset=utf-8",
       }),
-      `finverse-transactions-${dateKey(new Date())}.csv`,
+      `finverse-transactions-${todayIst()}.csv`,
     );
   }
   async function exportPdf() {
@@ -749,7 +942,7 @@ function TransactionTable({
       const bytes = await transactionsToPdf(filtered);
       download(
         new Blob([bytes as BlobPart], { type: "application/pdf" }),
-        `finverse-transactions-${dateKey(new Date())}.pdf`,
+        `finverse-transactions-${todayIst()}.pdf`,
       );
     } catch {
       setExportError("The PDF export failed. Please try again.");
@@ -767,7 +960,7 @@ function TransactionTable({
         new Blob([bytes as BlobPart], {
           type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         }),
-        `finverse-transactions-${dateKey(new Date())}.xlsx`,
+        `finverse-transactions-${todayIst()}.xlsx`,
       );
     } catch {
       setExportError("The Excel export failed. Please try again.");
@@ -786,6 +979,42 @@ function TransactionTable({
           placeholder="Name, category, or date"
         />
       </label>
+      <div className="dash-form mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <label>
+          Type
+          <select
+            className="dash-input"
+            value={kind}
+            onChange={(event) => setKind(event.target.value)}
+          >
+            <option value="all">All transactions</option>
+            <option value="income">Income history</option>
+            <option value="expense">Expense history</option>
+          </select>
+        </label>
+        <label>
+          Category or source
+          <select
+            className="dash-input"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+          >
+            <option value="">All categories</option>
+            {categories.map((label) => (
+              <option key={label}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Month
+          <input
+            className="dash-input"
+            type="month"
+            value={monthFilter}
+            onChange={(event) => setMonthFilter(event.target.value)}
+          />
+        </label>
+      </div>
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs text-dash-muted">
           {filtered.length} transaction{filtered.length === 1 ? "" : "s"}

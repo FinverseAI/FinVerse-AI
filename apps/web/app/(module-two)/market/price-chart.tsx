@@ -12,11 +12,11 @@ import type { MacdPoint } from "../../../lib/indicators";
  */
 
 // Theme colours from app/globals.css.
-const ACCENT = "#ff9b8b";
-const TEXT = "#f3f1eb";
-const MUTED = "#c0cad5";
-const WARNING = "#efd0a2";
-const GRID = "#d2e0f133";
+const ACCENT = "var(--color-dash-accent)";
+const TEXT = "var(--color-dash-text)";
+const MUTED = "var(--color-dash-muted)";
+const WARNING = "var(--color-dash-warning)";
+const GRID = "var(--color-dash-border)";
 
 const WIDTH = 720;
 const PAD_LEFT = 64;

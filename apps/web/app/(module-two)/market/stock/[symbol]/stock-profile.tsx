@@ -21,6 +21,7 @@ import {
   activityRequest,
 } from "../../../../(module-one)/dashboard/use-activity";
 import { MiniStat, PanelHeading } from "../../../../(module-one)/dashboard/ui";
+import type { WorkspaceTheme } from "../../../../../lib/workspace-theme";
 import { MarketShell } from "../../market-shell";
 import { MacdChart, PriceChart, RsiChart } from "../../price-chart";
 import { HoldingForm, type HoldingFormData } from "../../holding-form";
@@ -51,9 +52,11 @@ function rsiReading(value: number | null) {
 export default function StockProfile({
   symbol,
   user,
+  initialTheme,
 }: {
   symbol: string;
   user?: AuthUser;
+  initialTheme?: WorkspaceTheme;
 }) {
   const [profile, setProfile] = useState<MarketProfile | null>(null);
   const [history, setHistory] = useState<HistoryResponse | null>(null);
@@ -242,6 +245,7 @@ export default function StockProfile({
   return (
     <MarketShell
       user={user}
+      initialTheme={initialTheme}
       eyebrow="Investments / Stock analysis"
       title={profile?.name ?? symbol}
       description={`Explore ${symbol}: price performance, technical signals, and the stories behind the stock.`}
@@ -397,12 +401,12 @@ export default function StockProfile({
                   {
                     label: "SMA 20",
                     values: indicators.sma20,
-                    color: "#efd0a2",
+                    color: "var(--color-dash-warning)",
                   },
                   {
                     label: "SMA 50",
                     values: indicators.sma50,
-                    color: "#c0cad5",
+                    color: "var(--color-dash-muted)",
                   },
                 ]}
               />

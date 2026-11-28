@@ -1,6 +1,7 @@
 import { formatMoney } from "../../../lib/market.ts";
 
-export type Tone = "accent" | "blue" | "purple" | "warning" | "red" | "muted";
+export type Tone =
+  "accent" | "green" | "blue" | "purple" | "warning" | "red" | "muted";
 export type Budget = { name: string; spent: number; limit: number };
 export type Transaction = {
   id: string;
@@ -8,7 +9,17 @@ export type Transaction = {
   category: string;
   amount: number;
   date: string;
+  customCategory?: boolean;
 };
+
+export const incomeCategories = [
+  "Income",
+  "Salary",
+  "Freelancing",
+  "Business",
+  "Investment income",
+  "Other income",
+];
 
 /**
  * Recorded amounts and totals render with 0 decimals by default.
@@ -56,5 +67,7 @@ const LEGACY_CATEGORIES: Record<string, string> = {
 
 /** Map a saved category label to its canonical form. */
 export function normalizeCategory(category: string): string {
-  return LEGACY_CATEGORIES[category] ?? category;
+  return Object.hasOwn(LEGACY_CATEGORIES, category)
+    ? LEGACY_CATEGORIES[category]!
+    : category;
 }

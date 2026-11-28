@@ -21,6 +21,15 @@ const categories = new Set([
   'Others',
 ]);
 
+const incomeCategories = new Set([
+  'Income',
+  'Salary',
+  'Freelancing',
+  'Business',
+  'Investment income',
+  'Other income',
+]);
+
 /**
  * Labels saved before the categories were unified (November 2026).
  * They are still accepted and mapped to their canonical label, so
@@ -35,7 +44,9 @@ const LEGACY_CATEGORIES: Record<string, string> = {
 
 /** Map a saved or submitted category label to its canonical form. */
 export function normalizeCategory(category: string): string {
-  return LEGACY_CATEGORIES[category] ?? category;
+  return Object.hasOwn(LEGACY_CATEGORIES, category)
+    ? LEGACY_CATEGORIES[category]
+    : category;
 }
 
 function record(input: unknown): Record<string, unknown> {
@@ -197,8 +208,17 @@ export function validateTransaction(input: unknown) {
   }
   // Older records carry legacy labels; they map to the canonical label
   // on the way in, so an edit never fails on a saved category.
-  const category = normalizeCategory(body.category);
-  if (!categories.has(category)) {
+  const rawCategory = body.category.trim().replace(/ +/g, ' ');
+  const normalized = normalizeCategory(rawCategory);
+  const category =
+    [...categories, ...incomeCategories].find(
+      (label) => label.toLowerCase() === normalized.toLowerCase(),
+    ) ?? normalized;
+  const isIncome = incomeCategories.has(category);
+  const custom =
+    body.customCategory === true &&
+    /^[\p{L}\p{N}][\p{L}\p{N} &'’()./-]{0,39}$/u.test(category);
+  if (!categories.has(category) && !isIncome && !custom) {
     throw new BadRequestException('Choose a valid category.');
   }
   const amountValue = amount(body.amount, true);
@@ -207,11 +227,9 @@ export function validateTransaction(input: unknown) {
   // (amount < 0). Downstream (budgets, AI tools, readiness) filters
   // purely on sign, so a positive "Food & Dining" entry would
   // otherwise be silently counted as income.
-  if (
-    category === 'Income' ? Number(amountValue) <= 0 : Number(amountValue) >= 0
-  ) {
+  if (isIncome ? Number(amountValue) <= 0 : Number(amountValue) >= 0) {
     throw new BadRequestException(
-      category === 'Income'
+      isIncome
         ? 'Income must be a positive amount.'
         : 'Spending must be a negative amount.',
     );

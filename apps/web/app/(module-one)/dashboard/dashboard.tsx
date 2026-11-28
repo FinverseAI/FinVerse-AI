@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { authClient } from "../../../auth/client";
 import type { AuthUser } from "../../../auth/types";
 import type { ProfileResponse } from "../../../lib/profile";
+import type { WorkspaceTheme } from "../../../lib/workspace-theme";
 
 import { onboardingBudgets } from "../../../lib/onboarding";
 import { type Transaction } from "./data";
-import { Header, Sidebar } from "./navigation";
-import SummaryCards from "./summary-cards";
+import { Header, Sidebar, useWorkspaceTheme } from "./navigation";
 import BalanceBreakdownCard from "./balance-breakdown-card";
 import ExpenseBreakdownCard from "./expense-breakdown-card";
 import PlanningCards from "./planning-cards";
@@ -18,18 +18,22 @@ import RecentTransactions from "./recent-transactions";
 import UpcomingBills, { type Bill } from "./upcoming-bills";
 import SpendingAnalysis from "./spending-analysis";
 import ReadinessCard from "./readiness-card";
-import AiChat from "./ai-chat";
+import AiChat, { type AiChatHandle } from "./ai-chat";
+import FinanceInsights from "./finance-insights";
 import ExpenseEntry from "./expense-entry";
 import { useActivity, activityRequest } from "./use-activity";
-import { budgetsWithSpending, dateKey } from "./spending-data";
+import { budgetsWithSpending, dateKey, monthlyCashFlow } from "./spending-data";
 import {
   billNotifications,
+  budgetNotifications,
   priceAlertNotifications,
   type DashboardNotification,
 } from "../../../lib/notifications";
 import type { FiredAlert } from "../../../lib/market";
+import { todayIst } from "../../../lib/market";
 import { Modal } from "./modal";
 import type { DialogKind } from "./dashboard-dialog";
+import TrackerOverview from "./tracker-overview";
 import styles from "./dashboard.module.css";
 
 const FinancialProfileForm = dynamic(
@@ -46,12 +50,17 @@ const DashboardDialog = dynamic(() =>
 export default function Dashboard({
   user,
   profileData,
+  initialTheme = "dark",
 }: {
   user?: AuthUser;
   profileData: ProfileResponse;
+  initialTheme?: WorkspaceTheme;
 }) {
   const router = useRouter();
-  const [month, setMonth] = useState(() => dateKey(new Date()).slice(0, 7));
+  const { theme, toggleTheme } = useWorkspaceTheme(initialTheme);
+  const today = todayIst();
+  const currentMonth = today.slice(0, 7);
+  const [month, setMonth] = useState(currentMonth);
   const [data, setData] = useState(profileData);
   const [editingProfile, setEditingProfile] = useState(false);
   const [query, setQuery] = useState("");
@@ -75,14 +84,6 @@ export default function Dashboard({
   // alerts out — the bills still notify, and the market page still
   // shows the fired alerts.
   const firedAlerts = useActivity<FiredAlert>("/api/market/alerts");
-  const today = dateKey(new Date());
-  const notifications: DashboardNotification[] = useMemo(
-    () => [
-      ...billNotifications(bills.items, today),
-      ...priceAlertNotifications(firedAlerts.items),
-    ],
-    [bills.items, firedAlerts.items, today],
-  );
   // Budgets spend against the selected month: a past month counts its
   // whole month, the current month counts up to today.
   const budgetAsOf = useMemo(() => {
@@ -95,10 +96,25 @@ export default function Dashboard({
     () => budgetsWithSpending(budgets, transactions, budgetAsOf),
     [budgets, transactions, budgetAsOf],
   );
+  const notifications: DashboardNotification[] = useMemo(
+    () => [
+      ...billNotifications(bills.items, today),
+      ...budgetNotifications(
+        budgetsWithSpending(
+          budgets,
+          transactions,
+          new Date(`${today}T12:00:00`),
+        ),
+      ),
+      ...priceAlertNotifications(firedAlerts.items),
+    ],
+    [bills.items, budgets, transactions, firedAlerts.items, today],
+  );
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState("");
   const [autoPayNotice, setAutoPayNotice] = useState("");
   const autoPayRan = useRef(false);
+  const aiChat = useRef<AiChatHandle>(null);
   // Stable callbacks, destructured so the auto-pay effect can list
   // them as dependencies without re-running when the dashboard
   // re-renders (the activity objects themselves are new each render).
@@ -122,7 +138,7 @@ export default function Dashboard({
       "/api/bills/auto-pay",
       {
         method: "POST",
-        body: JSON.stringify({ today: dateKey(new Date()) }),
+        body: JSON.stringify({ today: todayIst() }),
       },
     )
       .then(({ paid }) => {
@@ -199,15 +215,6 @@ export default function Dashboard({
         throw new Error(
           error.message ?? "Unable to log out. Please try again.",
         );
-      // TEMPORARY dev-only guest demo — remove before shipping. A
-      // guest has no better-auth session, so the sign-out above does
-      // not clear the guest cookie: delete it here, or a guest
-      // revisiting /dashboard stays in guest mode. The endpoint is a
-      // no-op without the cookie, so this is safe to call for every
-      // sign-out; it is best-effort so a demo-endpoint failure can
-      // never block a real Google sign-out. Fire-and-forget: a hung
-      // demo-endpoint request must never delay navigation.
-      fetch("/api/auth/guest", { method: "DELETE" }).catch(() => {});
       router.replace("/");
       router.refresh();
     } catch (error) {
@@ -223,6 +230,7 @@ export default function Dashboard({
   return (
     <div
       id="overview"
+      data-theme={theme}
       className={`${styles.root} dashboard min-h-screen bg-dash-bg font-sans text-dash-text`}
     >
       <a
@@ -231,37 +239,25 @@ export default function Dashboard({
       >
         Skip to dashboard
       </a>
-      <Sidebar
-        onTransactions={() => setDialog("transactions")}
-        onReport={() => setDialog("report")}
-      />
-      <div className="sm:pl-24">
-        <Header
-          month={month}
-          onMonth={setMonth}
-          query={query}
-          onQuery={setQuery}
-          onSearch={() => setDialog("transactions")}
+      <div className={styles.trackerBody}>
+        <Sidebar
           onTransactions={() => setDialog("transactions")}
-          onAdd={() => setDialog("transaction")}
-          onNotifications={() => setDialog("notifications")}
-          notificationCount={notifications.length}
           onReport={() => setDialog("report")}
           user={user}
           onSignOut={signOut}
           isSigningOut={isSigningOut}
           signOutError={signOutError}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
         <main
           id="dashboard-content"
-          className={`${styles.enter} dashboard-body space-y-4`}
+          className={`${styles.trackerMain} space-y-3`}
         >
           {autoPayNotice && (
             <div role="status" className={styles.notice}>
               <p className="text-sm leading-6">
-                <strong className="font-medium">Auto-pay:</strong>{" "}
-                {autoPayNotice} These payments were recorded in FinVerse and
-                appear as expense transactions below.
+                {autoPayNotice} FinVerse added them to your recorded expenses.
               </p>
               <button
                 type="button"
@@ -273,34 +269,64 @@ export default function Dashboard({
               </button>
             </div>
           )}
-          <section
-            aria-label="Balance and planned expenses"
-            className="grid gap-4 xl:grid-cols-dashboard"
-          >
-            <BalanceBreakdownCard
-              transactions={transactions}
-              loading={activity.loading}
-              error={activity.error}
-              onRetry={activity.retry}
-              month={month}
-              onMonth={setMonth}
-              onJumpToMonth={jumpToMonthTransactions}
-              profile={data.profile!}
-              onEditProfile={() => setEditingProfile(true)}
-            />
-            <ExpenseBreakdownCard profile={data.profile!} />
-          </section>
-          <SummaryCards
-            onReport={() => setDialog("report")}
+          <TrackerOverview
+            month={month}
+            currentMonth={currentMonth}
+            onMonth={setMonth}
             profile={data.profile!}
             transactions={transactions}
-            month={month}
+            goals={data.goals}
             loading={activity.loading}
             error={activity.error}
             onRetry={activity.retry}
+            onReport={() => setDialog("report")}
           />
+          <Header
+            month={month}
+            onMonth={setMonth}
+            query={query}
+            onQuery={setQuery}
+            onSearch={() => setDialog("transactions")}
+            onAdd={() => setDialog("transaction")}
+            onNotifications={() => setDialog("notifications")}
+            notificationCount={notifications.length}
+          />
+          <section
+            aria-label="Transactions and bills"
+            className="grid items-start gap-3 lg:grid-cols-dashboard"
+          >
+            <div className="grid min-w-0 gap-3">
+              <RecentTransactions
+                transactions={transactions}
+                loading={activity.loading}
+                error={activity.error}
+                onRetry={activity.retry}
+                month={month}
+                onAdd={() => setDialog("transaction")}
+                onSeeAll={() => {
+                  setQuery("");
+                  setDialog("transactions");
+                }}
+                onEdit={(transaction) =>
+                  openTransactionEditor(transaction, "edit-transaction")
+                }
+                onRemove={(transaction) =>
+                  openTransactionEditor(transaction, "remove-transaction")
+                }
+              />
+              <ExpenseEntry
+                onTransaction={addTransaction}
+                disabled={activity.loading || !!activity.error}
+                loadError={activity.error}
+                loading={activity.loading}
+                onRetryLoad={activity.retry}
+              />
+            </div>
+            <UpcomingBills activity={bills} onPaymentRecorded={activity.retry} />
+          </section>
           <PlanningCards
             budgets={currentBudgets}
+            monthlySpent={monthlyCashFlow(transactions, month).expenses}
             loading={activity.loading}
             error={activity.error}
             onRetry={activity.retry}
@@ -308,6 +334,12 @@ export default function Dashboard({
             goals={data.goals}
             onManage={() => setDialog("budgets")}
             onAdd={() => setDialog("goal")}
+            onAskAboutGoal={(question) => {
+              document
+                .getElementById("insights")
+                ?.scrollIntoView({ block: "start" });
+              aiChat.current?.prepareQuestion(question);
+            }}
             onGoalSavedAmount={(goalId, savedAmount) =>
               setData((current) => ({
                 ...current,
@@ -319,41 +351,6 @@ export default function Dashboard({
               }))
             }
           />
-          <ExpenseEntry
-            onTransaction={addTransaction}
-            disabled={activity.loading || !!activity.error}
-            loadError={activity.error}
-            loading={activity.loading}
-            onRetryLoad={activity.retry}
-          />
-          <section
-            aria-label="Transactions and bills"
-            className="grid gap-4 xl:grid-cols-dashboard"
-          >
-            <RecentTransactions
-              transactions={transactions}
-              loading={activity.loading}
-              error={activity.error}
-              onRetry={activity.retry}
-              month={month}
-              onAdd={() => setDialog("transaction")}
-              onSeeAll={() => {
-                setQuery("");
-                setDialog("transactions");
-              }}
-              onEdit={(transaction) =>
-                openTransactionEditor(transaction, "edit-transaction")
-              }
-              onRemove={(transaction) =>
-                openTransactionEditor(transaction, "remove-transaction")
-              }
-            />
-            <UpcomingBills
-              activity={bills}
-              onPaymentRecorded={activity.retry}
-              autoPayNotice={autoPayNotice}
-            />
-          </section>
           <SpendingAnalysis
             transactions={transactions}
             bills={bills.items}
@@ -362,8 +359,43 @@ export default function Dashboard({
             onRetry={activity.retry}
             month={month}
           />
-          <ReadinessCard />
-          <AiChat />
+          <details className="dash-panel p-4">
+            <summary className={`finance-panel-title ${styles.detailSummary}`}>
+              Cash flow history and planned expenses
+            </summary>
+            <section
+              aria-label="Balance and planned expenses"
+              className="mt-3 grid gap-3 xl:grid-cols-dashboard"
+            >
+              <BalanceBreakdownCard
+                transactions={transactions}
+                loading={activity.loading}
+                error={activity.error}
+                onRetry={activity.retry}
+                month={month}
+                onMonth={setMonth}
+                onJumpToMonth={jumpToMonthTransactions}
+                profile={data.profile!}
+                onEditProfile={() => setEditingProfile(true)}
+              />
+              <ExpenseBreakdownCard profile={data.profile!} />
+            </section>
+          </details>
+          <FinanceInsights
+            month={month}
+            today={today}
+            transactions={transactions}
+            budgets={currentBudgets}
+            available={!activity.loading && !activity.error}
+          />
+          <section
+            id="insights"
+            aria-label="FinVerse AI and investment readiness"
+            className="grid scroll-mt-3 items-start gap-3 lg:grid-cols-2"
+          >
+            <AiChat ref={aiChat} />
+            <ReadinessCard />
+          </section>
         </main>
       </div>
       {(editingProfile || dialog === "goal") && (

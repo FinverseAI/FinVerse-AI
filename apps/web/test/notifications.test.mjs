@@ -2,10 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   billNotifications,
+  budgetNotifications,
   priceAlertNotifications,
 } from "../lib/notifications.ts";
 
 const TODAY = "2026-11-23";
+
+test("budget warnings start at exactly 90 percent and ignore unbudgeted categories", () => {
+  assert.deepEqual(
+    budgetNotifications([
+      { name: "Food", spent: 0.9, limit: 1 },
+      { name: "Travel", spent: 0.89, limit: 1 },
+      { name: "Other", spent: 100, limit: 0 },
+    ]),
+    [{ source: "budget", category: "Food", spent: 0.9, limit: 1 }],
+  );
+});
 function bill(overrides) {
   return {
     id: "bill-1",

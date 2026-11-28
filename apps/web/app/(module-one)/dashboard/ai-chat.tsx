@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { PanelHeading, ProgressBar } from "./ui";
 import { money } from "./data";
 import styles from "./dashboard.module.css";
@@ -34,6 +40,10 @@ const SUGGESTIONS = [
   "Why did I overspend on food this month?",
   "How is my budget looking this month?",
   "How are my savings goals progressing?",
+  "Where did my money go this month?",
+  "How much did I spend on food?",
+  "Compare this month with last month.",
+  "How much can I save next month?",
 ];
 
 /** The forwarder allows 120s; the client waits a little longer. */
@@ -504,9 +514,7 @@ function ResponseContent({ response }: { response: AiChatResponse }) {
           <VerificationNote verification={response.verification} />
           {response.claims.length > 0 && (
             <div className="mt-4">
-              <h4 className="text-xs font-medium text-dash-muted">
-                Evidence
-              </h4>
+              <h4 className="text-xs font-medium text-dash-muted">Evidence</h4>
               <ul className="mt-2 space-y-2">
                 {response.claims.map((claim, index) => (
                   <li
@@ -541,7 +549,9 @@ function ResponseContent({ response }: { response: AiChatResponse }) {
   );
 }
 
-export default function AiChat() {
+export type AiChatHandle = { prepareQuestion: (question: string) => void };
+
+export default function AiChat({ ref }: { ref?: Ref<AiChatHandle> } = {}) {
   const [mode, setMode] = useState<"ask" | "explain">("ask");
   const [message, setMessage] = useState("");
   const [symbol, setSymbol] = useState("");
@@ -554,6 +564,17 @@ export default function AiChat() {
     useState<AbortController | null>(null);
   const nextTurnId = useRef(0);
   const questionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  useImperativeHandle(
+    ref,
+    () => ({
+      prepareQuestion(questionText) {
+        setMode("ask");
+        setMessage(questionText);
+        requestAnimationFrame(() => questionInputRef.current?.focus());
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -693,11 +714,7 @@ export default function AiChat() {
     >
       <div className="p-5">
         <PanelHeading icon="bulb" title="Ask FinVerse AI">
-          <div
-            className={styles.seg}
-            role="group"
-            aria-label="AI mode"
-          >
+          <div className={styles.seg} role="group" aria-label="AI mode">
             <button
               type="button"
               aria-pressed={mode === "ask"}
@@ -731,8 +748,8 @@ export default function AiChat() {
             role="note"
             className="mt-4 rounded-lg border border-dash-border bg-dash-bg px-3 py-2 text-sm text-dash-muted"
           >
-            AI explanations aren&rsquo;t set up yet, so answers show your
-            numbers without the narrative for now.
+            Budget, spending and savings questions can use your recorded
+            figures. Longer AI explanations are unavailable right now.
           </p>
         )}
 

@@ -3,6 +3,10 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { AuthUser } from "../../../auth/types";
+import {
+  workspaceThemeCookie,
+  type WorkspaceTheme,
+} from "../../../lib/workspace-theme";
 import { Icon, type IconName } from "./ui";
 import { shiftMonth } from "./spending-data";
 import styles from "./dashboard.module.css";
@@ -17,12 +21,14 @@ type HeaderProps = {
   onNotifications: () => void;
   /** Bills needing attention (overdue or due within a week); shows a badge on the bell. */
   notificationCount?: number;
-  onReport: () => void;
-  onTransactions: () => void;
+};
+
+type ProfileMenuProps = {
   user?: AuthUser;
   onSignOut: () => void;
   isSigningOut: boolean;
   signOutError: string;
+  placement?: "toolbar" | "rail";
 };
 
 export function ProfileMenu({
@@ -30,10 +36,12 @@ export function ProfileMenu({
   onSignOut,
   isSigningOut,
   signOutError,
-}: Pick<HeaderProps, "user" | "onSignOut" | "isSigningOut" | "signOutError">) {
+  placement = "toolbar",
+}: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const signOut = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!isOpen) return;
     const dismiss = (event: PointerEvent) => {
@@ -59,6 +67,14 @@ export function ProfileMenu({
           setIsOpen(false);
           trigger.current?.focus();
         }
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          if (!isOpen) {
+            setIsOpen(true);
+            requestAnimationFrame(() => signOut.current?.focus());
+          } else if (event.target === trigger.current) signOut.current?.focus();
+          else trigger.current?.focus();
+        }
       }}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget))
@@ -73,7 +89,7 @@ export function ProfileMenu({
         onClick={() => setIsOpen((open) => !open)}
         className="grid size-8 place-items-center overflow-hidden rounded-full border border-dash-border bg-dash-raised text-xs font-semibold text-dash-text transition-colors hover:border-dash-accent/60"
       >
-        {user?.image ? (
+        {user?.image && placement !== "rail" ? (
           <Image
             src={user.image}
             alt=""
@@ -88,7 +104,9 @@ export function ProfileMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-10 z-30 w-56 rounded-xl border border-dash-border bg-dash-surface p-1.5 shadow-xl shadow-black/30">
+        <div
+          className={`absolute z-30 w-56 rounded-xl border border-dash-border bg-dash-surface p-1.5 ${placement === "rail" ? styles.railMenu : "right-0 top-10"}`}
+        >
           <div className="border-b border-dash-border px-3 py-2.5">
             <p className="truncate text-xs font-medium text-dash-text">
               {name}
@@ -101,6 +119,7 @@ export function ProfileMenu({
           </div>
           <button
             type="button"
+            ref={signOut}
             onClick={onSignOut}
             disabled={isSigningOut}
             className="mt-1 flex w-full items-center rounded-lg px-3 py-2 text-left text-xs text-dash-muted transition-colors hover:bg-dash-raised hover:text-dash-text disabled:cursor-not-allowed disabled:opacity-60"
@@ -127,46 +146,13 @@ export function Header({
   onAdd,
   onNotifications,
   notificationCount = 0,
-  onReport,
-  onTransactions,
-  user,
-  onSignOut,
-  isSigningOut,
-  signOutError,
 }: HeaderProps) {
   return (
-    <header className="dashboard-header sticky top-0 z-20 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b border-dash-border px-7 py-3 max-sm:px-4">
-      <div className="flex items-center gap-6">
-        <h1 className="whitespace-nowrap text-sm font-medium">FinVerse</h1>
-        <nav
-          aria-label="Dashboard navigation"
-          className="hidden items-center gap-1 text-xs text-dash-muted xl:flex"
-        >
-          <a
-            href="#overview"
-            aria-current="page"
-            className={`${styles.navLink} ${styles.navActive}`}
-          >
-            Dashboard
-          </a>
-          <a className={styles.navLink} href="/market">
-            Market
-          </a>
-          <button className={styles.navLink} onClick={onTransactions}>
-            Transactions
-          </button>
-          <a className={styles.navLink} href="#balance">
-            Analytics
-          </a>
-          <a className={styles.navLink} href="#expenses">
-            Insights
-          </a>
-          <button className={styles.navLink} onClick={onReport}>
-            Reports
-          </button>
-        </nav>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 max-sm:w-full">
+    <section
+      aria-label="FinVerse activity tools"
+      className={styles.activityTools}
+    >
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -178,7 +164,7 @@ export function Header({
             <Icon name="left" className="size-3.5" />
           </button>
           <label className="relative">
-            <span className="sr-only">Cash flow month</span>
+            <span className="mr-2 text-xs text-dash-muted">Activity month</span>
             <input
               type="month"
               min="1900-01"
@@ -209,7 +195,7 @@ export function Header({
             event.preventDefault();
             onSearch();
           }}
-          className="surface-inset hidden h-10 w-44 items-center gap-2 border border-dash-border px-3 md:flex"
+          className="surface-inset flex h-10 min-w-36 flex-1 items-center gap-2 border border-dash-border px-3"
         >
           <Icon name="search" className="size-4 shrink-0 text-dash-muted" />
           <input
@@ -219,14 +205,10 @@ export function Header({
             onChange={(event) => onQuery(event.target.value)}
             className="min-w-0 w-full bg-transparent text-xs outline-none placeholder:text-dash-muted"
           />
+          <button type="submit" className="text-xs text-dash-text">
+            Search
+          </button>
         </form>
-        <button
-          className="dash-icon-button md:hidden"
-          aria-label="Search transactions"
-          onClick={onTransactions}
-        >
-          <Icon name="search" />
-        </button>
         <button
           className="dash-icon-button relative"
           aria-label={
@@ -240,82 +222,93 @@ export function Header({
           {notificationCount > 0 && (
             <span
               aria-hidden="true"
-              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dash-red px-1 text-[11px] font-semibold text-white"
+              className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-dash-accent px-1 text-xs font-semibold text-dash-bg"
             >
               {notificationCount > 9 ? "9+" : notificationCount}
             </span>
           )}
         </button>
-        <ProfileMenu
-          user={user}
-          onSignOut={onSignOut}
-          isSigningOut={isSigningOut}
-          signOutError={signOutError}
-        />
         <button
           className="dash-primary h-8 gap-1.5 px-3 max-sm:ml-auto"
           onClick={onAdd}
         >
           <Icon name="plus" className="size-3.5" />
-          Add Transaction
+          Add transaction
         </button>
       </div>
-    </header>
+    </section>
   );
 }
 
-const items: {
+type RailItem = {
   label: string;
   icon: IconName;
-  target?: string;
-  href?: string;
-}[] = [
-  { label: "Dashboard", icon: "grid", target: "overview" },
-  { label: "Market", icon: "pie", href: "/market" },
-  { label: "Transactions", icon: "card" },
-  { label: "Analytics", icon: "chart", target: "balance" },
-  { label: "Insights", icon: "bulb", target: "expenses" },
-  { label: "Planning", icon: "wallet", target: "planning" },
-  { label: "Reports", icon: "file" },
-];
-export function Sidebar({
-  onTransactions,
-  onReport,
-}: {
-  onTransactions: () => void;
-  onReport: () => void;
+  active?: boolean;
+} & ({ href: string } | { action: () => void });
+
+type RailControls = {
+  user?: AuthUser;
+  onSignOut?: () => void;
+  isSigningOut?: boolean;
+  signOutError?: string;
+  theme: WorkspaceTheme;
+  onToggleTheme: () => void;
+};
+
+export function useWorkspaceTheme(initialTheme: WorkspaceTheme) {
+  const [theme, setTheme] = useState(initialTheme);
+
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    document.cookie = `${workspaceThemeCookie}=${next}; Path=/; Max-Age=31536000; SameSite=Lax`;
+    document.cookie = `${workspaceThemeCookie}=; Path=/dashboard; Max-Age=0; SameSite=Lax`;
+    setTheme(next);
+  }
+
+  return { theme, toggleTheme };
+}
+
+export function WorkspaceRail({
+  items,
+  brandHref,
+  brandLabel,
+  navigationLabel,
+  user,
+  onSignOut,
+  isSigningOut = false,
+  signOutError = "",
+  theme,
+  onToggleTheme,
+}: RailControls & {
+  items: readonly RailItem[];
+  brandHref: string;
+  brandLabel: string;
+  navigationLabel: string;
 }) {
+  const themeAction = theme === "dark" ? "Light mode" : "Dark mode";
   return (
-    <aside className="dashboard-sidebar fixed z-30 hidden flex-col items-center py-4 sm:flex">
+    <aside className={styles.trackerRail}>
       <a
-        href="#overview"
-        aria-label="Personal Finance dashboard"
-        className="brand-mark grid size-10 place-items-center text-lg font-semibold"
+        href={brandHref}
+        aria-label={brandLabel}
+        className={styles.railBrand}
       >
         F
       </a>
-      <nav aria-label="Sidebar" className="mt-6 flex flex-col gap-0.5">
-        {items.map((item, index) => {
-          const className = `${styles.railButton} ${index === 0 ? styles.railActive : ""}`;
-          return item.href ? (
+      <nav aria-label={navigationLabel}>
+        {items.map((item) => {
+          const className = `${styles.railButton} ${item.active ? styles.railActive : ""}`;
+          return "href" in item ? (
             <a
               key={item.label}
               href={item.href}
               title={item.label}
               aria-label={item.label}
+              aria-current={item.active ? "page" : undefined}
               className={className}
             >
               <Icon name={item.icon} />
-            </a>
-          ) : item.target ? (
-            <a
-              key={item.label}
-              href={`#${item.target}`}
-              title={item.label}
-              aria-label={item.label}
-              className={className}
-            >
-              <Icon name={item.icon} />
+              <span>{item.label}</span>
             </a>
           ) : (
             <button
@@ -324,15 +317,60 @@ export function Sidebar({
               title={item.label}
               aria-label={item.label}
               className={className}
-              onClick={
-                item.label === "Transactions" ? onTransactions : onReport
-              }
+              onClick={item.action}
             >
               <Icon name={item.icon} />
+              <span>{item.label}</span>
             </button>
           );
         })}
       </nav>
+      <div className={styles.railFooter}>
+        {onSignOut && (
+          <ProfileMenu
+            user={user}
+            onSignOut={onSignOut}
+            isSigningOut={isSigningOut}
+            signOutError={signOutError}
+            placement="rail"
+          />
+        )}
+        <button
+          type="button"
+          className={styles.themeButton}
+          title={themeAction}
+          onClick={onToggleTheme}
+        >
+          <span className="sr-only">{themeAction}</span>
+        </button>
+      </div>
     </aside>
+  );
+}
+
+export function Sidebar({
+  onTransactions,
+  onReport,
+  ...controls
+}: RailControls & {
+  onTransactions: () => void;
+  onReport: () => void;
+}) {
+  return (
+    <WorkspaceRail
+      {...controls}
+      brandHref="#overview"
+      brandLabel="Personal Finance dashboard"
+      navigationLabel="Dashboard navigation"
+      items={[
+        { label: "Dashboard", icon: "grid", href: "#overview", active: true },
+        { label: "Market", icon: "chart", href: "/market" },
+        { label: "Transactions", icon: "card", action: onTransactions },
+        { label: "Analytics", icon: "pie", href: "#spending-analysis" },
+        { label: "Insights", icon: "bulb", href: "#insights" },
+        { label: "Planning", icon: "wallet", href: "#planning" },
+        { label: "Reports", icon: "file", action: onReport },
+      ]}
+    />
   );
 }

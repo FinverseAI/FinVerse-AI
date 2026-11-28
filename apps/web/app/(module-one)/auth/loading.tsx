@@ -1,1 +1,5 @@
-export { default } from "../../../auth/profile-loading";
+import ProfileLoading from "../../../auth/profile-loading";
+
+export default function Loading() {
+  return <ProfileLoading label="Loading sign-in…" />;
+}

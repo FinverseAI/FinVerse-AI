@@ -1,7 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { budgetCategories, budgetPlan } from "../../../lib/onboarding";
+import {
+  budgetCategories,
+  budgetPlan,
+  validBudgetSplit,
+} from "../../../lib/onboarding";
 import {
   fetchProfile,
   profileInput,
@@ -32,15 +36,14 @@ export default function BudgetEditor({
   const [error, setError] = useState("");
   const submitting = useRef(false);
   const income = data.profile!.monthly_income;
-  const total = Object.values(split).reduce((sum, value) => sum + value, 0);
+  const validSplit = validBudgetSplit(split);
   return (
     <Modal title="Manage budget percentages" onClose={onClose} busy={saving}>
       <form
         className="dash-form"
         onSubmit={async (event) => {
           event.preventDefault();
-          if (submitting.current || total !== 100 || Number(income) <= 0)
-            return;
+          if (submitting.current || !validSplit || Number(income) <= 0) return;
           submitting.current = true;
           setSaving(true);
           setError("");
@@ -75,7 +78,7 @@ export default function BudgetEditor({
         )}
         <button
           className="dash-primary"
-          disabled={saving || total !== 100 || Number(income) <= 0}
+          disabled={saving || !validSplit || Number(income) <= 0}
         >
           {saving ? "Saving…" : "Save budget"}
         </button>

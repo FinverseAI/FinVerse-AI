@@ -1,5 +1,30 @@
 import { cents, type FinancialProfile } from "./profile.ts";
 
+export const paydayOptions = Array.from(
+  { length: 31 },
+  (_, index) => index + 1,
+);
+export const goalNameLimit = 100;
+
+export function validBudgetSplit(split: Record<string, number>) {
+  const values = Object.values(split);
+  return (
+    values.every(
+      (value) => Number.isInteger(value) && value >= 0 && value <= 100,
+    ) && values.reduce((sum, value) => sum + value, 0) === 100
+  );
+}
+
+export function validGoalDate(value: string, min: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return (
+    /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value &&
+    value >= min
+  );
+}
+
 export const budgetCategories = [
   { id: "food", label: "Food & Dining" },
   { id: "groceries", label: "Groceries" },

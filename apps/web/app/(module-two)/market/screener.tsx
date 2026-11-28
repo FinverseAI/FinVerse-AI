@@ -277,7 +277,9 @@ export function ScreenerSection({
           <button
             type="button"
             className={`rounded-md px-3 py-1 text-xs font-medium ${
-              mode === "nl" ? "bg-dash-raised text-dash-text" : "text-dash-muted"
+              mode === "nl"
+                ? "bg-dash-raised text-dash-text"
+                : "text-dash-muted"
             }`}
             aria-pressed={mode === "nl"}
             onClick={() => setMode("nl")}

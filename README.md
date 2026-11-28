@@ -111,7 +111,21 @@ This verifies activity persistence and account isolation inside a rolled-back tr
 
 The health route reports process liveness, not database readiness. Before public launch, configure backups and restore testing, monitoring, request throttling at the ingress, and a privacy/deletion policy. Transactions and bill lists currently load all records; add pagination when real account sizes warrant it. Concurrent profile edits use last-write-wins semantics.
 
-### Render deployment
+### Google sign-in on the Netlify deployment
+
+The current public site is `https://finverseaii.netlify.app`. Set `BETTER_AUTH_URL=https://finverseaii.netlify.app` in the production environment. The Google OAuth client selected by the deployed `GOOGLE_CLIENT_ID` must also allow this site's callback; moving hosting providers does not update Google Cloud settings.
+
+In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials), open the matching **Web application** OAuth client and add the following under **Authorized redirect URIs**:
+
+```text
+https://finverseaii.netlify.app/api/auth/callback/google
+```
+
+Keep `http://localhost:3000/api/auth/callback/google` for local development and any callbacks for other deployments still in use. Save the client configuration. This is a redirect URI, not a JavaScript origin: the scheme, hostname, path, and trailing slash must match exactly. See the [Better Auth Google setup guide](https://better-auth.com/docs/authentication/google).
+
+If Google displays `Error 400: redirect_uri_mismatch`, compare the `redirect_uri` in the Google authorization request with that client's registered list. A successful `/api/auth/sign-in/social` response only confirms that the app generated an authorization URL; follow it and check that Google reaches its sign-in/account-selection screen, then complete a real-account login to verify the callback and session. Changing the client secret or redirecting the Netlify app through the old Render callback does not fix a missing Netlify registration.
+
+### Alternative Render deployment
 
 Create separate Node web services for the backend and frontend. For both services, leave **Root Directory** empty so npm runs from the repository root and can resolve the workspaces.
 

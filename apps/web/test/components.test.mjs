@@ -23,8 +23,6 @@ import {
   transactions,
   valuedHoldings,
 } from "./fixtures.mjs";
-import { money } from "../app/(module-one)/dashboard/data.ts";
-
 await register("./tsx-loader.mjs", import.meta.url);
 
 const dash = "../app/(module-one)/dashboard";
@@ -61,6 +59,7 @@ const { ReasoningIndicator, VerificationNote, aiErrorMessage } = await import(
 );
 const { ActivityApiError } = await import(`${dash}/use-activity.ts`);
 const Dashboard = (await import(`${dash}/dashboard.tsx`)).default;
+const TrackerOverview = (await import(`${dash}/tracker-overview.tsx`)).default;
 const FinancialProfileForm = (
   await import("../app/(module-one)/onboarding/financial-profile-form.tsx")
 ).default;
@@ -131,100 +130,34 @@ test("ui primitives render their content", () => {
   assert.match(heading, /child content/);
 });
 
-test("SummaryCards shows income, expenses and savings from the profile", () => {
-  const html = render(
-    createElement(SummaryCards, {
-      onReport: noop,
-      profile: stubProfile,
-      transactions: [],
-      month: "2026-11",
-      loading: false,
-      error: "",
-      onRetry: noop,
-    }),
-  );
-  assert.match(html, /Monthly income/);
-  assert.match(
-    html,
-    new RegExp(money(90000).replace(/[₹,]/g, (c) => `\\${c}`)),
-  );
-  assert.match(html, /Savings target/);
-  assert.match(html, /Monthly surplus/);
-  assert.match(html, /Current savings/);
-});
-
-const summaryTransactions = [
-  {
-    id: "s1",
-    name: "Monthly salary",
-    category: "Income",
-    amount: 85000,
-    date: "2026-11-05",
-  },
-  {
-    id: "s2",
-    name: "Swiggy dinner",
-    category: "Food & Dining",
-    amount: -850,
-    date: "2026-11-06",
-  },
-  {
-    id: "s3",
-    name: "Metro recharge",
-    category: "Transport",
-    amount: -500,
-    date: "2026-11-06",
-  },
-];
-
 function renderSummaryCards(overrides = {}) {
   return render(
     createElement(SummaryCards, {
       onReport: noop,
       profile: stubProfile,
-      transactions: summaryTransactions,
-      month: "2026-11",
-      loading: false,
-      error: "",
-      onRetry: noop,
       ...overrides,
     }),
   );
 }
 
-test("SummaryCards shows recorded actuals beside the plan", () => {
+test("SummaryCards shows reported balances and payday without repeating monthly KPIs", () => {
   const html = renderSummaryCards();
-  // Plan headlines stay: income ₹90,000, target ₹20,000, surplus ₹20,000.
-  assert.match(html, /₹90,000/);
-  // Recorded November: income ₹85,000 (₹5,000 below plan), kept
-  // ₹83,650 (₹63,650 above the ₹20,000 target), surplus ₹63,650.
-  assert.match(html, /Recorded income · November 2026/);
-  assert.match(html, /₹85,000/);
-  assert.match(html, /₹5,000 below plan/);
-  assert.match(html, /Net kept · November 2026/);
-  assert.match(html, /₹83,650/);
-  assert.match(html, /₹63,650 above plan/);
-  assert.match(html, /Recorded surplus · November 2026/);
-  // The current-savings snapshot stays a snapshot: no actuals row.
-  assert.match(html, /A snapshot you entered in your financial profile/);
+  assert.match(html, /Account snapshot/);
+  assert.match(html, /Total savings · reported<\/dt><dd>₹1,50,000\.00/);
+  assert.match(html, /Net worth · reported/);
+  assert.match(html, /₹2,00,000\.00/);
+  assert.match(html, /Day 1 of each month/);
+  assert.match(html, /View report/);
+  assert.doesNotMatch(html, /Monthly income|Monthly expenses|of plan/);
 });
 
-test("SummaryCards shows the loading and error states for recorded activity", () => {
-  const loading = renderSummaryCards({ loading: true });
-  assert.match(loading, /Loading recorded activity/);
-  assert.doesNotMatch(loading, /Recorded income/);
-  const failed = renderSummaryCards({
-    error: "Could not load your activity.",
+test("SummaryCards distinguishes missing balances from zero and hides an unset payday", () => {
+  const html = renderSummaryCards({
+    profile: { ...stubProfile, current_savings: null, payday: null },
   });
-  assert.match(failed, /Could not load your activity\./);
-  assert.match(failed, /Try again/);
-  assert.doesNotMatch(failed, /Recorded income/);
-});
-
-test("SummaryCards notes a month with no recorded transactions", () => {
-  const html = renderSummaryCards({ transactions: [] });
-  assert.match(html, /No transactions recorded in November 2026 yet/);
-  assert.doesNotMatch(html, /Recorded income/);
+  assert.match(html, /Not recorded/);
+  assert.match(html, /Incomplete profile/);
+  assert.doesNotMatch(html, /Payday|₹0\.00/);
 });
 
 test("RecentTransactions lists the newest first with edit and remove actions", () => {
@@ -240,7 +173,7 @@ test("RecentTransactions lists the newest first with edit and remove actions", (
       onRemove: noop,
     }),
   );
-  assert.match(html, /Recent Transactions/);
+  assert.match(html, /Recent transactions/);
   assert.match(html, /Swiggy dinner/);
   assert.match(html, /Monthly salary/);
   assert.match(html, /Edit Swiggy dinner/);
@@ -307,7 +240,8 @@ test("BalanceBreakdownCard shows the month label and the cash flow", () => {
       onRetry: noop,
     }),
   );
-  assert.match(html, /Recorded cash flow/);
+  assert.match(html, /Balance development/);
+  assert.match(html, /Net flow in/);
   const label = new Date(`${month}-01T12:00:00`).toLocaleDateString("en-IN", {
     month: "long",
     year: "numeric",
@@ -321,7 +255,7 @@ test("ExpenseBreakdownCard allocates the budget split across categories", () => 
   const html = render(
     createElement(ExpenseBreakdownCard, { profile: stubProfile }),
   );
-  assert.match(html, /Planned Expense Breakdown/);
+  assert.match(html, /Planned expenses/);
   assert.match(html, /Rent/);
   assert.match(html, /Groceries/);
   // Rent is 30% of ₹85,000.
@@ -361,13 +295,11 @@ test("UpcomingBills lists bills in due-date order with payment actions", () => {
   const html = render(
     createElement(UpcomingBills, {
       activity: fakeActivity(bills),
-      autoPayNotice: "Auto-pay recorded 1 payment.",
     }),
   );
-  assert.match(html, /Upcoming Bills/);
+  assert.match(html, /Upcoming bills/);
   assert.match(html, /Electricity/);
   assert.match(html, /Broadband/);
-  assert.match(html, /Auto-pay recorded 1 payment\./);
   assert.match(html, /Record a payment for Electricity/);
   // Overdue first: Broadband (due 2 days ago) precedes Electricity.
   assert.ok(html.indexOf("Broadband") < html.indexOf("Electricity"));
@@ -399,7 +331,7 @@ test("PlanningCards shows budgets and goals with their progress", () => {
       onRetry: noop,
     }),
   );
-  assert.match(html, /Budget Status/);
+  assert.match(html, /Budget status/);
   assert.match(html, /Emergency fund/);
   assert.match(html, /New laptop/);
   assert.match(html, /Rent/);
@@ -468,10 +400,20 @@ test("Header shows the brand and the sidebar links to the dashboard sections", (
     }),
   );
   assert.match(header, /FinVerse/);
+  const sidebarProps = {
+    onTransactions: noop,
+    onReport: noop,
+    onToggleTheme: noop,
+  };
   const sidebar = render(
-    createElement(Sidebar, { onTransactions: noop, onReport: noop }),
+    createElement(Sidebar, { ...sidebarProps, theme: "dark" }),
   );
   assert.match(sidebar, /href="#overview"/);
+  assert.match(sidebar, /Light mode/);
+  assert.match(
+    render(createElement(Sidebar, { ...sidebarProps, theme: "light" })),
+    /Dark mode/,
+  );
   const menu = render(
     createElement(ProfileMenu, {
       user: stubUser,
@@ -785,14 +727,17 @@ test("Dashboard renders every section with the profile data", () => {
   );
   for (const section of [
     "FinVerse",
+    "Personal finance tracker",
+    "Expense breakdown",
+    "Account snapshot",
     "Monthly income",
-    "Recorded cash flow",
-    "Planned Expense Breakdown",
-    "Recent Transactions",
+    "Balance development",
+    "Planned expenses",
+    "Recent transactions",
     "Spending Analysis",
-    "Upcoming Bills",
+    "Upcoming bills",
     "Investment readiness",
-    "Budget Status",
+    "Budget status",
     "Ask FinVerse AI",
     "Add an expense in plain words",
   ]) {
@@ -801,6 +746,152 @@ test("Dashboard renders every section with the profile data", () => {
       `expected the dashboard to show ${section}`,
     );
   }
+  assert.ok(html.indexOf("Recent transactions") < html.indexOf('id="planning"'));
+  assert.ok(
+    html.indexOf('id="spending-analysis"') < html.indexOf('id="insights"'),
+  );
+  assert.ok(
+    html.lastIndexOf("Financial insights") < html.indexOf('id="insights"'),
+  );
+  assert.match(
+    html,
+    /<aside\b[^>]*>.*Dashboard navigation.*Light mode.*<\/aside><main\b/,
+  );
+});
+
+test("the tracker shows recorded actuals and keeps past goal progress available", () => {
+  const props = {
+    month: "2026-11",
+    currentMonth: "2026-11",
+    onMonth: noop,
+    profile: stubProfile,
+    transactions: [
+      {
+        id: "income",
+        date: "2026-11-01",
+        name: "Salary",
+        category: "Income",
+        amount: 1000,
+      },
+      {
+        id: "expense",
+        date: "2026-11-04",
+        name: "Groceries",
+        category: "Groceries",
+        amount: -250.25,
+      },
+    ],
+    goals: [
+      {
+        ...stubGoals[0],
+        name: "Holiday fund",
+        saved_amount: "100.00",
+        target_amount: "500.00",
+      },
+    ],
+    loading: false,
+    error: "",
+    onRetry: noop,
+  };
+  const html = render(createElement(TrackerOverview, props));
+  assert.match(html, /₹749\.75/);
+  assert.match(html, /₹250\.25/);
+  assert.match(html, /₹89,000\.00 below plan/);
+  assert.doesNotMatch(html, /Holiday fund|account ledger/);
+  assert.doesNotMatch(html, /€5,330\.20/);
+
+  const history = render(
+    createElement(TrackerOverview, { ...props, currentMonth: "2026-12" }),
+  );
+  assert.match(history, /Saving progress in November 2026/);
+  assert.match(history, /Holiday fund/);
+});
+
+test("the tracker distinguishes an empty month from an unavailable ledger", () => {
+  const props = {
+    month: "2026-11",
+    currentMonth: "2026-11",
+    onMonth: noop,
+    profile: stubProfile,
+    transactions: [],
+    goals: [],
+    loading: false,
+    onRetry: noop,
+  };
+  const empty = render(createElement(TrackerOverview, { ...props, error: "" }));
+  assert.match(empty, /No transactions recorded this month/);
+  assert.match(empty, /No expenses recorded for this month/);
+  assert.match(empty, /Account snapshot/);
+  assert.doesNotMatch(empty, /Recorded daily closing balance/);
+  assert.doesNotMatch(
+    empty,
+    /Recorded spending and budget by category|Individual expenses by category/,
+  );
+
+  const incomeOnly = render(
+    createElement(TrackerOverview, {
+      ...props,
+      error: "",
+      transactions: [
+        {
+          id: "a",
+          name: "Salary",
+          category: "Salary",
+          amount: 500,
+          date: "2026-11-01",
+        },
+      ],
+    }),
+  );
+  assert.match(incomeOnly, /Income entries/);
+  assert.doesNotMatch(
+    incomeOnly,
+    /Recorded spending and budget by category|Individual expenses by category/,
+  );
+
+  const failed = render(
+    createElement(TrackerOverview, {
+      ...props,
+      error: "Account service unavailable",
+    }),
+  );
+  assert.match(failed, /Account service unavailable/);
+  assert.match(failed, /Try again/);
+  assert.doesNotMatch(failed, /No transactions recorded this month/);
+});
+
+test("expense chart labels and bars share the same exact recorded and budget scale", () => {
+  const html = render(
+    createElement(TrackerOverview, {
+      month: "2026-11",
+      currentMonth: "2026-11",
+      onMonth: noop,
+      profile: {
+        ...stubProfile,
+        monthly_income: "1.00",
+        budget_split: { food: 50, shopping: 50 },
+      },
+      transactions: [
+        {
+          id: "food",
+          date: "2026-11-04",
+          name: "Food",
+          category: "Food & Dining",
+          amount: -0.25,
+        },
+      ],
+      goals: [],
+      loading: false,
+      error: "",
+      onRetry: noop,
+    }),
+  );
+  assert.match(html, /Recorded: ₹0.25/);
+  assert.equal([...html.matchAll(/Budget: ₹0.50/g)].length, 2);
+  assert.equal([...html.matchAll(/style="height:100%"/g)].length, 2);
+  assert.equal([...html.matchAll(/style="height:50%"/g)].length, 1);
+  assert.doesNotMatch(html, /style="height:0%"/);
+  assert.equal([...html.matchAll(/data-endpoint="true"/g)].length, 1);
 });
 
 test("FinancialProfileForm starts on Income with the saved values", () => {
@@ -878,13 +969,18 @@ test("AuthForm renders the login and sign-up copy with the Google button", () =>
   assert.match(disabled, /disabled/);
 });
 
-test("LandingPage renders the hero and the section headings", () => {
+test("LandingPage introduces money, markets and AI with an example workspace", () => {
   const html = render(createElement(LandingPage));
   assert.match(html, /Your money\./);
   assert.match(html, /Made clear\./);
-  assert.match(html, /Your monthly budget, in rupees/);
-  assert.match(html, /How it works/);
-  assert.match(html, /What to expect/);
+  assert.match(html, /Budget in rupees, research Indian stocks/);
+  assert.match(html, /Sample data/);
+  assert.match(html, /Monthly cash flow/);
+  assert.match(html, /FinVerse AI/);
+  assert.match(html, /Investment readiness/);
+  assert.match(html, /href="\/dashboard"/);
+  assert.match(html, /href="\/market"/);
+  assert.match(html, /href="\/dashboard#insights"/);
 });
 
 test("LandingMotion renders nothing without JavaScript", () => {
@@ -921,6 +1017,7 @@ test("MarketShell frames a market page with its heading and children", () => {
       MarketShell,
       {
         user: stubUser,
+        initialTheme: "light",
         eyebrow: "Markets",
         title: "Market",
         description: "Prices from Yahoo Finance.",
@@ -931,6 +1028,12 @@ test("MarketShell frames a market page with its heading and children", () => {
   assert.match(html, /Markets/);
   assert.match(html, /Prices from Yahoo Finance\./);
   assert.match(html, /Page body/);
+  assert.match(html, /data-theme="light"/);
+  assert.match(html, /<aside\b[^>]*>.*Investment tools.*Dark mode.*<\/aside><main\b/);
+  assert.equal([...html.matchAll(/<nav\b/g)].length, 1);
+  for (const link of ["/dashboard", "#portfolio", "#watchlist", "#screener", "#optimizer"]) {
+    assert.ok(html.includes(link));
+  }
 });
 
 test("PortfolioSection values the holdings and shows the return metrics", () => {

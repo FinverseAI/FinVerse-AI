@@ -43,17 +43,11 @@ function useTweenedValues(values: number[], key: string) {
     prevRef.current = values;
     if (
       from.length !== to.length ||
-      from.every((value, index) => value === to[index])
-    ) {
-      setDisplay(to);
-      return;
-    }
-    if (
-      typeof window !== "undefined" &&
+      from.every((value, index) => value === to[index]) ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
-      setDisplay(to);
-      return;
+      const frame = requestAnimationFrame(() => setDisplay(to));
+      return () => cancelAnimationFrame(frame);
     }
     let raf = 0;
     const start = performance.now();
@@ -61,7 +55,9 @@ function useTweenedValues(values: number[], key: string) {
     const tick = (now: number) => {
       const progress = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(from.map((value, index) => value + (to[index]! - value) * eased));
+      setDisplay(
+        from.map((value, index) => value + (to[index]! - value) * eased),
+      );
       if (progress < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -116,7 +112,8 @@ function BalanceChart({
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const series = mode === "net" ? netValues : [...incomeValues, ...expenseValues];
+  const series =
+    mode === "net" ? netValues : [...incomeValues, ...expenseValues];
   let min = Math.min(0, ...series);
   let max = Math.max(0, ...series);
   if (max - min < 1) max = min + 1;
@@ -167,8 +164,7 @@ function BalanceChart({
             event.preventDefault();
             setHover((current) => {
               const base = current ?? months.length - 1;
-              const next =
-                event.key === "ArrowLeft" ? base - 1 : base + 1;
+              const next = event.key === "ArrowLeft" ? base - 1 : base + 1;
               return Math.max(0, Math.min(months.length - 1, next));
             });
           }
@@ -349,13 +345,19 @@ export default function BalanceBreakdownCard({
   const netDifference = recorded.net - previousFlow.net;
   const [mode, setMode] = useState<"net" | "gross">("net");
   const recentHistory = [...history].reverse().slice(0, HISTORY_LIMIT);
-  const chartRows = useMemo(
-    () => [...history].slice(-CHART_MONTHS),
-    [history],
+  const chartRows = useMemo(() => [...history].slice(-CHART_MONTHS), [history]);
+  const chartMonths = useMemo(
+    () => chartRows.map((row) => row.month),
+    [chartRows],
   );
-  const chartMonths = useMemo(() => chartRows.map((row) => row.month), [chartRows]);
-  const chartNet = useMemo(() => chartRows.map((row) => row.runningTotal), [chartRows]);
-  const chartIncome = useMemo(() => chartRows.map((row) => row.income), [chartRows]);
+  const chartNet = useMemo(
+    () => chartRows.map((row) => row.runningTotal),
+    [chartRows],
+  );
+  const chartIncome = useMemo(
+    () => chartRows.map((row) => row.income),
+    [chartRows],
+  );
   const chartExpenses = useMemo(
     () => chartRows.map((row) => row.expenses),
     [chartRows],

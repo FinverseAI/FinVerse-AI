@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { todayIst } from "../../../lib/market";
 import { money, type Transaction } from "./data";
 import { PanelHeading, ProgressBar } from "./ui";
 import { ActivityError } from "./recent-transactions";
@@ -10,6 +11,7 @@ import {
   periodRange,
   spendingBreakdown,
   spendingRangeSummary,
+  yearlyCashFlow,
   type BillForForecast,
 } from "./spending-data";
 
@@ -51,7 +53,7 @@ export default function SpendingAnalysis({
   // past month analyses its own last week/month, the current month
   // analyses up to today. Never a frozen `new Date()` of mount time.
   const now = useMemo(() => {
-    const today = new Date();
+    const today = new Date(`${todayIst()}T12:00:00`);
     if (!month) return today;
     const [year, monthIndex] = month.split("-").map(Number);
     const monthEnd = new Date(year!, monthIndex!, 0);
@@ -85,6 +87,14 @@ export default function SpendingAnalysis({
     [transactions, range.start, range.end],
   );
   const maximum = Math.max(1, ...breakdown.bars.map((bar) => bar.amount));
+  const year = month?.slice(0, 4) ?? String(now.getFullYear());
+  const annual = useMemo(
+    () => [
+      yearlyCashFlow(transactions, year),
+      yearlyCashFlow(transactions, String(Number(year) - 1)),
+    ],
+    [transactions, year],
+  );
   const periodLabel =
     period === "weekly"
       ? "This week"
@@ -114,19 +124,10 @@ export default function SpendingAnalysis({
         },
         {
           label: "Vs previous period",
-          value: summary.previousTotal
-            ? `${summary.difference > 0 ? "+" : summary.difference < 0 ? "−" : ""}${money(Math.abs(summary.difference))}`
-            : "—",
-          detail: summary.previousTotal
-            ? `Compared with ${shortDate(summary.previousStart)} – ${shortDate(summary.previousEnd)}`
-            : "No expenses in the prior comparison period",
-        },
-        {
-          label: "Change vs previous period",
           value:
             summary.percentChange === null
               ? "—"
-              : `${summary.percentChange > 0 ? "+" : ""}${summary.percentChange.toFixed(1)}%`,
+              : `${summary.difference > 0 ? "+" : summary.difference < 0 ? "−" : ""}${money(Math.abs(summary.difference))} · ${summary.percentChange > 0 ? "+" : ""}${summary.percentChange.toFixed(1)}%`,
           detail:
             summary.percentChange === null
               ? "No expenses in the prior comparison period"
@@ -156,17 +157,14 @@ export default function SpendingAnalysis({
 
   return (
     <section
+      id="spending-analysis"
       className="dash-panel overflow-hidden"
       aria-label="Spending analysis"
       aria-busy={loading}
     >
       <div className="p-5">
         <PanelHeading icon="chart" title="Spending Analysis">
-          <div
-            className={styles.seg}
-            role="group"
-            aria-label="Spending period"
-          >
+          <div className={styles.seg} role="group" aria-label="Spending period">
             {(["weekly", "monthly", "custom"] as const).map((option) => (
               <button
                 key={option}
@@ -228,7 +226,7 @@ export default function SpendingAnalysis({
           </div>
         )}
         {!error && (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
             {stats.map((stat) => (
               <div className={styles.mini} key={stat.label}>
                 <p className={styles.miniLabel}>{stat.label}</p>
@@ -376,6 +374,69 @@ export default function SpendingAnalysis({
             )}
           </div>
         </div>
+      )}
+      {!loading && !error && (
+        <details className="surface-inset mt-5 border p-4">
+          <summary className="text-sm font-medium">
+            Yearly comparison and cash flow
+          </summary>
+          <p className="mt-2 text-xs text-dash-muted">
+            Calendar-year totals from recorded activity. An in-progress year
+            only includes activity recorded so far.
+          </p>
+          {annual.some(({ count }) => count > 0) ? (
+            <table className="mt-3 w-full table-fixed text-left text-xs">
+              <caption className="sr-only">
+                Recorded income, expenses and savings by year and month
+              </caption>
+              <thead className="text-dash-muted">
+                <tr>
+                  <th scope="col" className="py-2 font-normal">
+                    Period
+                  </th>
+                  <th scope="col" className="text-right font-normal">
+                    Income
+                  </th>
+                  <th scope="col" className="text-right font-normal">
+                    Expenses
+                  </th>
+                  <th scope="col" className="text-right font-normal">
+                    Net saved
+                  </th>
+                </tr>
+              </thead>
+              {[
+                ...annual,
+                ...annual[0]!.months.filter(({ count }) => count > 0),
+              ].map((row) => {
+                const label =
+                  "month" in row ? monthLabelOf(row.month) : row.year;
+                return (
+                  <tbody key={label}>
+                    <tr className="border-t border-dash-border">
+                      <th scope="row" className="py-2 font-medium">
+                        {label}
+                      </th>
+                      <td className="text-right break-words text-dash-green">
+                        {row.count > 0 ? money(row.income, 2) : "—"}
+                      </td>
+                      <td className="text-right break-words text-dash-blue">
+                        {row.count > 0 ? money(row.expenses, 2) : "—"}
+                      </td>
+                      <td className="text-right break-words text-dash-purple">
+                        {row.count > 0 ? money(row.net, 2) : "—"}
+                      </td>
+                    </tr>
+                  </tbody>
+                );
+              })}
+            </table>
+          ) : (
+            <p className="mt-3 text-sm text-dash-muted">
+              No activity recorded in either year.
+            </p>
+          )}
+        </details>
       )}
     </section>
   );

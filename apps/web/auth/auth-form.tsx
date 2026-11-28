@@ -16,7 +16,7 @@ const copy = {
     alternateHref: "/auth/sign-up",
   },
   "sign-up": {
-    eyebrow: "Personal finance",
+    eyebrow: "Get started",
     title: "Create your FinVerse account.",
     description:
       "Use your Google account to start your personal finance workspace.",
@@ -58,8 +58,6 @@ export default function AuthForm({
 }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState("");
-  const [isGuestSigningIn, setIsGuestSigningIn] = useState(false);
-  const [guestError, setGuestError] = useState("");
   const content = copy[mode];
 
   async function signInWithGoogle() {
@@ -76,7 +74,7 @@ export default function AuthForm({
 
       if (error) {
         setSignInError(
-          error.message || "Unable to start Google sign-in. Please try again.",
+          "Google sign-in is unavailable right now. Please try again.",
         );
         setIsSigningIn(false);
         return;
@@ -84,7 +82,7 @@ export default function AuthForm({
 
       if (!data?.url) {
         setSignInError(
-          "Google sign-in did not return a redirect. Please try again.",
+          "Google sign-in is unavailable right now. Please try again.",
         );
         setIsSigningIn(false);
         return;
@@ -99,39 +97,8 @@ export default function AuthForm({
     }
   }
 
-  // TEMPORARY dev-only guest login bypass — remove before shipping.
-  // The button is always shown, but the server only sets the guest
-  // session when GUEST_LOGIN_ENABLED=true; with the gate off the
-  // request fails closed with a plain message and nobody is logged in.
-  async function signInAsGuest() {
-    setGuestError("");
-    setIsGuestSigningIn(true);
-
-    try {
-      const response = await fetch("/api/auth/guest", { method: "POST" });
-      if (!response.ok) {
-        let message = "Guest login is not available. Please try again.";
-        try {
-          const data = await response.json();
-          if (typeof data?.message === "string") message = data.message;
-        } catch {
-          // Keep the generic message when the error body is unreadable.
-        }
-        setGuestError(message);
-        setIsGuestSigningIn(false);
-        return;
-      }
-      window.location.assign("/dashboard");
-    } catch {
-      setGuestError(
-        "Could not connect to the sign-in service. Refresh the page and try again.",
-      );
-      setIsGuestSigningIn(false);
-    }
-  }
-
   return (
-    <main className="landing-page auth-shell grid min-h-screen place-items-center px-5 py-10 text-dash-text">
+    <main className="landing-page grid min-h-screen place-items-center px-5 py-10 text-dash-text">
       <section className="w-full max-w-form">
         <Link
           href="/"
@@ -144,10 +111,10 @@ export default function AuthForm({
         </Link>
 
         <div className="dash-panel dash-highlight auth-card">
-          <p className="font-mono text-xs text-dash-accent">
+          <p className="finance-panel-title text-dash-muted">
             {content.eyebrow}
           </p>
-          <h1 className="mt-5 text-4xl leading-tight font-medium tracking-tight">
+          <h1 className="mt-3 text-title leading-tight font-medium tracking-tight">
             {content.title}
           </h1>
           <p className="mt-3 text-sm leading-6 text-dash-muted">
@@ -178,39 +145,6 @@ export default function AuthForm({
                 : "Sign-in is currently unavailable. Please try again later."}
             </p>
           )}
-
-          <div
-            aria-hidden="true"
-            className="mt-6 flex items-center gap-3 text-xs text-dash-muted"
-          >
-            <span className="h-px flex-1 bg-dash-border" />
-            or
-            <span className="h-px flex-1 bg-dash-border" />
-          </div>
-
-          <button
-            className="mt-6 flex h-14 w-full items-center justify-center gap-3 rounded-lg border border-dash-border text-sm font-medium text-dash-muted transition-colors enabled:hover:border-dash-muted enabled:hover:text-dash-text disabled:cursor-not-allowed disabled:opacity-60"
-            type="button"
-            disabled={isGuestSigningIn || isSigningIn}
-            onClick={signInAsGuest}
-          >
-            {isGuestSigningIn
-              ? "Continuing as guest..."
-              : "Continue as guest (demo)"}
-          </button>
-
-          {guestError ? (
-            <p
-              role="alert"
-              className="mt-4 text-center text-xs leading-5 text-dash-red"
-            >
-              {guestError}
-            </p>
-          ) : (
-            <p className="mt-4 text-center text-xs leading-5 text-dash-muted">
-              Demo only — sample data, nothing is saved.
-            </p>
-          )}
         </div>
 
         <p className="mt-6 text-center text-xs text-dash-muted">
@@ -224,7 +158,7 @@ export default function AuthForm({
         </p>
         <p className="mt-3 text-center text-xs text-dash-muted">
           <Link className="text-dash-accent hover:underline" href="/">
-            &lt;- Back to home
+            ← Back to home
           </Link>
         </p>
       </section>

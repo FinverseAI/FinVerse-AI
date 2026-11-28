@@ -8,6 +8,7 @@ import { RagRetrievalService } from '../rag/rag.retrieval';
 import { ReadinessService } from '../readiness/readiness.service';
 import { SCREEN_FILTERS_JSON_SCHEMA } from '../rag/rag.validation';
 import type { ToolDefinition } from './ai.provider';
+import type { TemplateAnswer } from './ai.guardrail-templates';
 import { macd, rsi, sma } from './indicators';
 import {
   GetBudgetStatusArgsSchema,
@@ -222,7 +223,9 @@ const CATEGORY_ALIASES: Record<string, string> = {
 
 /** Map a saved category label to its canonical form. */
 function normalizeCategoryLabel(category: string): string {
-  return CATEGORY_ALIASES[category] ?? category;
+  return Object.hasOwn(CATEGORY_ALIASES, category)
+    ? CATEGORY_ALIASES[category]
+    : category;
 }
 
 function round2(value: number) {
@@ -268,7 +271,9 @@ function categoryMatches(transactionCategory: string, wanted: string): boolean {
   const label = normalizeCategoryLabel(transactionCategory).toLowerCase();
   const want = normalizeCategoryLabel(wanted).toLowerCase();
   if (label === want) return true;
-  const aliased = CATEGORY_ALIASES[transactionCategory];
+  const aliased = Object.hasOwn(CATEGORY_ALIASES, transactionCategory)
+    ? CATEGORY_ALIASES[transactionCategory]
+    : undefined;
   if (aliased !== undefined && aliased.toLowerCase() === want) return true;
   if (want.length < 2) return false;
   return (
@@ -336,6 +341,184 @@ export class AiTools {
     private readonly retrieval: RagRetrievalService,
     private readonly readiness: ReadinessService,
   ) {}
+
+  async financeAnswer(
+    userId: string,
+    question: string,
+  ): Promise<TemplateAnswer | null> {
+    const message = question.trim().replace(/[.?!]+$/, '');
+    const goalName = /^how can i reach my savings goal:\s*(.+)$/i.exec(
+      message,
+    )?.[1];
+    const estimate = /^how much can i save next month$/i.test(message);
+    const compare = /^compare this month with last month$/i.test(message);
+    const category = /^how much did i spend on (.+?)(?: this month)?$/i.exec(
+      message,
+    )?.[1];
+    const overview = /^where did my money go this month$/i.test(message);
+    if (!goalName && !estimate && !compare && !category && !overview)
+      return null;
+
+    const currency = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const amount = (paise: number) => currency.format(paise / 100);
+    const result = (
+      text: string,
+      tool?: string,
+      values: Record<string, string | number> = {},
+    ): TemplateAnswer => ({
+      answer: text,
+      claims: tool ? [{ text, source: { tool, values } }] : [],
+    });
+    const today = istDateKey(new Date());
+    const [year, month, day] = today.split('-').map(Number);
+
+    if (goalName) {
+      const progress = await this.goalProgress(userId);
+      const goal = progress.goals.find(
+        ({ name }) => name.toLowerCase() === goalName.toLowerCase(),
+      );
+      if (!goal)
+        return result('This savings goal could not be found in your account.');
+      const remaining = Math.max(0, Math.round(goal.remaining * 100));
+      if (!remaining)
+        return result(
+          `You’ve already reached your ${goal.name} savings target.`,
+          'getGoalProgress',
+          { name: goal.name, remaining: 0 },
+        );
+      const days = (Date.parse(goal.targetDate) - Date.parse(today)) / 86400000;
+      const months = Math.max(1, Math.ceil(days / (365.25 / 12)));
+      const pace = Math.ceil(remaining / months);
+      return result(
+        days <= 0
+          ? `${goal.name} still needs ${amount(remaining)}. Its target date is ${goal.targetDate}.`
+          : `${goal.name} needs another ${amount(remaining)} by ${goal.targetDate}. With equal contributions, the estimated pace is ${amount(pace)} a month for ${months} month${months === 1 ? '' : 's'}.`,
+        'getGoalProgress',
+        {
+          name: goal.name,
+          remaining: remaining / 100,
+          targetDate: goal.targetDate,
+          ...(days > 0 ? { monthlyContribution: pace / 100, months } : {}),
+        },
+      );
+    }
+
+    if (estimate) {
+      const { profile } = await this.profile.get(userId);
+      if (!profile)
+        return result(
+          'Set up your monthly income and expenses to estimate how much you could save.',
+        );
+      const income =
+        Math.round(Number(profile.monthly_income) * 100) +
+        Math.round(Number(profile.other_monthly_income ?? 0) * 100);
+      const expenses =
+        Math.round(Number(profile.fixed_expenses) * 100) +
+        Math.round(Number(profile.variable_expenses) * 100);
+      const net = income - expenses;
+      return result(
+        net >= 0
+          ? `Your current plan leaves ${amount(net)} each month before contributions to goals. This is a planning estimate for next month.`
+          : `Your planned expenses exceed planned income by ${amount(-net)} a month, so the current plan shows no room for savings.`,
+        'getBudgetStatus',
+        {
+          plannedIncome: income / 100,
+          plannedExpenses: expenses / 100,
+          plannedNet: net / 100,
+        },
+      );
+    }
+
+    const transactions = await this.activity.transactions(userId);
+    const monthStart = `${today.slice(0, 7)}-01`;
+    const expenses = transactions.filter(
+      (item) =>
+        item.amount < 0 && item.date >= monthStart && item.date <= today,
+    );
+    const sum = (items: typeof expenses) =>
+      items.reduce((total, item) => total + Math.round(-item.amount * 100), 0);
+    const current = sum(expenses);
+    if (compare) {
+      const lastStart = dateKeyFromParts(year, month - 1, 1);
+      const lastEnd = dateKeyFromParts(
+        year,
+        month - 1,
+        Math.min(day, new Date(Date.UTC(year, month - 1, 0)).getUTCDate()),
+      );
+      const prior = transactions.filter(
+        (item) =>
+          item.amount < 0 && item.date >= lastStart && item.date <= lastEnd,
+      );
+      if (!expenses.length && !prior.length)
+        return result(
+          'There are no recorded expenses to compare across these two periods.',
+        );
+      const previous = sum(prior);
+      const difference = current - previous;
+      return result(
+        `Recorded expenses total ${amount(current)} this month so far and ${amount(previous)} over the same part of last month. ${difference === 0 ? 'The totals are the same.' : `That is ${amount(Math.abs(difference))} ${difference > 0 ? 'more' : 'less'} this month.`}`,
+        'getTransactions',
+        {
+          currentExpenses: current / 100,
+          previousExpenses: previous / 100,
+          difference: difference / 100,
+          endDate: today,
+          priorEndDate: lastEnd,
+        },
+      );
+    }
+
+    if (!expenses.length)
+      return result('There are no recorded expenses for this month yet.');
+    if (category) {
+      const food = category.toLowerCase() === 'food';
+      const matches = expenses.filter(
+        (item) =>
+          categoryMatches(item.category, category) ||
+          (food && normalizeCategoryLabel(item.category) === 'Groceries'),
+      );
+      if (!matches.length)
+        return result(
+          `There are no recorded expenses for “${category}” this month.`,
+        );
+      const spent = sum(matches);
+      return result(
+        `You recorded ${amount(spent)} in ${category} expenses this month.`,
+        'getCategorySpending',
+        {
+          category,
+          totalSpent: spent / 100,
+          count: matches.length,
+          endDate: today,
+        },
+      );
+    }
+
+    const totals = new Map<string, number>();
+    for (const item of expenses) {
+      const label = normalizeCategoryLabel(item.category);
+      totals.set(
+        label,
+        (totals.get(label) ?? 0) + Math.round(-item.amount * 100),
+      );
+    }
+    const [name, spent] = [...totals].sort((a, b) => b[1] - a[1])[0];
+    return result(
+      `You recorded ${amount(current)} in expenses this month. Your largest category was ${name}, at ${amount(spent)}.`,
+      'getTransactions',
+      {
+        totalSpent: current / 100,
+        category: name,
+        topCategorySpent: spent / 100,
+        endDate: today,
+      },
+    );
+  }
 
   /** Run one tool call from the model. Throws on unknown tools and bad args. */
   async execute(userId: string, name: string, args: unknown): Promise<unknown> {
@@ -428,7 +611,7 @@ export class AiTools {
     const transactions = await this.activity.transactions(userId);
     const monthStart = `${month}-01`;
     const monthEnd = `${month}-31`;
-    const spentPaise: Record<string, number> = {};
+    const spentPaise = new Map<string, number>();
     for (const transaction of transactions) {
       if (
         transaction.amount >= 0 ||
@@ -437,10 +620,11 @@ export class AiTools {
       ) {
         continue;
       }
-      const label =
-        CATEGORY_ALIASES[transaction.category] ?? transaction.category;
-      spentPaise[label] =
-        (spentPaise[label] ?? 0) + Math.round(-transaction.amount * 100);
+      const label = normalizeCategoryLabel(transaction.category);
+      spentPaise.set(
+        label,
+        (spentPaise.get(label) ?? 0) + Math.round(-transaction.amount * 100),
+      );
     }
     // B2: a category with a zero budget but real spend is a row, not
     // a hole — flagged unbudgeted, counted in the totals. Spend under
@@ -451,10 +635,10 @@ export class AiTools {
     );
     const categories = BUDGET_CATEGORIES.filter(
       ({ id, label }) =>
-        (allocated[id] ?? 0) > 0 || (spentPaise[label] ?? 0) > 0,
+        (allocated[id] ?? 0) > 0 || (spentPaise.get(label) ?? 0) > 0,
     ).map(({ id, label }) => {
       const budgeted = allocated[id] ?? 0;
-      const spent = spentPaise[label] ?? 0;
+      const spent = spentPaise.get(label) ?? 0;
       return {
         name: label,
         budgeted: budgeted / 100,
@@ -464,7 +648,7 @@ export class AiTools {
         ...(budgeted === 0 ? { unbudgeted: true } : {}),
       };
     });
-    const unbudgetedSpentPaise = Object.entries(spentPaise)
+    const unbudgetedSpentPaise = [...spentPaise]
       .filter(([label]) => !knownLabels.has(label))
       .reduce((sum, [, paise]) => sum + paise, 0);
     const totalBudgeted = categories.reduce(

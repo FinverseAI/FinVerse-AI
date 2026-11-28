@@ -11,7 +11,7 @@ generator client {
 //     savings target <= monthly income + other income
 //   profile_investments_check (20261112000000): invested_amount is 0
 //     unless already_investing
-//   user_financial_profile_payday_check (20261113000000): payday 1–28
+//   user_financial_profile_payday_check: payday 1–31
 //   user_bills_positive_amount (20261113120000): bill amount > 0
 //   user_transactions_nonzero_amount (20261113120000): amount <> 0
 //   user_bill_payments_positive_amount (20261117130000): amount > 0

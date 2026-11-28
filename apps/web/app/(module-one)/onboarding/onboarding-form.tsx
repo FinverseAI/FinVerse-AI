@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -10,7 +10,15 @@ import {
   type FinancialGoal,
   type ProfileInput,
 } from "../../../lib/profile";
-import { budgetPlan, budgetCategories } from "../../../lib/onboarding";
+import {
+  budgetPlan,
+  budgetCategories,
+  goalNameLimit,
+  paydayOptions,
+  validBudgetSplit,
+  validGoalDate,
+} from "../../../lib/onboarding";
+import { todayIst } from "../../../lib/market";
 import BudgetFields from "./budget-fields";
 import { Icon, ProgressBar, type IconName } from "../dashboard/ui";
 
@@ -74,14 +82,17 @@ export default function OnboardingForm({
   const [name, setName] = useState(initialName);
   const [income, setIncome] = useState("");
   const [payday, setPayday] = useState(1);
+  const [investing, setInvesting] = useState("");
   const [split, setSplit] = useState(blankSplit);
   const [goals, setGoals] = useState<ReturnType<typeof newGoal>[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
+  const [failureStatus, setFailureStatus] = useState(0);
   const [saving, setSaving] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const submitting = useRef(false);
-  const total = Object.values(split).reduce((sum, value) => sum + value, 0);
+  const validSplit = validBudgetSplit(split);
+  const [nextDay] = useState(() => todayIst(new Date(Date.now() + 86_400_000)));
   const normalizedIncome = income.replace(/,/g, "");
   const active = steps[step]!;
 
@@ -120,30 +131,26 @@ export default function OnboardingForm({
       if (!validMoney(normalizedIncome))
         result.monthly_income =
           "Enter an income greater than ₹0, up to ₹9,999,999,999.99, with at most two decimal places.";
-      if (!Number.isInteger(payday) || payday < 1 || payday > 28)
-        result.payday = "Choose a payday between 1 and 28.";
+      if (!paydayOptions.includes(payday))
+        result.payday = "Choose a payday between 1 and 31.";
     }
-    if (index === 2 && total !== 100)
-      result.budget_split = "Your budget split must add up to exactly 100%.";
+    if (index === 2 && !validSplit)
+      result.budget_split =
+        "Enter whole percentages from 0 to 100 that add up to 100%.";
     if (index === 3) {
+      if (!investing)
+        result.already_investing = "Choose whether you already invest.";
       if (!goals.length || goals.length > 50)
         result.goals = "Add at least one goal to finish setting up (up to 50).";
       goals.forEach((goal, i) => {
-        if (!goal.name.trim() || goal.name.trim().length > 80)
+        if (!goal.name.trim() || goal.name.trim().length > goalNameLimit)
           result[`goals.${i}.name`] =
-            "Every goal needs a name of up to 80 characters.";
+            `Every goal needs a name of up to ${goalNameLimit} characters.`;
         if (!validMoney(goal.target_amount.replace(/,/g, "")))
           result[`goals.${i}.target_amount`] =
             "Enter a target greater than ₹0, with at most two decimal places.";
-        const date = new Date(`${goal.target_date}T00:00:00.000Z`);
-        if (
-          !/^\d{4}-\d{2}-\d{2}$/.test(goal.target_date) ||
-          !Number.isFinite(date.getTime()) ||
-          date.toISOString().slice(0, 10) !== goal.target_date ||
-          date.getUTCFullYear() < 1900
-        )
-          result[`goals.${i}.target_date`] =
-            "Pick a valid deadline (year 1900 onwards).";
+        if (!validGoalDate(goal.target_date, nextDay))
+          result[`goals.${i}.target_date`] = "Choose a future deadline.";
       });
     }
     return result;
@@ -169,16 +176,16 @@ export default function OnboardingForm({
       display_name: name.trim(),
       payday,
       ...budgetPlan(normalizedIncome, split),
-      employment_type: "salaried",
+      employment_type: null,
       monthly_income: normalizedIncome,
       other_monthly_income: null,
       existing_debt_total: null,
-      current_savings: "0",
-      investment_experience: "none",
-      risk_tolerance: "low",
-      already_investing: false,
+      current_savings: null,
+      investment_experience: null,
+      risk_tolerance: null,
+      already_investing: investing === "yes",
       invested_amount: null,
-      emergency_fund_months: "0",
+      emergency_fund_months: null,
       goals: goals.map((goal) => ({
         name: goal.name.trim(),
         target_amount: goal.target_amount.replace(/,/g, ""),
@@ -192,6 +199,7 @@ export default function OnboardingForm({
       router.refresh();
     } catch (error) {
       if (error instanceof ProfileApiError) {
+        setFailureStatus(error.status);
         const key = Object.keys(error.fields)[0];
         if (key) {
           move(
@@ -212,10 +220,12 @@ export default function OnboardingForm({
               ? "Your setup is already saved. Open the dashboard to continue."
               : error.message,
         );
-      } else
+      } else {
+        setFailureStatus(0);
         setMessage(
           "Couldn't finish setup. Your answers are still here; please try again.",
         );
+      }
       submitting.current = false;
       setSaving(false);
     }
@@ -378,9 +388,9 @@ export default function OnboardingForm({
                     }}
                     {...fieldA11y("payday")}
                   >
-                    {Array.from({ length: 28 }, (_, index) => (
-                      <option key={index + 1} value={index + 1}>
-                        Day {index + 1}
+                    {paydayOptions.map((day) => (
+                      <option key={day} value={day}>
+                        Day {day}
                       </option>
                     ))}
                   </select>
@@ -393,7 +403,8 @@ export default function OnboardingForm({
                   />
                   <p>
                     Your monthly income and payday become part of your financial
-                    plan. Days 1–28 work in every month.
+                    plan. For shorter months, use the last day if your selected
+                    day falls after it.
                   </p>
                 </div>
               </>
@@ -413,6 +424,23 @@ export default function OnboardingForm({
             )}
             {step === 3 && (
               <>
+                <label>
+                  Do you already invest?
+                  <select
+                    className="dash-input w-full"
+                    value={investing}
+                    onChange={(event) => {
+                      setInvesting(event.target.value);
+                      clear("already_investing");
+                    }}
+                    {...fieldA11y("already_investing")}
+                  >
+                    <option value="">Choose an answer</option>
+                    <option value="no">No</option>
+                    <option value="yes">Yes</option>
+                  </select>
+                  {errorFor("already_investing")}
+                </label>
                 {!goals.length && (
                   <div className="onboarding-empty">
                     <Icon
@@ -468,7 +496,7 @@ export default function OnboardingForm({
                         <input
                           className="dash-input w-full"
                           placeholder="e.g. Emergency fund"
-                          maxLength={80}
+                          maxLength={goalNameLimit}
                           value={goal.name}
                           onChange={(event) =>
                             update("name", event.target.value)
@@ -497,7 +525,7 @@ export default function OnboardingForm({
                           <input
                             className="dash-input w-full"
                             type="date"
-                            min="1900-01-01"
+                            min={nextDay}
                             max="9999-12-31"
                             value={goal.target_date}
                             onChange={(event) =>
@@ -533,19 +561,25 @@ export default function OnboardingForm({
               className="rounded-2xl border border-dash-red/30 p-4 text-sm text-dash-red"
             >
               <p>{message}</p>
-              <div className="mt-3 flex gap-4">
-                <a
-                  href="/auth/login"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Log in
-                </a>
-                <a href="/dashboard" className="underline">
-                  Open dashboard
-                </a>
-              </div>
+              {(failureStatus === 401 || failureStatus === 409) && (
+                <div className="mt-3 flex gap-4">
+                  {failureStatus === 401 && (
+                    <a
+                      href="/auth/login"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline"
+                    >
+                      Log in
+                    </a>
+                  )}
+                  {failureStatus === 409 && (
+                    <a href="/dashboard" className="underline">
+                      Open dashboard
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <div className="onboarding-actions">
@@ -561,12 +595,23 @@ export default function OnboardingForm({
             <button
               type="submit"
               className="dash-primary min-h-12 min-w-40 gap-3"
-              disabled={saving || (step === 2 && total !== 100)}
+              disabled={saving || (step === 2 && !validSplit)}
+              aria-describedby={
+                step === 2 && !validSplit ? "budget-continue-help" : undefined
+              }
             >
               {saving ? "Finishing…" : step === 3 ? "Finish setup" : "Continue"}
               {!saving && <Icon name="right" />}
             </button>
           </div>
+          {step === 2 && !validSplit && (
+            <p
+              id="budget-continue-help"
+              className="text-right text-xs text-dash-muted"
+            >
+              Enter whole percentages that total 100% to continue.
+            </p>
+          )}
           <p className="text-center text-xs text-dash-muted" role="status">
             {saving
               ? "Saving your name, income, budgets, and goals…"

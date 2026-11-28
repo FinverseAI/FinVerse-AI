@@ -266,6 +266,34 @@ export class AiService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+    if (this.config.apiKey === undefined) {
+      let recorded: TemplateAnswer | null = null;
+      try {
+        recorded = await this.tools.financeAnswer(userId, message);
+      } catch {
+        recorded = null;
+      }
+      if (recorded) {
+        return {
+          ...recorded,
+          refused: false,
+          refusalReason: null,
+          fallback: false,
+          fallbackReason: null,
+          metrics: null,
+          model: null,
+          toolsUsed: [
+            ...new Set(recorded.claims.map(({ source }) => source.tool)),
+          ],
+          disclaimer: AI_DISCLAIMER,
+          verification: {
+            status: 'template',
+            checksPassed: 0,
+            checksFailed: 0,
+          },
+        };
+      }
+    }
     const response =
       this.config.apiKey === undefined
         ? await this.chatFallback(

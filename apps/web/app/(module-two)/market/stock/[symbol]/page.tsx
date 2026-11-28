@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { guardProfile } from "../../../../../auth/profile-guard";
+import { readWorkspaceTheme } from "../../../../../lib/workspace-theme-server";
 import StockProfile from "./stock-profile";
 
 export async function generateMetadata({
@@ -24,5 +25,11 @@ export default async function StockPage({
 }) {
   const { symbol } = await params;
   const result = await guardProfile("market");
-  return <StockProfile symbol={symbol.toUpperCase()} user={result!.user} />;
+  return (
+    <StockProfile
+      symbol={symbol.toUpperCase()}
+      user={result!.user}
+      initialTheme={await readWorkspaceTheme()}
+    />
+  );
 }

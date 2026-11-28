@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { dateKey } from "./spending-data";
+import { todayIst } from "../../../lib/market";
 import { money, type Transaction } from "./data";
 import { Icon, PanelHeading } from "./ui";
 import { Modal } from "./modal";
@@ -112,7 +112,7 @@ export default function ExpenseEntry({
     try {
       const data = await aiRequest<unknown>("/api/ai/extract-expense", {
         text: trimmed,
-        today: dateKey(new Date()),
+        today: todayIst(),
       });
       if (!isExpenseExtraction(data)) {
         throw new Error(
@@ -168,7 +168,7 @@ export default function ExpenseEntry({
   }
 
   const confirmed = extraction
-    ? extractionToTransaction(extraction, dateKey(new Date()))
+    ? extractionToTransaction(extraction, todayIst())
     : null;
 
   return (

@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
-    title: "FinVerse | A monthly plan for your money",
+    title: "FinVerse | Personal finance and stock intelligence",
     description:
-      "Plan budgets in INR, record spending, track bill due dates, and set savings goals.",
+      "Budget in rupees, research Indian stocks, and ask FinVerse AI for explanations backed by your records and market data.",
     url: "/",
     siteName: "FinVerse",
     type: "website",
@@ -14,9 +14,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary",
-    title: "FinVerse | Personal budgeting in INR",
+    title: "FinVerse | Personal finance and stock intelligence",
     description:
-      "Your monthly plan, spending records, and upcoming bills in one place.",
+      "Manage your money, research Indian stocks, and ask FinVerse AI what’s behind the numbers.",
   },
 };
 

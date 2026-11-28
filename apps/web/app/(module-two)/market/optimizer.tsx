@@ -123,7 +123,7 @@ function FrontierChart({
                 x2={xFor(vol)}
                 y1={padTop}
                 y2={height - padBottom}
-                stroke="#d2e0f133"
+                stroke="var(--color-dash-border)"
                 strokeWidth="1"
               />
               <text
@@ -131,7 +131,7 @@ function FrontierChart({
                 y={height - 20}
                 textAnchor="middle"
                 fontSize="11"
-                fill="#c0cad5"
+                fill="var(--color-dash-muted)"
               >
                 {(vol * 100).toFixed(0)}%
               </text>
@@ -147,7 +147,7 @@ function FrontierChart({
                 x2={width - padRight}
                 y1={yFor(value)}
                 y2={yFor(value)}
-                stroke="#d2e0f133"
+                stroke="var(--color-dash-border)"
                 strokeWidth="1"
               />
               <text
@@ -155,7 +155,7 @@ function FrontierChart({
                 y={yFor(value) + 4}
                 textAnchor="end"
                 fontSize="11"
-                fill="#c0cad5"
+                fill="var(--color-dash-muted)"
               >
                 {(value * 100).toFixed(0)}%
               </text>
@@ -167,7 +167,7 @@ function FrontierChart({
           y={height - 4}
           textAnchor="middle"
           fontSize="11"
-          fill="#c0cad5"
+          fill="var(--color-dash-muted)"
         >
           Volatility (annualised)
         </text>
@@ -176,7 +176,7 @@ function FrontierChart({
           y={(height - padBottom + padTop) / 2}
           textAnchor="middle"
           fontSize="11"
-          fill="#c0cad5"
+          fill="var(--color-dash-muted)"
           transform={`rotate(-90 12 ${(height - padBottom + padTop) / 2})`}
         >
           Expected return (annualised)
@@ -187,7 +187,7 @@ function FrontierChart({
             y1={yFor(riskFreeRate)}
             x2={xFor(suggested.volatility)}
             y2={yFor(suggested.expectedReturn)}
-            stroke="#efd0a2"
+            stroke="var(--color-dash-warning)"
             strokeWidth="1.5"
             strokeDasharray="5 4"
           />
@@ -195,7 +195,7 @@ function FrontierChart({
         <path
           d={line}
           fill="none"
-          stroke="#ff9b8b"
+          stroke="var(--color-dash-accent)"
           strokeWidth="2"
           vectorEffect="non-scaling-stroke"
         />
@@ -205,8 +205,8 @@ function FrontierChart({
             cx={xFor(point.volatility)}
             cy={yFor(point.expectedReturn)}
             r={hover === i ? 5 : 3}
-            fill="#ff9b8b"
-            stroke="#f3f1eb"
+            fill="var(--color-dash-accent)"
+            stroke="var(--color-dash-text)"
             strokeWidth="1"
           />
         ))}
@@ -214,8 +214,8 @@ function FrontierChart({
           cx={xFor(0)}
           cy={yFor(riskFreeRate)}
           r="4"
-          fill="#efd0a2"
-          stroke="#f3f1eb"
+          fill="var(--color-dash-warning)"
+          stroke="var(--color-dash-text)"
           strokeWidth="1"
         />
         {current && (
@@ -223,8 +223,8 @@ function FrontierChart({
             cx={xFor(current.volatility)}
             cy={yFor(current.expectedReturn)}
             r="6"
-            fill="#c0cad5"
-            stroke="#f3f1eb"
+            fill="var(--color-dash-muted)"
+            stroke="var(--color-dash-text)"
             strokeWidth="1.5"
           />
         )}
@@ -233,8 +233,8 @@ function FrontierChart({
             cx={xFor(suggested.volatility)}
             cy={yFor(suggested.expectedReturn)}
             r="7"
-            fill="#ff9b8b"
-            stroke="#f3f1eb"
+            fill="var(--color-dash-accent)"
+            stroke="var(--color-dash-text)"
             strokeWidth="1.5"
           />
         )}

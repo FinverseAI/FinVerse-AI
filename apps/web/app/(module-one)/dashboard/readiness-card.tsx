@@ -161,6 +161,29 @@ export default function ReadinessCard() {
   const missingFactors = assessment
     ? assessment.factors.filter((factor) => !factor.available)
     : [];
+  const healthMetrics = [
+    "emergencyFundMonths",
+    "debtToIncomeRatio",
+    "surplusRatePercent",
+  ];
+  const healthFactors =
+    assessment?.factors.filter((factor) =>
+      healthMetrics.includes(factor.metric),
+    ) ?? [];
+  const healthMax = healthFactors.reduce(
+    (sum, factor) => sum + (factor.available ? factor.maxPoints : 0),
+    0,
+  );
+  const healthScore = healthMax
+    ? Math.round(
+        (100 *
+          healthFactors.reduce(
+            (sum, factor) => sum + (factor.available ? factor.points : 0),
+            0,
+          )) /
+          healthMax,
+      )
+    : null;
 
   return (
     <section
@@ -202,6 +225,23 @@ export default function ReadinessCard() {
           )}
           {assessment && (
             <div className="space-y-5">
+              <div className="surface-inset flex flex-wrap items-center justify-between gap-2 border p-3">
+                <div>
+                  <h3 className="text-xs font-medium tracking-widest uppercase">
+                    Financial health score
+                  </h3>
+                  <p className="mt-1 text-xs text-dash-muted">
+                    Emergency savings, debt, and monthly surplus ·{" "}
+                    {healthFactors.filter((factor) => factor.available).length}{" "}
+                    of 3 measured
+                  </p>
+                </div>
+                <strong className="text-xl">
+                  {healthScore === null
+                    ? "Unavailable"
+                    : `${healthScore} / 100`}
+                </strong>
+              </div>
               <div>
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
                   <span className="text-4xl font-semibold text-dash-text">
@@ -238,10 +278,10 @@ export default function ReadinessCard() {
                 )}
               </div>
 
-              <div>
-                <h3 className="text-xs font-medium tracking-widest text-dash-muted uppercase">
+              <details className="surface-inset border p-3">
+                <summary className="text-xs font-medium tracking-widest text-dash-muted uppercase">
                   Factor breakdown
-                </h3>
+                </summary>
                 <ul className="mt-3 space-y-4">
                   {assessment.factors.map((factor) => (
                     <li key={factor.name}>
@@ -274,7 +314,7 @@ export default function ReadinessCard() {
                     </li>
                   ))}
                 </ul>
-              </div>
+              </details>
 
               <div>
                 <h3 className="text-xs font-medium tracking-widest text-dash-muted uppercase">

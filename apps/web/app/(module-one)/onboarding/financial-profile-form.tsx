@@ -10,7 +10,13 @@ import {
   type ProfileInput,
   type ProfileResponse,
 } from "../../../lib/profile";
-import { budgetPlan } from "../../../lib/onboarding";
+import {
+  budgetPlan,
+  goalNameLimit,
+  paydayOptions,
+  validGoalDate,
+} from "../../../lib/onboarding";
+import { todayIst } from "../../../lib/market";
 import { ProgressBar } from "../dashboard/ui";
 
 const steps = ["Income", "Expenses", "Savings and goals", "Investing profile"];
@@ -21,20 +27,20 @@ const emptyGoal = () => ({
   priority: "medium" as const,
 });
 const initial: ProfileInput = {
-  employment_type: "salaried",
+  employment_type: null,
   monthly_income: "",
   other_monthly_income: null,
   fixed_expenses: "",
   variable_expenses: "",
   existing_debt_total: null,
-  current_savings: "",
+  current_savings: null,
   monthly_savings_target: "",
   goals: [emptyGoal()],
-  investment_experience: "none",
-  risk_tolerance: "low",
+  investment_experience: null,
+  risk_tolerance: null,
   already_investing: false,
   invested_amount: null,
-  emergency_fund_months: "0",
+  emergency_fund_months: null,
 };
 const moneyFields = [
   ["monthly_income", "Monthly income after tax", 0, false],
@@ -42,7 +48,7 @@ const moneyFields = [
   ["fixed_expenses", "Monthly fixed expenses", 1, false],
   ["variable_expenses", "Monthly variable expenses", 1, false],
   ["existing_debt_total", "Outstanding debt total (optional)", 1, true],
-  ["current_savings", "Current savings", 2, false],
+  ["current_savings", "Current savings (optional)", 2, true],
   ["monthly_savings_target", "Monthly savings target", 2, false],
   ["invested_amount", "Approximate invested amount (optional)", 3, true],
 ] as const;
@@ -75,7 +81,12 @@ function validAmount(value: string | null, optional = false) {
   );
 }
 
-function validateStep(values: ProfileInput, step: number) {
+function validateStep(
+  values: ProfileInput,
+  step: number,
+  existingGoals: ProfileResponse["goals"],
+  nextDay: string,
+) {
   const errors: Record<string, string> = {};
   for (const [key, , fieldStep, optional] of moneyFields) {
     if (fieldStep === step && !validAmount(values[key], optional))
@@ -97,20 +108,21 @@ function validateStep(values: ProfileInput, step: number) {
       errors.goals = "Add between 1 and 50 goals.";
     values.goals.forEach((goal, index) => {
       const prefix = `goals.${index}`;
-      if (!goal.name.trim() || goal.name.trim().length > 100)
-        errors[`${prefix}.name`] = "Enter a goal name of 1 to 100 characters.";
+      if (!goal.name.trim() || goal.name.trim().length > goalNameLimit)
+        errors[`${prefix}.name`] =
+          `Enter a goal name of 1 to ${goalNameLimit} characters.`;
       if (!validAmount(goal.target_amount) || cents(goal.target_amount) <= 0)
         errors[`${prefix}.target_amount`] =
           "Enter a target greater than zero, with at most two decimal places.";
-      const date = new Date(`${goal.target_date}T00:00:00.000Z`);
-      if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(goal.target_date) ||
-        !Number.isFinite(date.getTime()) ||
-        date.toISOString().slice(0, 10) !== goal.target_date ||
-        date.getUTCFullYear() < 1900
-      )
-        errors[`${prefix}.target_date`] =
-          "Enter a valid date from year 1900 onwards.";
+      const unchanged =
+        goal.id &&
+        existingGoals.some(
+          (previous) =>
+            previous.id === goal.id &&
+            previous.target_date === goal.target_date,
+        );
+      if (!unchanged && !validGoalDate(goal.target_date, nextDay))
+        errors[`${prefix}.target_date`] = "Choose a future target date.";
     });
   }
   return errors;
@@ -118,6 +130,7 @@ function validateStep(values: ProfileInput, step: number) {
 
 function stepForField(key: string) {
   if (key.startsWith("goals")) return 2;
+  if (key === "payday") return 0;
   return (
     moneyFields.find(([name]) => name === key)?.[2] ??
     choiceFields.find(([name]) => name === key)?.[2] ??
@@ -142,13 +155,18 @@ export default function FinancialProfileForm({
   const [values, setValues] = useState<ProfileInput>(() =>
     initialData ? profileInput(initialData) : initial,
   );
+  const [goalKeys, setGoalKeys] = useState(() =>
+    values.goals.map((goal, index) => goal.id ?? `initial-${index}`),
+  );
   const [step, setStep] = useState(initialStep);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [message, setMessage] = useState("");
+  const [failureStatus, setFailureStatus] = useState(0);
   const [saving, setSaving] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const submitting = useRef(false);
   const editing = Boolean(initialData?.onboarding_completed);
+  const [nextDay] = useState(() => todayIst(new Date(Date.now() + 86_400_000)));
 
   function move(next: number) {
     setStep(next);
@@ -189,9 +207,11 @@ export default function FinancialProfileForm({
       step === 3
         ? (Object.assign(
             {},
-            ...steps.map((_, index) => validateStep(values, index)),
+            ...steps.map((_, index) =>
+              validateStep(values, index, initialData?.goals ?? [], nextDay),
+            ),
           ) as Record<string, string>)
-        : validateStep(values, step);
+        : validateStep(values, step, initialData?.goals ?? [], nextDay);
     setErrors(nextErrors);
     setMessage("");
     const firstError = Object.keys(nextErrors)[0];
@@ -215,6 +235,7 @@ export default function FinancialProfileForm({
       }
     } catch (error) {
       if (error instanceof ProfileApiError) {
+        setFailureStatus(error.status);
         setErrors(error.fields);
         const field = Object.keys(error.fields)[0];
         if (field) move(stepForField(field));
@@ -227,7 +248,10 @@ export default function FinancialProfileForm({
             "Your profile was already saved. Open the dashboard to continue.",
           );
         } else setMessage(error.message);
-      } else setMessage("Unable to save your profile. Please try again.");
+      } else {
+        setFailureStatus(0);
+        setMessage("Unable to save your profile. Please try again.");
+      }
     } finally {
       submitting.current = false;
       setSaving(false);
@@ -274,6 +298,29 @@ export default function FinancialProfileForm({
       )}
       <fieldset disabled={saving} className="space-y-4 disabled:opacity-60">
         <legend className="sr-only">{steps[step]}</legend>
+        {step === 0 && (
+          <label className="block text-sm">
+            Payday
+            <select
+              className="dash-input mt-1 w-full"
+              value={values.payday ?? ""}
+              onChange={(event) => change("payday", Number(event.target.value))}
+            >
+              <option value="" disabled>
+                Choose a day of the month
+              </option>
+              {paydayOptions.map((day) => (
+                <option key={day} value={day}>
+                  Day {day}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-dash-muted">
+              Use the last day in months shorter than your selected day.
+            </span>
+            {errorFor("payday")}
+          </label>
+        )}
         {choiceFields
           .filter(([, , fieldStep]) => fieldStep === step)
           .map(([key, label, , options]) => (
@@ -281,16 +328,23 @@ export default function FinancialProfileForm({
               {label}
               <select
                 className="dash-input mt-1 w-full"
-                value={values[key]}
+                value={values[key] ?? ""}
                 onChange={(event) =>
-                  change(key, event.target.value as ProfileInput[typeof key])
+                  change(
+                    key,
+                    (event.target.value || null) as ProfileInput[typeof key],
+                  )
                 }
                 aria-invalid={Boolean(errors[key])}
                 aria-describedby={errors[key] ? `error-${key}` : undefined}
               >
+                <option value="">Not specified</option>
                 {options.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {option === "0"
+                      ? "Less than 1 month"
+                      : option.charAt(0).toUpperCase() +
+                        option.slice(1).replace(/(\d)-(\d)/, "$1–$2")}
                   </option>
                 ))}
               </select>
@@ -331,47 +385,54 @@ export default function FinancialProfileForm({
               fieldStep === step &&
               (key !== "invested_amount" || values.already_investing),
           )
-          .map(([key, label, , optional]) => (
-            <label key={key} className="block text-sm">
-              {label} (₹)
-              <input
-                className="dash-input mt-1 w-full"
-                name={key}
-                type="number"
-                inputMode="decimal"
-                min="0"
-                max="9999999999.99"
-                step="0.01"
-                readOnly={
-                  Boolean(values.budget_split) &&
-                  [
-                    "fixed_expenses",
-                    "variable_expenses",
-                    "monthly_savings_target",
-                  ].includes(key)
-                }
-                required={!optional}
-                value={values[key] ?? ""}
-                onChange={(event) =>
-                  change(
-                    key,
-                    event.target.value === "" && optional
-                      ? null
-                      : event.target.value,
-                  )
-                }
-                aria-invalid={Boolean(errors[key])}
-                aria-describedby={errors[key] ? `error-${key}` : undefined}
-              />
-              {errorFor(key)}
-            </label>
-          ))}
+          .map(([key, label, , optional]) => {
+            const derived =
+              Boolean(values.budget_split) &&
+              [
+                "fixed_expenses",
+                "variable_expenses",
+                "monthly_savings_target",
+              ].includes(key);
+            return (
+              <label key={key} className="block text-sm">
+                {label} (₹)
+                {derived && (
+                  <span className="ml-2 text-xs text-dash-muted">
+                    Auto-calculated
+                  </span>
+                )}
+                <input
+                  className="dash-input mt-1 w-full"
+                  name={key}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="9999999999.99"
+                  step="0.01"
+                  readOnly={derived}
+                  required={!optional}
+                  value={values[key] ?? ""}
+                  onChange={(event) =>
+                    change(
+                      key,
+                      event.target.value === "" && optional
+                        ? null
+                        : event.target.value,
+                    )
+                  }
+                  aria-invalid={Boolean(errors[key])}
+                  aria-describedby={errors[key] ? `error-${key}` : undefined}
+                />
+                {errorFor(key)}
+              </label>
+            );
+          })}
         {step === 2 && (
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Goals</h3>
             {values.goals.map((goal, index) => (
               <fieldset
-                key={index}
+                key={goalKeys[index]}
                 className="surface-inset space-y-3 border border-dash-border p-5"
               >
                 <legend className="px-1 text-xs">Goal {index + 1}</legend>
@@ -423,7 +484,14 @@ export default function FinancialProfileForm({
                             key === "target_amount"
                               ? "0.01"
                               : key === "target_date"
-                                ? "1900-01-01"
+                                ? goal.id &&
+                                  initialData?.goals.some(
+                                    (previous) =>
+                                      previous.id === goal.id &&
+                                      previous.target_date === goal.target_date,
+                                  )
+                                  ? undefined
+                                  : nextDay
                                 : undefined
                           }
                           max={
@@ -433,7 +501,7 @@ export default function FinancialProfileForm({
                                 ? "9999-12-31"
                                 : undefined
                           }
-                          maxLength={key === "name" ? 100 : undefined}
+                          maxLength={key === "name" ? goalNameLimit : undefined}
                           step={key === "target_amount" ? "0.01" : undefined}
                           value={goal[key]}
                           onChange={(event) => update(event.target.value)}
@@ -458,6 +526,9 @@ export default function FinancialProfileForm({
                         (_, itemIndex) => itemIndex !== index,
                       ),
                     );
+                    setGoalKeys((keys) =>
+                      keys.filter((_, itemIndex) => itemIndex !== index),
+                    );
                     setErrors({});
                   }}
                 >
@@ -470,7 +541,10 @@ export default function FinancialProfileForm({
               className="dash-small-button"
               type="button"
               disabled={values.goals.length >= 50}
-              onClick={() => change("goals", [...values.goals, emptyGoal()])}
+              onClick={() => {
+                change("goals", [...values.goals, emptyGoal()]);
+                setGoalKeys((keys) => [...keys, crypto.randomUUID()]);
+              }}
             >
               + Add goal
             </button>
@@ -480,19 +554,25 @@ export default function FinancialProfileForm({
       {message && (
         <div role="alert" className="space-y-2 text-sm text-dash-red">
           <p>{message}</p>
-          <div className="flex gap-4">
-            <a
-              href="/auth/login"
-              target="_blank"
-              rel="noreferrer"
-              className="text-dash-accent underline"
-            >
-              Log in
-            </a>
-            <a href="/dashboard" className="text-dash-accent underline">
-              Open dashboard
-            </a>
-          </div>
+          {(failureStatus === 401 || (failureStatus === 409 && !editing)) && (
+            <div className="flex gap-4">
+              {failureStatus === 401 && (
+                <a
+                  href="/auth/login"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-dash-accent underline"
+                >
+                  Log in
+                </a>
+              )}
+              {failureStatus === 409 && (
+                <a href="/dashboard" className="text-dash-accent underline">
+                  Open dashboard
+                </a>
+              )}
+            </div>
+          )}
         </div>
       )}
       <div className="flex items-center justify-between gap-3">

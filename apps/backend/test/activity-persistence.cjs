@@ -16,7 +16,12 @@ async function main() {
         await tx.user.create({
           data: { id: owner, email: `${owner}@example.invalid` },
         });
-        const service = new ActivityService(tx);
+        const service = new ActivityService({
+          userBill: tx.userBill,
+          userBillPayment: tx.userBillPayment,
+          userTransaction: tx.userTransaction,
+          $transaction: (operation) => operation(tx),
+        });
         const created = [];
         for (let index = 0; index < 7; index++) {
           created.push(
@@ -74,6 +79,44 @@ async function main() {
           [-0.3, 1000],
         );
         assert.deepEqual(await service.transactions(`${owner}-other`), []);
+        const salary = await service.addTransaction(owner, {
+          name: 'Test salary',
+          amount: 2500,
+          date: '2026-11-14',
+          category: 'Salary',
+        });
+        const customExpense = await service.addTransaction(owner, {
+          name: 'Test vet visit',
+          amount: -22.55,
+          date: '2026-11-15',
+          category: 'Pet care',
+          customCategory: true,
+        });
+        await service.updateTransaction(owner, customExpense.id, {
+          name: 'Test updated vet visit',
+          amount: -24.25,
+          date: '2026-11-15',
+          category: 'Pet care',
+          customCategory: true,
+        });
+        const reloaded = await new ActivityService(tx).transactions(owner);
+        assert.equal(
+          reloaded.find(({ id }) => id === salary.id).category,
+          'Salary',
+        );
+        assert.deepEqual(
+          reloaded
+            .filter(({ id }) => id === customExpense.id)
+            .map(({ category, amount }) => [category, amount]),
+          [['Pet care', -24.25]],
+        );
+        await service.removeTransaction(owner, salary.id);
+        assert.equal(
+          (await service.transactions(owner)).some(
+            ({ id }) => id === salary.id,
+          ),
+          false,
+        );
         throw rollback;
       },
       { timeout: 15000 },

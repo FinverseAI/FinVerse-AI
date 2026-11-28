@@ -155,6 +155,36 @@ describe('dashboard activity validation', () => {
       }),
     ).toThrow(BadRequestException);
   });
+  it('persists named income sources and explicitly submitted custom expense categories', () => {
+    const entry = { name: 'Entry', date: '2026-11-13' };
+    expect(
+      validateTransaction({ ...entry, amount: 12.34, category: 'freelancing' }),
+    ).toMatchObject({ amount: '12.34', category: 'Freelancing' });
+    expect(
+      validateTransaction({
+        ...entry,
+        amount: -12.34,
+        category: ' Pet  care ',
+        customCategory: true,
+      }),
+    ).toMatchObject({ amount: '-12.34', category: 'Pet care' });
+    expect(() =>
+      validateTransaction({
+        ...entry,
+        amount: 12.34,
+        category: 'Pet care',
+        customCategory: true,
+      }),
+    ).toThrow(BadRequestException);
+    expect(() =>
+      validateTransaction({
+        ...entry,
+        amount: -12.34,
+        category: ' salary ',
+        customCategory: true,
+      }),
+    ).toThrow(BadRequestException);
+  });
   it('rejects future dates on transactions, payments and contributions (B41)', () => {
     // A date a year out is far beyond the one-day local-date grace.
     expect(() =>

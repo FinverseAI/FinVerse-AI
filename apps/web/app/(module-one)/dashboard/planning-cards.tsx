@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { money, type Budget } from "./data";
 import { cents, type FinancialGoal } from "../../../lib/profile";
+import { todayIst } from "../../../lib/market";
 
 import { Icon, PanelHeading, ProgressBar } from "./ui";
 import { ActivityError } from "./recent-transactions";
 import { activityError, activityRequest } from "./use-activity";
 import { Modal } from "./modal";
-import { dateKey } from "./spending-data";
 
 type GoalContribution = {
   id: string;
@@ -19,20 +19,24 @@ type GoalContribution = {
 
 export default function PlanningCards({
   budgets,
+  monthlySpent,
   goals,
   onManage,
   onAdd,
   onGoalSavedAmount,
+  onAskAboutGoal,
   loading,
   error,
   onRetry,
   month,
 }: {
   budgets: Budget[];
+  monthlySpent?: number;
   goals: FinancialGoal[];
   onManage: () => void;
   onAdd: () => void;
   onGoalSavedAmount: (goalId: string, savedAmount: string) => void;
+  onAskAboutGoal?: (question: string) => void;
   loading: boolean;
   error: string;
   onRetry: () => void;
@@ -57,12 +61,18 @@ export default function PlanningCards({
           )}
         </article>
       ) : (
-        <BudgetCard budgets={budgets} onManage={onManage} month={month} />
+        <BudgetCard
+          budgets={budgets}
+          monthlySpent={monthlySpent}
+          onManage={onManage}
+          month={month}
+        />
       )}
       <SavingsCard
         goals={goals}
         onAdd={onAdd}
         onGoalSavedAmount={onGoalSavedAmount}
+        onAskAboutGoal={onAskAboutGoal}
       />
     </section>
   );
@@ -70,16 +80,26 @@ export default function PlanningCards({
 
 function BudgetCard({
   budgets,
+  monthlySpent,
   onManage,
   month,
 }: {
   budgets: Budget[];
+  monthlySpent?: number;
   onManage: () => void;
   month?: string;
 }) {
   const monthLabel = new Date(
-    `${month ?? dateKey(new Date()).slice(0, 7)}-01T12:00:00`,
+    `${month ?? todayIst().slice(0, 7)}-01T12:00:00`,
   ).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const totalLimit = budgets.reduce(
+    (sum, budget) => sum + Math.round(budget.limit * 100),
+    0,
+  );
+  const totalSpent =
+    monthlySpent === undefined
+      ? budgets.reduce((sum, budget) => sum + Math.round(budget.spent * 100), 0)
+      : Math.round(monthlySpent * 100);
   return (
     <article className="dash-panel p-5">
       <PanelHeading icon="target" title="Budget status">
@@ -91,6 +111,27 @@ function BudgetCard({
         Spending in {monthLabel} against each category budget — change the month
         above to see another month.
       </p>
+      {totalLimit > 0 && (
+        <div className="surface-inset mt-4 space-y-2 border p-3">
+          <div className="flex flex-wrap justify-between gap-2 text-sm">
+            <span>Monthly category budget</span>
+            <span>
+              {money(totalSpent / 100, 2)} of {money(totalLimit / 100, 2)}
+            </span>
+          </div>
+          <ProgressBar
+            value={(totalSpent / totalLimit) * 100}
+            label="Monthly category budget used"
+            tone={totalSpent > totalLimit ? "red" : "blue"}
+          />
+          <p className="text-xs text-dash-muted">
+            {money(Math.abs(totalLimit - totalSpent) / 100, 2)}{" "}
+            {totalSpent > totalLimit
+              ? "over the monthly budget"
+              : "remaining in the monthly budget"}
+          </p>
+        </div>
+      )}
       <div className="mt-3 space-y-5">
         {!budgets.length && (
           <p className="text-xs text-dash-muted">
@@ -222,7 +263,7 @@ function ContributionForm({
             min="1900-01-01"
             max="9999-12-31"
             required
-            defaultValue={dateKey(new Date())}
+            defaultValue={todayIst()}
           />
         </label>
       </div>
@@ -378,10 +419,12 @@ function SavingsCard({
   goals,
   onAdd,
   onGoalSavedAmount,
+  onAskAboutGoal,
 }: {
   goals: FinancialGoal[];
   onAdd: () => void;
   onGoalSavedAmount: (goalId: string, savedAmount: string) => void;
+  onAskAboutGoal?: (question: string) => void;
 }) {
   const [dialog, setDialog] = useState<"add" | "history" | null>(null);
   const [selected, setSelected] = useState<FinancialGoal | null>(null);
@@ -393,10 +436,7 @@ function SavingsCard({
     <>
       <article className="dash-panel p-5">
         <PanelHeading icon="pig" title="Savings progress">
-          <button
-            className="dash-small-button"
-            onClick={onAdd}
-          >
+          <button className="dash-small-button" onClick={onAdd}>
             Add goal
           </button>
         </PanelHeading>
@@ -405,6 +445,7 @@ function SavingsCard({
             <p className="text-xs text-dash-muted">No savings goals yet.</p>
           )}
           {goals.map((goal, index) => {
+            const today = todayIst();
             const deadline = new Date(
               `${goal.target_date}T12:00:00`,
             ).toLocaleDateString("en-IN", {
@@ -415,6 +456,11 @@ function SavingsCard({
             const target = Number(goal.target_amount);
             const saved = cents(goal.saved_amount ?? "0") / 100;
             const percent = target > 0 ? (saved / target) * 100 : 0;
+            const remaining =
+              cents(goal.target_amount) - cents(goal.saved_amount ?? "0");
+            const days =
+              (Date.parse(goal.target_date) - Date.parse(today)) / 86400000;
+            const monthsLeft = Math.max(1, Math.ceil(days / (365.25 / 12)));
             return (
               <div key={goal.id ?? `${goal.name}-${index}`}>
                 <div className="mb-1.5 flex items-center justify-between text-xs">
@@ -426,7 +472,7 @@ function SavingsCard({
                 <ProgressBar
                   value={percent}
                   label={`${goal.name} savings progress`}
-                  tone={percent >= 100 ? "accent" : "muted"}
+                  tone="purple"
                 />
                 <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1 font-mono text-xs text-dash-muted">
                   <span>
@@ -442,8 +488,15 @@ function SavingsCard({
                       : `${Math.floor(percent)}% saved`}
                   </span>
                 </div>
+                {remaining > 0 && (
+                  <p className="mt-2 text-xs text-dash-muted">
+                    {days <= 0
+                      ? `${money(remaining / 100, 2)} still needed for the target.`
+                      : `Illustrative saving pace: ${money(Math.ceil(remaining / monthsLeft) / 100, 2)} a month for ${monthsLeft} month${monthsLeft === 1 ? "" : "s"}.`}
+                  </p>
+                )}
                 {goal.id && (
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       type="button"
                       className="dash-small-button gap-1.5"
@@ -465,6 +518,19 @@ function SavingsCard({
                         }}
                       >
                         History
+                      </button>
+                    )}
+                    {onAskAboutGoal && remaining > 0 && (
+                      <button
+                        type="button"
+                        className="dash-small-button"
+                        onClick={() =>
+                          onAskAboutGoal(
+                            `How can I reach my savings goal: ${goal.name}?`,
+                          )
+                        }
+                      >
+                        Ask AI about this goal
                       </button>
                     )}
                   </div>

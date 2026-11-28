@@ -52,9 +52,7 @@ export default function ExpenseBreakdownCard({
       </p>
       <div className="mt-4 space-y-4">
         {expenseTotal === 0 ? (
-          <p className="text-xs text-dash-muted">
-            No monthly expenses entered
-          </p>
+          <p className="text-xs text-dash-muted">No monthly expenses entered</p>
         ) : (
           ranked.map((category, index) => {
             const percent = expenseTotal

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { accountReportToPdf, transactionsToPdf } from "../lib/export-pdf.ts";
+import { yearlyCashFlow } from "../app/(module-one)/dashboard/spending-data.ts";
 
 const sample = [
   { name: "Salary", amount: 50000, date: "2026-11-01", category: "Income" },
@@ -88,6 +89,24 @@ test("account report pdf stays valid with no recorded activity and no unpaid bil
   assert.ok(text.trimEnd().endsWith("%%EOF"));
   assert.ok(text.includes("0 recorded transactions"));
   assert.ok(text.includes("Rs. 0.00"));
+});
+
+test("yearly account report pdf exports recorded totals and only months with activity", async () => {
+  const yearly = yearlyCashFlow(sample, "2026");
+  const bytes = await accountReportToPdf({
+    generatedOn: "2026-11-24",
+    monthLabel: "November 2026",
+    plan: { savings: 0, income: 0, expenses: 0, target: 0, surplus: 0 },
+    actual: yearly,
+    committedBills: { total: 0, count: 0 },
+    yearly,
+  });
+  const text = new TextDecoder("latin1").decode(bytes);
+  assert.ok(text.includes("Yearly report - 2026"));
+  assert.ok(text.includes("Rs. 48,765.50"));
+  assert.ok(text.includes("2026-11"));
+  assert.ok(!text.includes("2026-01"));
+  assert.ok(!text.includes("Monthly plan"));
 });
 
 test("the export date is the local date, not the UTC date", async () => {

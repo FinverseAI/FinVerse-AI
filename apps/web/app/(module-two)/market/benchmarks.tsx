@@ -42,14 +42,14 @@ function CloseChart({ history }: { history: HistoryResponse }) {
             x2="400"
             y1={y}
             y2={y}
-            stroke="#d2e0f133"
+            stroke="var(--color-dash-border)"
             strokeDasharray="3 5"
           />
         ))}
         <polyline
           points={points}
           fill="none"
-          stroke="#ff9b8b"
+          stroke="var(--color-dash-accent)"
           strokeWidth="2.5"
           vectorEffect="non-scaling-stroke"
           strokeLinejoin="round"
@@ -68,17 +68,27 @@ export function Benchmarks({
   history,
   historyLoading,
   loading,
+  fx,
 }: {
   quotes: MarketQuote[];
   history: HistoryResponse | null;
   historyLoading: boolean;
   loading: boolean;
+  fx?: MarketQuote | null;
 }) {
   return (
     <section className="benchmark-grid" aria-label="Indices and commodities">
       {benchmarks.map((b, index) => {
         const quote = quotes.find((q) => q.symbol === b.symbol);
         const price = quote?.price;
+        const commodity = !b.symbol.startsWith("^");
+        const inRupees =
+          price != null &&
+          quote?.currency === "USD" &&
+          fx?.currency === "INR" &&
+          fx.price != null
+            ? price * fx.price
+            : null;
         return (
           <article
             className={index === 0 ? "benchmark benchmark-lead" : "benchmark"}
@@ -91,15 +101,28 @@ export function Benchmarks({
               </Link>
             </h3>
             <p className="benchmark-price">
-              {price == null
-                ? ""
-                : b.symbol.startsWith("^")
-                  ? price.toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })
-                  : formatPrice(price, quote?.currency)}
+              {price == null ? (
+                <small role={loading ? "status" : undefined}>
+                  {loading ? "Loading quote…" : "Quote unavailable"}
+                </small>
+              ) : b.symbol.startsWith("^") ? (
+                price.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              ) : (
+                formatPrice(price, quote?.currency)
+              )}
             </p>
+            {commodity && price != null && (
+              <p className="desk-muted">
+                {inRupees === null
+                  ? "INR equivalent unavailable"
+                  : `≈ ${formatPrice(inRupees, "INR")} / troy oz`}
+                {inRupees !== null &&
+                  (fx?.stale ? " · Last known exchange rate" : "")}
+              </p>
+            )}
             <div className="benchmark-change">
               <Change value={quote?.changePercent ?? null} />
               {price !== null && price !== undefined && (
@@ -109,6 +132,10 @@ export function Benchmarks({
             {index === 0 &&
               (history && history.bars.length >= 2 ? (
                 <CloseChart history={history} />
+              ) : historyLoading ? (
+                <p role="status" className="desk-muted">
+                  Loading index history…
+                </p>
               ) : null)}
           </article>
         );
